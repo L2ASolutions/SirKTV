@@ -8,11 +8,14 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import com.sirktv.app.domain.model.Channel
 import com.sirktv.app.domain.model.EpgNowNext
+import com.sirktv.app.domain.model.EpgProgram
 import com.sirktv.app.domain.model.PlayerSettings
 import com.sirktv.app.domain.model.StreamQuality
 import com.sirktv.app.domain.session.CurrentSession
+import com.sirktv.app.domain.usecase.GetEpgListingsUseCase
 import com.sirktv.app.domain.usecase.GetEpgNowNextUseCase
 import com.sirktv.app.domain.usecase.GetPlayerSettingsUseCase
+import com.sirktv.app.domain.usecase.GetSubtitleAppearanceUseCase
 import com.sirktv.app.domain.usecase.ObserveChannelsUseCase
 import com.sirktv.app.domain.usecase.SetLastWatchedChannelUseCase
 import com.sirktv.app.domain.usecase.ToggleFavoriteUseCase
@@ -51,9 +54,11 @@ class LiveTvPlayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val observeChannelsUseCase: ObserveChannelsUseCase,
     private val getEpgNowNextUseCase: GetEpgNowNextUseCase,
+    private val getEpgListingsUseCase: GetEpgListingsUseCase,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val setLastWatchedChannelUseCase: SetLastWatchedChannelUseCase,
     private val getPlayerSettingsUseCase: GetPlayerSettingsUseCase,
+    private val getSubtitleAppearanceUseCase: GetSubtitleAppearanceUseCase,
     private val currentSession: CurrentSession,
     private val playerEngine: SirKTVPlayerEngine,
     private val networkMonitor: NetworkMonitor
@@ -88,6 +93,21 @@ class LiveTvPlayerViewModel @Inject constructor(
         }
     }
 
+    // Full-listing counterpart to [_channelEpgCache] above, for the program guide
+    // grid's timeline — same lazy-on-visible fetch pattern, separate cache because
+    // the grid needs every upcoming program, not just now/next.
+    private val _channelEpgListingsCache = MutableStateFlow<Map<String, List<EpgProgram>>>(emptyMap())
+    val channelEpgListingsCache: StateFlow<Map<String, List<EpgProgram>>> = _channelEpgListingsCache.asStateFlow()
+    private val requestedEpgListingChannelIds = mutableSetOf<String>()
+
+    fun requestEpgListingsFor(channelId: String) {
+        if (!requestedEpgListingChannelIds.add(channelId)) return
+        viewModelScope.launch {
+            val listings = getEpgListingsUseCase(channelId)
+            _channelEpgListingsCache.update { it + (channelId to listings) }
+        }
+    }
+
     init {
         viewModelScope.launch {
             observeChannelsUseCase().collect { channels ->
@@ -112,6 +132,9 @@ class LiveTvPlayerViewModel @Inject constructor(
                 playerEngine.updateSettings(settings)
                 _uiState.update { it.copy(showBufferHealth = settings.showBufferHealth, preferredQuality = settings.preferredQuality) }
             }
+        }
+        viewModelScope.launch {
+            getSubtitleAppearanceUseCase().collect { playerEngine.updateSubtitleAppearance(it) }
         }
     }
 

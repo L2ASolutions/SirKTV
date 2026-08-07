@@ -17,6 +17,7 @@ import com.sirktv.app.domain.model.WatchProgress
 import com.sirktv.app.domain.session.CurrentSession
 import com.sirktv.app.domain.usecase.GetPlayerSettingsUseCase
 import com.sirktv.app.domain.usecase.GetSeriesInfoUseCase
+import com.sirktv.app.domain.usecase.GetSubtitleAppearanceUseCase
 import com.sirktv.app.domain.usecase.GetWatchProgressUseCase
 import com.sirktv.app.domain.usecase.ObserveMoviesUseCase
 import com.sirktv.app.domain.usecase.ObserveSeriesUseCase
@@ -71,6 +72,7 @@ class VodPlayerViewModel @Inject constructor(
     private val toggleMovieFavoriteUseCase: ToggleMovieFavoriteUseCase,
     private val toggleSeriesFavoriteUseCase: ToggleSeriesFavoriteUseCase,
     private val getPlayerSettingsUseCase: GetPlayerSettingsUseCase,
+    private val getSubtitleAppearanceUseCase: GetSubtitleAppearanceUseCase,
     private val currentSession: CurrentSession,
     private val playerEngine: SirKTVPlayerEngine
 ) : ViewModel() {
@@ -101,6 +103,9 @@ class VodPlayerViewModel @Inject constructor(
         }
         viewModelScope.launch {
             playerEngine.state.collect { state -> _uiState.update { it.copy(playbackState = state) } }
+        }
+        viewModelScope.launch {
+            getSubtitleAppearanceUseCase().collect { playerEngine.updateSubtitleAppearance(it) }
         }
         if (isEpisode) loadEpisode() else loadMovie()
     }

@@ -20,6 +20,7 @@ import com.sirktv.app.presentation.settings.PlayerPerformanceScreen
 import com.sirktv.app.presentation.settings.SettingsScreen
 import com.sirktv.app.presentation.settings.SettingsTile
 import com.sirktv.app.presentation.settings.StartupPreferencesScreen
+import com.sirktv.app.presentation.settings.SubtitleAppearanceScreen
 import com.sirktv.app.presentation.sports.SportsScreen
 import com.sirktv.app.presentation.vodplayer.VodPlayerScreen
 
@@ -152,6 +153,7 @@ fun SirKTVNavHost() {
             when (tile) {
                 SettingsTile.STARTUP_PREFERENCES -> StartupPreferencesScreen()
                 SettingsTile.PLAYER_PERFORMANCE, SettingsTile.PLAYBACK_QUALITY -> PlayerPerformanceScreen()
+                SettingsTile.SUBTITLES_AUDIO -> SubtitleAppearanceScreen()
                 SettingsTile.MANAGE_FAVORITES -> FavoritesScreen(
                     onLiveSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
                     onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },

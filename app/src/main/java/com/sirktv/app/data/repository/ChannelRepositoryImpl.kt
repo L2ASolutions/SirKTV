@@ -6,6 +6,7 @@ import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Channel
 import com.sirktv.app.domain.model.ContentType
 import com.sirktv.app.domain.model.EpgNowNext
+import com.sirktv.app.domain.model.EpgProgram
 import com.sirktv.app.domain.repository.ChannelRepository
 import com.sirktv.app.domain.session.CurrentSession
 import com.sirktv.app.network.XtreamContentApiService
@@ -84,5 +85,15 @@ class ChannelRepositoryImpl @Inject constructor(
             val response = apiService.getShortEpg(playerApiUrl, credentials.username, credentials.password, channelId)
             EpgMapper.toEpgNowNext(response)
         }.getOrDefault(EpgNowNext(now = null, next = null))
+    }
+
+    override suspend fun getEpgListings(channelId: String, limit: Int): List<EpgProgram> {
+        val credentials = currentSession.credentials.value ?: return emptyList()
+        val playerApiUrl = runCatching { XtreamUrlBuilder.buildPlayerApiUrl(credentials.serverUrl) }
+            .getOrElse { return emptyList() }
+        return runCatching {
+            val response = apiService.getShortEpg(playerApiUrl, credentials.username, credentials.password, channelId, limit)
+            EpgMapper.toEpgPrograms(response)
+        }.getOrDefault(emptyList())
     }
 }

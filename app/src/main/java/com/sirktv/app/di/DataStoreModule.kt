@@ -39,4 +39,10 @@ object DataStoreModule {
     @AppearanceSettingsDataStore
     fun provideAppearanceSettingsDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
         PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("appearance_settings") }
+
+    @Provides
+    @Singleton
+    @SubtitleAppearanceDataStore
+    fun provideSubtitleAppearanceDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("subtitle_appearance") }
 }

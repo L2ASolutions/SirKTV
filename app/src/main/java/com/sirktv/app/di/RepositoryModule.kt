@@ -10,6 +10,7 @@ import com.sirktv.app.data.repository.PlayerSettingsRepositoryImpl
 import com.sirktv.app.data.repository.SearchHistoryRepositoryImpl
 import com.sirktv.app.data.repository.SeriesRepositoryImpl
 import com.sirktv.app.data.repository.StartupPreferenceRepositoryImpl
+import com.sirktv.app.data.repository.SubtitleAppearanceRepositoryImpl
 import com.sirktv.app.data.repository.WatchProgressRepositoryImpl
 import com.sirktv.app.domain.repository.AppearanceSettingsRepository
 import com.sirktv.app.domain.repository.AuthRepository
@@ -21,6 +22,7 @@ import com.sirktv.app.domain.repository.PlayerSettingsRepository
 import com.sirktv.app.domain.repository.SearchHistoryRepository
 import com.sirktv.app.domain.repository.SeriesRepository
 import com.sirktv.app.domain.repository.StartupPreferenceRepository
+import com.sirktv.app.domain.repository.SubtitleAppearanceRepository
 import com.sirktv.app.domain.repository.WatchProgressRepository
 import dagger.Binds
 import dagger.Module
@@ -75,4 +77,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAppearanceSettingsRepository(impl: AppearanceSettingsRepositoryImpl): AppearanceSettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSubtitleAppearanceRepository(impl: SubtitleAppearanceRepositoryImpl): SubtitleAppearanceRepository
 }

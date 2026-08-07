@@ -9,12 +9,16 @@ import com.sirktv.app.network.dto.EpgResponseDto
 internal object EpgMapper {
 
     fun toEpgNowNext(dto: EpgResponseDto): EpgNowNext {
-        val listings = dto.epgListings.orEmpty().mapNotNull(::toEpgProgram).sortedBy { it.startEpochSeconds }
+        val listings = toEpgPrograms(dto)
         val nowSeconds = System.currentTimeMillis() / 1000
         val now = listings.firstOrNull { nowSeconds in it.startEpochSeconds until it.endEpochSeconds }
         val next = listings.firstOrNull { it.startEpochSeconds > (now?.endEpochSeconds ?: nowSeconds) }
         return EpgNowNext(now = now ?: listings.firstOrNull(), next = next)
     }
+
+    /** Full upcoming listing (not reduced to now/next) — backs the program guide grid's timeline. */
+    fun toEpgPrograms(dto: EpgResponseDto): List<EpgProgram> =
+        dto.epgListings.orEmpty().mapNotNull(::toEpgProgram).sortedBy { it.startEpochSeconds }
 
     private fun toEpgProgram(dto: EpgListingDto): EpgProgram? {
         val start = dto.startTimestamp?.toLongOrNull() ?: return null

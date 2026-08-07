@@ -1,6 +1,7 @@
 package com.sirktv.app.player
 
 import android.content.Context
+import android.graphics.Color
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -11,10 +12,15 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import com.sirktv.app.di.ApplicationScope
 import com.sirktv.app.domain.model.PlayerSettings
 import com.sirktv.app.domain.model.StreamQuality
+import com.sirktv.app.domain.model.SubtitleAppearance
+import com.sirktv.app.domain.model.SubtitleBackground
+import com.sirktv.app.domain.model.SubtitleEdgeStyle
+import com.sirktv.app.domain.model.SubtitleTextColor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +54,8 @@ class SirKTVPlayerEngine @Inject constructor(
 ) {
     private var exoPlayer: ExoPlayer? = null
     private var settings: PlayerSettings = PlayerSettings()
+    private var subtitleAppearance: SubtitleAppearance = SubtitleAppearance()
+    private var attachedPlayerView: PlayerView? = null
 
     private var currentChannelId: String? = null
     private var primaryUrl: String? = null
@@ -101,6 +109,39 @@ class SirKTVPlayerEngine @Inject constructor(
 
     fun attachTo(playerView: PlayerView) {
         playerView.player = ensurePlayer()
+        attachedPlayerView = playerView
+        applySubtitleAppearance(playerView)
+    }
+
+    /**
+     * Applied immediately to whichever [PlayerView] is currently attached (Live TV
+     * and VOD/episode playback each attach their own instance as the user
+     * navigates), and re-applied on every future [attachTo] until changed again.
+     */
+    fun updateSubtitleAppearance(appearance: SubtitleAppearance) {
+        subtitleAppearance = appearance
+        attachedPlayerView?.let(::applySubtitleAppearance)
+    }
+
+    private fun applySubtitleAppearance(playerView: PlayerView) {
+        val appearance = subtitleAppearance
+        playerView.subtitleView?.apply {
+            // Without this, embedded WebVTT/TTML styling in the subtitle track can
+            // override the user's chosen appearance.
+            setApplyEmbeddedStyles(false)
+            setApplyEmbeddedFontSizes(false)
+            setFractionalTextSize(appearance.textSize.fraction)
+            setStyle(
+                CaptionStyleCompat(
+                    appearance.textColor.toArgb(),
+                    appearance.background.toArgb(),
+                    Color.TRANSPARENT,
+                    appearance.edgeStyle.toCaptionEdgeType(),
+                    Color.BLACK,
+                    null
+                )
+            )
+        }
     }
 
     /**
@@ -334,4 +375,23 @@ class SirKTVPlayerEngine @Inject constructor(
             }
         }
     }
+}
+
+private fun SubtitleTextColor.toArgb(): Int = when (this) {
+    SubtitleTextColor.WHITE -> Color.WHITE
+    SubtitleTextColor.YELLOW -> Color.YELLOW
+    SubtitleTextColor.GREEN -> Color.GREEN
+    SubtitleTextColor.CYAN -> Color.CYAN
+}
+
+private fun SubtitleBackground.toArgb(): Int = when (this) {
+    SubtitleBackground.NONE -> Color.TRANSPARENT
+    SubtitleBackground.SEMI_TRANSPARENT -> Color.argb(153, 0, 0, 0)
+    SubtitleBackground.SOLID -> Color.BLACK
+}
+
+private fun SubtitleEdgeStyle.toCaptionEdgeType(): Int = when (this) {
+    SubtitleEdgeStyle.NONE -> CaptionStyleCompat.EDGE_TYPE_NONE
+    SubtitleEdgeStyle.OUTLINE -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+    SubtitleEdgeStyle.DROP_SHADOW -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
 }

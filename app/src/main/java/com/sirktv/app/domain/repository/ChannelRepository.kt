@@ -3,6 +3,7 @@ package com.sirktv.app.domain.repository
 import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Channel
 import com.sirktv.app.domain.model.EpgNowNext
+import com.sirktv.app.domain.model.EpgProgram
 import kotlinx.coroutines.flow.Flow
 
 interface ChannelRepository {
@@ -19,4 +20,7 @@ interface ChannelRepository {
 
     /** Now/next for one channel, fetched on demand and short-lived — never persisted. */
     suspend fun getEpgNowNext(channelId: String): EpgNowNext
+
+    /** Full upcoming listing for one channel, used by the program guide grid — never persisted. */
+    suspend fun getEpgListings(channelId: String, limit: Int = 20): List<EpgProgram>
 }
