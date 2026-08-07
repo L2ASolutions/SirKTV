@@ -7,11 +7,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -46,8 +49,12 @@ import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVSurface
 import androidx.tv.material3.Button
+import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Switch
 import androidx.tv.material3.Text as TvText
+
+/** Minimum distance the login card is kept from the screen edges on TV. */
+private val LoginSafeZone = 48.dp
 
 @Composable
 fun LoginScreen(
@@ -115,6 +122,7 @@ private fun LoginContent(
     onSignInClicked: () -> Unit
 ) {
     val firstFieldFocusRequester = remember { FocusRequester() }
+    val scrollState = rememberScrollState()
 
     LaunchedEffect(Unit) {
         firstFieldFocusRequester.requestFocus()
@@ -123,7 +131,7 @@ private fun LoginContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical),
+            .padding(horizontal = LoginSafeZone, vertical = LoginSafeZone),
         contentAlignment = Alignment.Center
     ) {
         Surface(
@@ -132,23 +140,36 @@ private fun LoginContent(
             color = SirKTVSurface,
             tonalElevation = 4.dp
         ) {
+            // verticalScroll is a safety net only — on-target spacing below is
+            // sized to already fit a 10-foot TV viewport with no scrolling, but
+            // this keeps every field (especially Sign In) D-pad reachable even
+            // on a smaller/denser screen than tested against.
             Column(
-                modifier = Modifier.padding(Dimens.SpaceXxl),
+                modifier = Modifier
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = Dimens.SpaceLg, vertical = Dimens.SpaceMd),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
             ) {
-                Text(
-                    text = "SirKTV",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SirKTVPrimary
-                )
-                Text(
-                    text = "Sign in with your Xtream Codes account",
-                    fontSize = 14.sp,
-                    color = SirKTVOnSurfaceMuted,
-                    textAlign = TextAlign.Center
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
+                ) {
+                    SirKTVLogoMark()
+                    Column {
+                        Text(
+                            text = "SirKTV",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SirKTVPrimary
+                        )
+                        Text(
+                            text = "Sign in with your Xtream Codes account",
+                            fontSize = 11.sp,
+                            color = SirKTVOnSurfaceMuted
+                        )
+                    }
+                }
 
                 if (uiState.isReconnecting) {
                     Row(
@@ -233,18 +254,23 @@ private fun LoginContent(
                 Button(
                     onClick = onSignInClicked,
                     enabled = !uiState.isLoading,
+                    colors = ButtonDefaults.colors(
+                        containerColor = SirKTVPrimary,
+                        contentColor = Color.White
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(56.dp)
                         .tvFocusStyle()
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(22.dp),
                             strokeWidth = 2.dp,
                             color = Color.White
                         )
                     } else {
-                        TvText("Sign In")
+                        TvText("Sign In", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
