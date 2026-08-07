@@ -83,7 +83,7 @@ class LoginViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false, isReconnecting = false) }
                     when (val destination = resolveStartupDestinationUseCase()) {
                         is StartupDestination.LiveTv -> _events.emit(LoginEvent.NavigateToLiveTv(destination.channelId))
-                        StartupDestination.Hub -> _events.emit(LoginEvent.NavigateToHub)
+                        StartupDestination.Home -> _events.emit(LoginEvent.NavigateToHome)
                     }
                 }
                 is LoginResult.InvalidCredentials -> setError("Incorrect username or password.")

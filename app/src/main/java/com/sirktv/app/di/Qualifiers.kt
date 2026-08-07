@@ -10,6 +10,14 @@ annotation class PlayerSettingsDataStore
 @Retention(AnnotationRetention.BINARY)
 annotation class StartupPreferenceDataStore
 
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ParentalSettingsDataStore
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class AppearanceSettingsDataStore
+
 /** Process-lifetime coroutine scope for best-effort background work (cache refreshes, etc). */
 @Qualifier
 @Retention(AnnotationRetention.BINARY)

@@ -52,7 +52,7 @@ import androidx.tv.material3.Text as TvText
 @Composable
 fun LoginScreen(
     onNavigateToLiveTv: (channelId: String) -> Unit,
-    onNavigateToHub: () -> Unit,
+    onNavigateToHome: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -61,7 +61,7 @@ fun LoginScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is LoginEvent.NavigateToLiveTv -> onNavigateToLiveTv(event.channelId)
-                LoginEvent.NavigateToHub -> onNavigateToHub()
+                LoginEvent.NavigateToHome -> onNavigateToHome()
             }
         }
     }

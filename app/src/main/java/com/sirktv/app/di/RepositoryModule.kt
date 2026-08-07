@@ -1,13 +1,27 @@
 package com.sirktv.app.di
 
+import com.sirktv.app.data.repository.AppearanceSettingsRepositoryImpl
 import com.sirktv.app.data.repository.AuthRepositoryImpl
 import com.sirktv.app.data.repository.ChannelRepositoryImpl
+import com.sirktv.app.data.repository.FavoritesRepositoryImpl
+import com.sirktv.app.data.repository.MovieRepositoryImpl
+import com.sirktv.app.data.repository.ParentalSettingsRepositoryImpl
 import com.sirktv.app.data.repository.PlayerSettingsRepositoryImpl
+import com.sirktv.app.data.repository.SearchHistoryRepositoryImpl
+import com.sirktv.app.data.repository.SeriesRepositoryImpl
 import com.sirktv.app.data.repository.StartupPreferenceRepositoryImpl
+import com.sirktv.app.data.repository.WatchProgressRepositoryImpl
+import com.sirktv.app.domain.repository.AppearanceSettingsRepository
 import com.sirktv.app.domain.repository.AuthRepository
 import com.sirktv.app.domain.repository.ChannelRepository
+import com.sirktv.app.domain.repository.FavoritesRepository
+import com.sirktv.app.domain.repository.MovieRepository
+import com.sirktv.app.domain.repository.ParentalSettingsRepository
 import com.sirktv.app.domain.repository.PlayerSettingsRepository
+import com.sirktv.app.domain.repository.SearchHistoryRepository
+import com.sirktv.app.domain.repository.SeriesRepository
 import com.sirktv.app.domain.repository.StartupPreferenceRepository
+import com.sirktv.app.domain.repository.WatchProgressRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -33,4 +47,32 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindStartupPreferenceRepository(impl: StartupPreferenceRepositoryImpl): StartupPreferenceRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMovieRepository(impl: MovieRepositoryImpl): MovieRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSeriesRepository(impl: SeriesRepositoryImpl): SeriesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWatchProgressRepository(impl: WatchProgressRepositoryImpl): WatchProgressRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFavoritesRepository(impl: FavoritesRepositoryImpl): FavoritesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSearchHistoryRepository(impl: SearchHistoryRepositoryImpl): SearchHistoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindParentalSettingsRepository(impl: ParentalSettingsRepositoryImpl): ParentalSettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAppearanceSettingsRepository(impl: AppearanceSettingsRepositoryImpl): AppearanceSettingsRepository
 }

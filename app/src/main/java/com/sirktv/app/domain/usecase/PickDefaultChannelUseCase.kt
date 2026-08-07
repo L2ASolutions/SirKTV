@@ -5,7 +5,7 @@ import javax.inject.Inject
 
 /**
  * Picks a channel to tune when the user explicitly asks for "Live TV" without
- * naming one (e.g. the Hub tile) — first favorite, else the first channel.
+ * naming one (e.g. Home's Live TV quick-launch) — first favorite, else the first channel.
  * Unlike [ResolveStartupDestinationUseCase] this ignores the auto-start
  * preference entirely, since it only runs on a direct user action.
  */

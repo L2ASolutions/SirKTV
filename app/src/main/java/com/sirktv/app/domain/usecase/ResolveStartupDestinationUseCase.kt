@@ -7,10 +7,10 @@ import javax.inject.Inject
 
 /**
  * Decides where the app lands after authentication: the last-watched or
- * configured startup channel (auto-start on), or the temporary Hub (auto-start
- * off, or the account has no live channels at all). Cached channels are used
- * when available so a returning session resolves instantly; a completely
- * empty cache (first-ever login) forces one blocking sync.
+ * configured startup channel (auto-start on), or Home (auto-start off, or
+ * the account has no live channels at all). Cached channels are used when
+ * available so a returning session resolves instantly; a completely empty
+ * cache (first-ever login) forces one blocking sync.
  */
 class ResolveStartupDestinationUseCase @Inject constructor(
     private val channelRepository: ChannelRepository,
@@ -18,14 +18,14 @@ class ResolveStartupDestinationUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(): StartupDestination {
         val prefs = startupPreferenceRepository.get()
-        if (!prefs.autoStartLiveTv) return StartupDestination.Hub
+        if (!prefs.autoStartLiveTv) return StartupDestination.Home
 
         var channels = channelRepository.getCachedChannels()
         if (channels.isEmpty()) {
             channelRepository.sync()
             channels = channelRepository.getCachedChannels()
         }
-        if (channels.isEmpty()) return StartupDestination.Hub
+        if (channels.isEmpty()) return StartupDestination.Home
 
         val channelIds = channels.map { it.id }.toSet()
         val resumeId = prefs.lastWatchedChannelId?.takeIf { prefs.resumeLastChannel && it in channelIds }

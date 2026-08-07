@@ -4,12 +4,14 @@ import com.sirktv.app.data.mapper.ChannelMapper
 import com.sirktv.app.data.mapper.EpgMapper
 import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Channel
+import com.sirktv.app.domain.model.ContentType
 import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.domain.repository.ChannelRepository
 import com.sirktv.app.domain.session.CurrentSession
 import com.sirktv.app.network.XtreamContentApiService
 import com.sirktv.app.network.XtreamUrlBuilder
 import com.sirktv.app.storage.db.ChannelDao
+import com.sirktv.app.storage.db.FavoriteDao
 import com.sirktv.app.storage.db.FavoriteEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -18,8 +20,11 @@ import javax.inject.Inject
 class ChannelRepositoryImpl @Inject constructor(
     private val apiService: XtreamContentApiService,
     private val channelDao: ChannelDao,
+    private val favoriteDao: FavoriteDao,
     private val currentSession: CurrentSession
 ) : ChannelRepository {
+
+    private val contentType = ContentType.LIVE.name
 
     override fun observeCategories(): Flow<List<Category>> =
         channelDao.observeCategories().map { list -> list.map(ChannelMapper::toCategory) }
@@ -38,10 +43,21 @@ class ChannelRepositoryImpl @Inject constructor(
     override suspend fun getFavoriteChannelIds(): List<String> = channelDao.getFavoriteChannelIds()
 
     override suspend fun toggleFavorite(channelId: String) {
-        if (channelDao.isFavorite(channelId)) {
-            channelDao.deleteFavorite(channelId)
+        if (favoriteDao.isFavorite(channelId, contentType)) {
+            favoriteDao.delete(channelId, contentType)
         } else {
-            channelDao.insertFavorite(FavoriteEntity(channelId = channelId, pinnedAtEpochMillis = System.currentTimeMillis()))
+            val name = channelDao.getChannelName(channelId) ?: channelId
+            val sortOrder = favoriteDao.maxSortOrder(contentType) + 1
+            favoriteDao.insert(
+                FavoriteEntity(
+                    contentId = channelId,
+                    contentType = contentType,
+                    title = name,
+                    imageUrl = null,
+                    sortOrder = sortOrder,
+                    addedAtEpochMillis = System.currentTimeMillis()
+                )
+            )
         }
     }
 

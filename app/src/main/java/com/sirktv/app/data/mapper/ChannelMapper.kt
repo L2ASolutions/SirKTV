@@ -2,6 +2,7 @@ package com.sirktv.app.data.mapper
 
 import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Channel
+import com.sirktv.app.domain.model.ContentType
 import com.sirktv.app.network.dto.LiveCategoryDto
 import com.sirktv.app.network.dto.LiveStreamDto
 import com.sirktv.app.storage.db.CategoryEntity
@@ -12,7 +13,7 @@ internal object ChannelMapper {
 
     fun toCategoryEntity(dto: LiveCategoryDto): CategoryEntity? {
         val id = dto.categoryId ?: return null
-        return CategoryEntity(id = id, name = dto.categoryName ?: id)
+        return CategoryEntity(id = id, name = dto.categoryName ?: id, contentType = ContentType.LIVE.name)
     }
 
     fun toChannelEntity(dto: LiveStreamDto): ChannelEntity? {

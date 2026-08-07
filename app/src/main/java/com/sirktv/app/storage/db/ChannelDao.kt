@@ -20,16 +20,16 @@ data class ChannelWithFavorite(
 @Dao
 interface ChannelDao {
 
-    @Query("SELECT * FROM categories ORDER BY name")
+    @Query("SELECT * FROM categories WHERE contentType = 'LIVE' ORDER BY name")
     fun observeCategories(): Flow<List<CategoryEntity>>
 
     @Query(
         """
         SELECT channels.id AS id, channels.name AS name, channels.logoUrl AS logoUrl,
                channels.categoryId AS categoryId, channels.channelNumber AS channelNumber,
-               CASE WHEN favorites.channelId IS NULL THEN 0 ELSE 1 END AS isFavorite
+               CASE WHEN favorites.contentId IS NULL THEN 0 ELSE 1 END AS isFavorite
         FROM channels
-        LEFT JOIN favorites ON channels.id = favorites.channelId
+        LEFT JOIN favorites ON channels.id = favorites.contentId AND favorites.contentType = 'LIVE'
         WHERE (:categoryId IS NULL OR channels.categoryId = :categoryId)
         ORDER BY channels.channelNumber
         """
@@ -41,8 +41,8 @@ interface ChannelDao {
         SELECT channels.id AS id, channels.name AS name, channels.logoUrl AS logoUrl,
                channels.categoryId AS categoryId, channels.channelNumber AS channelNumber, 1 AS isFavorite
         FROM channels
-        INNER JOIN favorites ON channels.id = favorites.channelId
-        ORDER BY favorites.pinnedAtEpochMillis DESC
+        INNER JOIN favorites ON channels.id = favorites.contentId AND favorites.contentType = 'LIVE'
+        ORDER BY favorites.addedAtEpochMillis DESC
         """
     )
     fun observeFavoriteChannels(): Flow<List<ChannelWithFavorite>>
@@ -50,22 +50,16 @@ interface ChannelDao {
     @Query("SELECT * FROM channels ORDER BY channelNumber")
     suspend fun getCachedChannels(): List<ChannelEntity>
 
-    @Query("SELECT channelId FROM favorites ORDER BY pinnedAtEpochMillis DESC")
+    @Query("SELECT contentId FROM favorites WHERE contentType = 'LIVE' ORDER BY addedAtEpochMillis DESC")
     suspend fun getFavoriteChannelIds(): List<String>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM favorites WHERE channelId = :channelId)")
-    suspend fun isFavorite(channelId: String): Boolean
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertFavorite(favorite: FavoriteEntity)
-
-    @Query("DELETE FROM favorites WHERE channelId = :channelId")
-    suspend fun deleteFavorite(channelId: String)
+    @Query("SELECT name FROM channels WHERE id = :channelId LIMIT 1")
+    suspend fun getChannelName(channelId: String): String?
 
     @Query("DELETE FROM channels")
     suspend fun clearChannels()
 
-    @Query("DELETE FROM categories")
+    @Query("DELETE FROM categories WHERE contentType = 'LIVE'")
     suspend fun clearCategories()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

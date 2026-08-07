@@ -1,10 +1,11 @@
 package com.sirktv.app.storage.db
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 
-@Entity(tableName = "categories")
+/** One shared table across Live/VOD/Series — [contentType] disambiguates ids that can collide across catalogs. */
+@Entity(tableName = "categories", primaryKeys = ["id", "contentType"])
 data class CategoryEntity(
-    @PrimaryKey val id: String,
-    val name: String
+    val id: String,
+    val name: String,
+    val contentType: String
 )

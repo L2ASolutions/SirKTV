@@ -8,6 +8,6 @@ data class StartupPreference(
 )
 
 sealed interface StartupDestination {
-    data object Hub : StartupDestination
+    data object Home : StartupDestination
     data class LiveTv(val channelId: String) : StartupDestination
 }

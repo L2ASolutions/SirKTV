@@ -15,6 +15,18 @@ object XtreamStreamUrlBuilder {
     fun buildBackupUrl(serverUrl: String, username: String, password: String, streamId: String): String =
         buildLiveStreamUrl(serverUrl, username, password, streamId, extension = "ts")
 
+    /** VOD movies use the real container extension from get_vod_streams — there's no HLS/TS pair to fall back between. */
+    fun buildMovieUrl(serverUrl: String, username: String, password: String, streamId: String, containerExtension: String): String {
+        val base = XtreamUrlBuilder.normalizeBase(serverUrl)
+        return "$base/movie/$username/$password/$streamId.$containerExtension"
+    }
+
+    /** Series episodes are addressed by the episode's own id (not the series id) per Xtream convention. */
+    fun buildEpisodeUrl(serverUrl: String, username: String, password: String, episodeId: String, containerExtension: String): String {
+        val base = XtreamUrlBuilder.normalizeBase(serverUrl)
+        return "$base/series/$username/$password/$episodeId.$containerExtension"
+    }
+
     private fun buildLiveStreamUrl(
         serverUrl: String,
         username: String,

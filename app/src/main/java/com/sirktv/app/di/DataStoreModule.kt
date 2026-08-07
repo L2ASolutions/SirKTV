@@ -27,4 +27,16 @@ object DataStoreModule {
     @StartupPreferenceDataStore
     fun provideStartupPreferenceDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
         PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("startup_preference") }
+
+    @Provides
+    @Singleton
+    @ParentalSettingsDataStore
+    fun provideParentalSettingsDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("parental_settings") }
+
+    @Provides
+    @Singleton
+    @AppearanceSettingsDataStore
+    fun provideAppearanceSettingsDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("appearance_settings") }
 }

@@ -13,5 +13,5 @@ data class LoginUiState(
 
 sealed interface LoginEvent {
     data class NavigateToLiveTv(val channelId: String) : LoginEvent
-    data object NavigateToHub : LoginEvent
+    data object NavigateToHome : LoginEvent
 }

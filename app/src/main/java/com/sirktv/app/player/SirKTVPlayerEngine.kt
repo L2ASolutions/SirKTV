@@ -56,6 +56,11 @@ class SirKTVPlayerEngine @Inject constructor(
     private var retryAttempt = 0
     private var retryJob: Job? = null
 
+    // VOD/episode-only: live content has no meaningful "resume position" — a
+    // reconnect should land back on the live edge, not seek anywhere.
+    private var isLiveContent = true
+    private var resumePositionMs = 0L
+
     private val _state = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
 
@@ -98,13 +103,28 @@ class SirKTVPlayerEngine @Inject constructor(
         playerView.player = ensurePlayer()
     }
 
-    fun play(channelId: String, primaryStreamUrl: String, backupStreamUrl: String) {
+    /**
+     * [backupStreamUrl] defaults to [primaryStreamUrl] for content with no
+     * real fallback (VOD/episodes) — the reconnect pipeline still applies, it
+     * just retries the same URL instead of switching container/protocol.
+     * [startPositionMs]/[isLive] control resume: pass isLive = false with a
+     * saved position to resume a movie/episode; live callers can ignore both.
+     */
+    fun play(
+        channelId: String,
+        primaryStreamUrl: String,
+        backupStreamUrl: String = primaryStreamUrl,
+        startPositionMs: Long = 0L,
+        isLive: Boolean = true
+    ) {
         retryJob?.cancel()
         retryAttempt = 0
         usingBackup = false
         currentChannelId = channelId
         primaryUrl = primaryStreamUrl
         backupUrl = backupStreamUrl
+        isLiveContent = isLive
+        resumePositionMs = startPositionMs
         _state.value = PlaybackState.Buffering
         retryTune(primaryStreamUrl)
     }
@@ -184,9 +204,12 @@ class SirKTVPlayerEngine @Inject constructor(
             val channelId = currentChannelId
             val primary = primaryUrl
             val backup = backupUrl
+            val wasLive = isLiveContent
+            // Freshest position for VOD content — don't lose progress made since the last poll tick.
+            val resumeFrom = if (!wasLive) snapshotPosition().first else 0L
             release()
             if (channelId != null && primary != null && backup != null) {
-                play(channelId, primary, backup)
+                play(channelId, primary, backup, startPositionMs = resumeFrom, isLive = wasLive)
             }
         } else {
             applyPreferredQuality(newSettings.preferredQuality)
@@ -230,9 +253,31 @@ class SirKTVPlayerEngine @Inject constructor(
     private fun retryTune(url: String) {
         val player = ensurePlayer()
         player.setMediaItem(MediaItem.fromUri(url))
+        if (!isLiveContent && resumePositionMs > 0) {
+            player.seekTo(resumePositionMs)
+        }
         player.prepare()
         player.playWhenReady = true
         applyPreferredQuality(settings.preferredQuality)
+    }
+
+    /** Main-thread only, same constraint as the buffer-health poll. Returns (positionMs, durationMs), (0, 0) if idle. */
+    fun snapshotPosition(): Pair<Long, Long> {
+        val player = exoPlayer ?: return 0L to 0L
+        val duration = player.duration
+        return player.currentPosition to (if (duration == androidx.media3.common.C.TIME_UNSET) 0L else duration)
+    }
+
+    /** VOD/episode scrubbing — no-op for live content, which has no seekable timeline. Main-thread only. */
+    fun seekTo(positionMs: Long) {
+        val player = exoPlayer ?: return
+        val duration = player.duration
+        val clamped = if (duration == androidx.media3.common.C.TIME_UNSET) {
+            positionMs.coerceAtLeast(0L)
+        } else {
+            positionMs.coerceIn(0L, duration)
+        }
+        player.seekTo(clamped)
     }
 
     private fun ensurePlayer(): ExoPlayer {
@@ -281,6 +326,10 @@ class SirKTVPlayerEngine @Inject constructor(
         bufferHealthPollJob = appScope.launch(Dispatchers.Main) {
             while (true) {
                 _bufferedAheadMs.value = (player.bufferedPosition - player.currentPosition).coerceAtLeast(0L)
+                // Keep the resume point fresh for VOD/episodes, so a mid-stream
+                // reconnect (see scheduleReconnect) lands close to the drop point
+                // instead of wherever play() was originally called with.
+                if (!isLiveContent) resumePositionMs = player.currentPosition
                 delay(1_000)
             }
         }
