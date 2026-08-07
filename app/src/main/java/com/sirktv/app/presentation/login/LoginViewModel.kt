@@ -3,9 +3,12 @@ package com.sirktv.app.presentation.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sirktv.app.domain.model.LoginResult
+import com.sirktv.app.domain.model.SavedCredentials
+import com.sirktv.app.domain.model.StartupDestination
 import com.sirktv.app.domain.session.CurrentSession
 import com.sirktv.app.domain.usecase.GetSavedCredentialsUseCase
 import com.sirktv.app.domain.usecase.LoginUseCase
+import com.sirktv.app.domain.usecase.ResolveStartupDestinationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +24,7 @@ import javax.inject.Inject
 class LoginViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
     private val getSavedCredentialsUseCase: GetSavedCredentialsUseCase,
+    private val resolveStartupDestinationUseCase: ResolveStartupDestinationUseCase,
     private val currentSession: CurrentSession
 ) : ViewModel() {
 
@@ -72,9 +76,15 @@ class LoginViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, errorMessage = null, isReconnecting = reconnecting) }
             when (val result = loginUseCase(state.serverUrl, state.username, state.password, state.rememberMe)) {
                 is LoginResult.Success -> {
-                    currentSession.set(result.profile)
+                    currentSession.set(
+                        result.profile,
+                        SavedCredentials(state.serverUrl, state.username, state.password)
+                    )
                     _uiState.update { it.copy(isLoading = false, isReconnecting = false) }
-                    _events.emit(LoginEvent.NavigateToLiveTv)
+                    when (val destination = resolveStartupDestinationUseCase()) {
+                        is StartupDestination.LiveTv -> _events.emit(LoginEvent.NavigateToLiveTv(destination.channelId))
+                        StartupDestination.Hub -> _events.emit(LoginEvent.NavigateToHub)
+                    }
                 }
                 is LoginResult.InvalidCredentials -> setError("Incorrect username or password.")
                 is LoginResult.SubscriptionInactive -> setError(result.message)

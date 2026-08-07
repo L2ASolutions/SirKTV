@@ -12,5 +12,6 @@ data class LoginUiState(
 )
 
 sealed interface LoginEvent {
-    data object NavigateToLiveTv : LoginEvent
+    data class NavigateToLiveTv(val channelId: String) : LoginEvent
+    data object NavigateToHub : LoginEvent
 }

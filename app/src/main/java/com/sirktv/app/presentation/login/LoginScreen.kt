@@ -1,5 +1,6 @@
 package com.sirktv.app.presentation.login
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.sirktv.app.presentation.common.SirKTVLogoMark
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
@@ -49,7 +51,8 @@ import androidx.tv.material3.Text as TvText
 
 @Composable
 fun LoginScreen(
-    onLoggedIn: () -> Unit,
+    onNavigateToLiveTv: (channelId: String) -> Unit,
+    onNavigateToHub: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -57,20 +60,48 @@ fun LoginScreen(
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                LoginEvent.NavigateToLiveTv -> onLoggedIn()
+                is LoginEvent.NavigateToLiveTv -> onNavigateToLiveTv(event.channelId)
+                LoginEvent.NavigateToHub -> onNavigateToHub()
             }
         }
     }
 
-    LoginContent(
-        uiState = uiState,
-        onServerUrlChanged = viewModel::onServerUrlChanged,
-        onUsernameChanged = viewModel::onUsernameChanged,
-        onPasswordChanged = viewModel::onPasswordChanged,
-        onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
-        onToggleRememberMe = viewModel::onToggleRememberMe,
-        onSignInClicked = viewModel::onSignInClicked
-    )
+    // While silently re-authenticating a saved session, show only the brand —
+    // never the login form card — so a returning user sees something closer
+    // to a TV turning on than an app booting up.
+    if (uiState.isReconnecting) {
+        BrandedSplash()
+    } else {
+        LoginContent(
+            uiState = uiState,
+            onServerUrlChanged = viewModel::onServerUrlChanged,
+            onUsernameChanged = viewModel::onUsernameChanged,
+            onPasswordChanged = viewModel::onPasswordChanged,
+            onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
+            onToggleRememberMe = viewModel::onToggleRememberMe,
+            onSignInClicked = viewModel::onSignInClicked
+        )
+    }
+}
+
+@Composable
+private fun BrandedSplash() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SirKTVBackground),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+            SirKTVLogoMark()
+            Text(
+                text = "Your World. Your Channels.",
+                fontSize = 13.sp,
+                color = SirKTVOnSurfaceMuted
+            )
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = SirKTVPrimary)
+        }
+    }
 }
 
 @Composable
