@@ -3,6 +3,7 @@ package com.sirktv.app.presentation.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -22,7 +23,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Switch
 
 @Composable
-fun SettingsSectionCard(content: @Composable Column.() -> Unit) {
+fun SettingsSectionCard(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()

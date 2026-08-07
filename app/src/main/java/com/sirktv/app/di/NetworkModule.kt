@@ -3,6 +3,9 @@ package com.sirktv.app.di
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.sirktv.app.BuildConfig
 import com.sirktv.app.network.XtreamApiService
+import com.sirktv.app.network.XtreamContentApiService
+import com.sirktv.app.network.XtreamSeriesApiService
+import com.sirktv.app.network.XtreamVodApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -63,4 +66,19 @@ object NetworkModule {
     @Singleton
     fun provideXtreamApiService(retrofit: Retrofit): XtreamApiService =
         retrofit.create(XtreamApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideXtreamContentApiService(retrofit: Retrofit): XtreamContentApiService =
+        retrofit.create(XtreamContentApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideXtreamVodApiService(retrofit: Retrofit): XtreamVodApiService =
+        retrofit.create(XtreamVodApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideXtreamSeriesApiService(retrofit: Retrofit): XtreamSeriesApiService =
+        retrofit.create(XtreamSeriesApiService::class.java)
 }
