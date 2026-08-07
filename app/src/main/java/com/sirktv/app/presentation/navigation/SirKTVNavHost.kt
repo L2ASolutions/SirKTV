@@ -51,6 +51,8 @@ fun SirKTVNavHost() {
                         is HomeNavTarget.MoviePlayer -> navController.navigate(SirKTVDestinations.moviePlayer(target.movieId))
                         is HomeNavTarget.EpisodePlayer ->
                             navController.navigate(SirKTVDestinations.episodePlayer(target.seriesId, target.season, target.episode))
+                        is HomeNavTarget.SeriesDetail ->
+                            navController.navigate(SirKTVDestinations.seriesDetail(target.seriesId))
                     }
                 },
                 onNavigateToSports = { navController.navigate(SirKTVDestinations.SPORTS) },

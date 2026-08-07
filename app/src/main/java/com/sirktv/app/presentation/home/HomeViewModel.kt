@@ -36,6 +36,7 @@ sealed interface HomeNavTarget {
     data class LiveTv(val channelId: String) : HomeNavTarget
     data class MoviePlayer(val movieId: String) : HomeNavTarget
     data class EpisodePlayer(val seriesId: String, val season: Int, val episode: Int) : HomeNavTarget
+    data class SeriesDetail(val seriesId: String) : HomeNavTarget
 }
 
 sealed interface HomeEvent {
@@ -169,6 +170,6 @@ class HomeViewModel @Inject constructor(
         ContentType.EPISODE -> ContentIds.parseEpisode(progress.contentId)?.let { (seriesId, season, episode) ->
             HomeNavTarget.EpisodePlayer(seriesId, season, episode)
         }
-        ContentType.SERIES -> null
+        ContentType.SERIES -> HomeNavTarget.SeriesDetail(progress.contentId)
     }
 }

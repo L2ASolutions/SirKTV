@@ -174,7 +174,7 @@ fun HomeScreen(
                             imageUrl = series.posterUrl,
                             aspectRatio = 2f / 3f,
                             isFavorite = series.isFavorite,
-                            onClick = { /* Series detail (season/episode picker) ships in a later phase. */ },
+                            onClick = { onNavigate(HomeNavTarget.SeriesDetail(series.id)) },
                             modifier = Modifier.width(PosterCardWidth)
                         )
                     }
