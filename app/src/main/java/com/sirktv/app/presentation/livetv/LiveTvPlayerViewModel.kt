@@ -234,6 +234,9 @@ class LiveTvPlayerViewModel @Inject constructor(
 
     fun onManualRetry() = playerEngine.manualRetry()
 
+    /** "Back to channel list" action offered alongside Retry on the playback error overlay. */
+    fun onErrorBackToChannelList() = setMode(LiveTvMode.CHANNEL_LIST)
+
     fun selectTrack(group: Tracks.Group, trackIndexInGroup: Int) =
         playerEngine.setTrackOverride(TrackSelectionOverride(group.mediaTrackGroup, trackIndexInGroup))
 

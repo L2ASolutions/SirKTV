@@ -5,6 +5,7 @@ import com.sirktv.app.presentation.settings.SettingsTile
 object SirKTVDestinations {
     const val LOGIN = "login"
     const val HOME = "home"
+    const val LIVE_TV_BROWSE = "live_tv_browse"
     const val LIVE_TV = "live_tv/{channelId}"
     const val SPORTS = "sports"
     const val SETTINGS = "settings"

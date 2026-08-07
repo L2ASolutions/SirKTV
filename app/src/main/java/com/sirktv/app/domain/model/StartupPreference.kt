@@ -1,7 +1,7 @@
 package com.sirktv.app.domain.model
 
 data class StartupPreference(
-    val autoStartLiveTv: Boolean = true,
+    val autoStartLiveTv: Boolean = false,
     val startupChannelId: String? = null,
     val resumeLastChannel: Boolean = false,
     val lastWatchedChannelId: String? = null

@@ -17,7 +17,6 @@ import com.sirktv.app.domain.usecase.ObserveMoviesUseCase
 import com.sirktv.app.domain.usecase.ObserveRecentlyWatchedUseCase
 import com.sirktv.app.domain.usecase.ObserveSeriesUseCase
 import com.sirktv.app.domain.usecase.ObserveSportsChannelsUseCase
-import com.sirktv.app.domain.usecase.PickDefaultChannelUseCase
 import com.sirktv.app.domain.usecase.SyncChannelsUseCase
 import com.sirktv.app.domain.usecase.SyncMoviesUseCase
 import com.sirktv.app.domain.usecase.SyncSeriesUseCase
@@ -40,8 +39,6 @@ sealed interface HomeNavTarget {
 }
 
 sealed interface HomeEvent {
-    data class NavigateToLiveTv(val channelId: String) : HomeEvent
-    data object NoChannelsAvailable : HomeEvent
     data object NavigateToLogin : HomeEvent
 }
 
@@ -68,7 +65,6 @@ class HomeViewModel @Inject constructor(
     private val syncChannelsUseCase: SyncChannelsUseCase,
     private val syncMoviesUseCase: SyncMoviesUseCase,
     private val syncSeriesUseCase: SyncSeriesUseCase,
-    private val pickDefaultChannelUseCase: PickDefaultChannelUseCase,
     private val clearSavedCredentialsUseCase: ClearSavedCredentialsUseCase,
     private val currentSession: CurrentSession
 ) : ViewModel() {
@@ -80,8 +76,6 @@ class HomeViewModel @Inject constructor(
 
     private val _events = MutableSharedFlow<HomeEvent>()
     val events: SharedFlow<HomeEvent> = _events.asSharedFlow()
-
-    private var isResolvingChannel = false
 
     init {
         // Best-effort background refresh so Home has real data even if the
@@ -139,21 +133,6 @@ class HomeViewModel @Inject constructor(
             return Triple(trendingMovie.title, "Trending now", HomeNavTarget.MoviePlayer(trendingMovie.id))
         }
         return Triple("SirKTV", "Your World. Your Channels.", null)
-    }
-
-    /** "Live TV" quick-launch action — jumps straight to a channel without going through Continue Watching/Favorites. */
-    fun onLiveTvQuickLaunchClicked() {
-        if (isResolvingChannel) return
-        isResolvingChannel = true
-        viewModelScope.launch {
-            val channelId = pickDefaultChannelUseCase()
-            isResolvingChannel = false
-            if (channelId != null) {
-                _events.emit(HomeEvent.NavigateToLiveTv(channelId))
-            } else {
-                _events.emit(HomeEvent.NoChannelsAvailable)
-            }
-        }
     }
 
     fun onLogoutClicked() {

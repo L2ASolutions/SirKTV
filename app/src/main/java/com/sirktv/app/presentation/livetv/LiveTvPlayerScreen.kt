@@ -143,7 +143,11 @@ fun LiveTvPlayerScreen(
         when (val playback = uiState.playbackState) {
             is PlaybackState.Buffering -> BufferingOverlay(channelName = uiState.currentChannel?.name, nowNext = uiState.nowNext)
             is PlaybackState.Reconnecting -> ReconnectingOverlay(attempt = playback.attempt, maxAttempts = playback.maxAttempts)
-            is PlaybackState.Error -> ErrorOverlay(channelName = uiState.currentChannel?.name, onRetry = viewModel::onManualRetry)
+            is PlaybackState.Error -> ErrorOverlay(
+                channelName = uiState.currentChannel?.name,
+                onRetry = viewModel::onManualRetry,
+                onBackToChannelList = viewModel::onErrorBackToChannelList
+            )
             else -> Unit
         }
 
@@ -218,22 +222,30 @@ private fun ReconnectingOverlay(attempt: Int, maxAttempts: Int) {
 }
 
 @Composable
-private fun ErrorOverlay(channelName: String?, onRetry: () -> Unit) {
+private fun ErrorOverlay(channelName: String?, onRetry: () -> Unit, onBackToChannelList: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
             Text(
-                text = "Lost connection${channelName?.let { " to $it" } ?: ""}",
+                text = "Couldn't load${channelName?.let { " $it" } ?: " this channel"}",
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
             Text(
-                text = "We tried several times. Check your connection and try again.",
+                text = "We tried several times. Check your connection and try again, or pick another channel.",
                 color = Color.White.copy(alpha = 0.6f),
                 fontSize = 12.sp
             )
-            androidx.tv.material3.Button(onClick = onRetry, modifier = Modifier.padding(top = Dimens.SpaceSm)) {
-                androidx.tv.material3.Text("Retry")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+                modifier = Modifier.padding(top = Dimens.SpaceSm)
+            ) {
+                androidx.tv.material3.Button(onClick = onRetry) {
+                    androidx.tv.material3.Text("Retry")
+                }
+                androidx.tv.material3.Button(onClick = onBackToChannelList) {
+                    androidx.tv.material3.Text("Channel List")
+                }
             }
         }
     }

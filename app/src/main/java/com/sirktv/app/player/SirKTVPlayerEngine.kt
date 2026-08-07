@@ -46,6 +46,8 @@ import javax.inject.Singleton
  * (HLS -> raw MPEG-TS), then falls into exponential backoff against whichever
  * URL last seemed viable (1s, 2s, 4s, 8s, 16s, capped at [PlayerSettings.reconnectAttempts]).
  */
+private const val LOAD_TIMEOUT_MS = 10_000L
+
 @Singleton
 class SirKTVPlayerEngine @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -63,6 +65,7 @@ class SirKTVPlayerEngine @Inject constructor(
     private var usingBackup = false
     private var retryAttempt = 0
     private var retryJob: Job? = null
+    private var loadTimeoutJob: Job? = null
 
     // VOD/episode-only: live content has no meaningful "resume position" — a
     // reconnect should land back on the live edge, not seek anywhere.
@@ -168,6 +171,7 @@ class SirKTVPlayerEngine @Inject constructor(
         resumePositionMs = startPositionMs
         _state.value = PlaybackState.Buffering
         retryTune(primaryStreamUrl)
+        startLoadTimeout()
     }
 
     fun togglePlayPause() {
@@ -183,6 +187,24 @@ class SirKTVPlayerEngine @Inject constructor(
         usingBackup = false
         _state.value = PlaybackState.Buffering
         retryTune(primary)
+        startLoadTimeout()
+    }
+
+    /**
+     * Guards against a stream that never errors but also never progresses
+     * past buffering (e.g. a connection that hangs instead of failing
+     * outright) — without this, [PlaybackState.Buffering] can persist
+     * indefinitely with no path to the error/retry UI.
+     */
+    private fun startLoadTimeout() {
+        loadTimeoutJob?.cancel()
+        loadTimeoutJob = appScope.launch(Dispatchers.Main) {
+            delay(LOAD_TIMEOUT_MS)
+            if (_state.value is PlaybackState.Buffering) {
+                retryJob?.cancel()
+                _state.value = PlaybackState.Error(attemptsExhausted = true)
+            }
+        }
     }
 
     fun applyPreferredQuality(quality: StreamQuality) {
@@ -219,6 +241,7 @@ class SirKTVPlayerEngine @Inject constructor(
     /** Full teardown — used when the app backgrounds outside of PiP, per the Fire Stick memory budget. */
     fun release() {
         retryJob?.cancel()
+        loadTimeoutJob?.cancel()
         bufferHealthPollJob?.cancel()
         exoPlayer?.let {
             it.removeListener(playerListener)

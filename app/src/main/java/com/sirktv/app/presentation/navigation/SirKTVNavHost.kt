@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.sirktv.app.presentation.favorites.FavoritesScreen
 import com.sirktv.app.presentation.home.HomeNavTarget
 import com.sirktv.app.presentation.home.HomeScreen
+import com.sirktv.app.presentation.livetv.LiveTvBrowseScreen
 import com.sirktv.app.presentation.livetv.LiveTvPlayerScreen
 import com.sirktv.app.presentation.login.LoginScreen
 import com.sirktv.app.presentation.movies.MoviesScreen
@@ -56,6 +57,7 @@ fun SirKTVNavHost() {
                             navController.navigate(SirKTVDestinations.seriesDetail(target.seriesId))
                     }
                 },
+                onNavigateToLiveTvBrowse = { navController.navigate(SirKTVDestinations.LIVE_TV_BROWSE) },
                 onNavigateToSports = { navController.navigate(SirKTVDestinations.SPORTS) },
                 onNavigateToSettings = { navController.navigate(SirKTVDestinations.SETTINGS) },
                 onNavigateToMovies = { navController.navigate(SirKTVDestinations.MOVIES) },
@@ -67,6 +69,12 @@ fun SirKTVNavHost() {
                         popUpTo(SirKTVDestinations.HOME) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(SirKTVDestinations.LIVE_TV_BROWSE) {
+            LiveTvBrowseScreen(
+                onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) }
             )
         }
 

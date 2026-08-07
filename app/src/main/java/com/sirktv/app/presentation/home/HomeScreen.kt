@@ -21,9 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -39,7 +36,6 @@ import com.sirktv.app.presentation.common.SirKTVLogoMark
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
-import com.sirktv.app.presentation.theme.SirKTVError
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVPrimaryVariant
@@ -50,6 +46,7 @@ private val PosterCardWidth = 140.dp
 @Composable
 fun HomeScreen(
     onNavigate: (HomeNavTarget) -> Unit,
+    onNavigateToLiveTvBrowse: () -> Unit,
     onNavigateToSports: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToMovies: () -> Unit,
@@ -61,13 +58,10 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val profile by viewModel.profile.collectAsState()
-    var infoMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is HomeEvent.NavigateToLiveTv -> onNavigate(HomeNavTarget.LiveTv(event.channelId))
-                HomeEvent.NoChannelsAvailable -> infoMessage = "No live channels found on this account yet."
                 HomeEvent.NavigateToLogin -> onLoggedOut()
             }
         }
@@ -85,7 +79,7 @@ fun HomeScreen(
             item {
                 HomeTopBar(
                     username = profile?.username,
-                    onLiveTvClicked = viewModel::onLiveTvQuickLaunchClicked,
+                    onLiveTvClicked = onNavigateToLiveTvBrowse,
                     onMoviesClicked = onNavigateToMovies,
                     onSeriesClicked = onNavigateToSeries,
                     onSportsClicked = onNavigateToSports,
@@ -102,10 +96,6 @@ fun HomeScreen(
                     subtitle = state.heroSubtitle,
                     onPlayClicked = state.heroTarget?.let { target -> { onNavigate(target) } }
                 )
-            }
-
-            infoMessage?.let { message ->
-                item { Text(text = message, color = SirKTVError, fontSize = 13.sp) }
             }
 
             if (state.continueWatching.isNotEmpty()) {
