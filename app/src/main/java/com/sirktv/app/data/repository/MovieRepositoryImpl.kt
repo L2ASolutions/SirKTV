@@ -44,6 +44,7 @@ class MovieRepositoryImpl @Inject constructor(
                 categoryId = entity.categoryId,
                 rating = entity.rating,
                 containerExtension = entity.containerExtension,
+                addedAtEpochMillis = entity.addedAtEpochMillis,
                 isFavorite = entity.id in favoriteIds
             )
         }

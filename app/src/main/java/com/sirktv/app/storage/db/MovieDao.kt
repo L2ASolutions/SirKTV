@@ -14,6 +14,7 @@ data class MovieWithFavorite(
     val categoryId: String,
     val rating: Float?,
     val containerExtension: String,
+    val addedAtEpochMillis: Long,
     val isFavorite: Boolean
 )
 
@@ -27,6 +28,7 @@ interface MovieDao {
         """
         SELECT movies.id AS id, movies.title AS title, movies.posterUrl AS posterUrl,
                movies.categoryId AS categoryId, movies.rating AS rating, movies.containerExtension AS containerExtension,
+               movies.addedAtEpochMillis AS addedAtEpochMillis,
                CASE WHEN favorites.contentId IS NULL THEN 0 ELSE 1 END AS isFavorite
         FROM movies
         LEFT JOIN favorites ON movies.id = favorites.contentId AND favorites.contentType = 'MOVIE'
@@ -39,7 +41,8 @@ interface MovieDao {
     @Query(
         """
         SELECT movies.id AS id, movies.title AS title, movies.posterUrl AS posterUrl,
-               movies.categoryId AS categoryId, movies.rating AS rating, movies.containerExtension AS containerExtension, 1 AS isFavorite
+               movies.categoryId AS categoryId, movies.rating AS rating, movies.containerExtension AS containerExtension,
+               movies.addedAtEpochMillis AS addedAtEpochMillis, 1 AS isFavorite
         FROM movies
         INNER JOIN favorites ON movies.id = favorites.contentId AND favorites.contentType = 'MOVIE'
         ORDER BY favorites.addedAtEpochMillis DESC

@@ -6,6 +6,9 @@ import com.sirktv.app.domain.model.ContentType
 import com.sirktv.app.domain.model.FavoriteItem
 import com.sirktv.app.domain.model.FavoriteSort
 import com.sirktv.app.domain.usecase.ObserveAllFavoritesUseCase
+import com.sirktv.app.domain.usecase.ObserveFavoriteChannelsUseCase
+import com.sirktv.app.domain.usecase.ObserveFavoriteMoviesUseCase
+import com.sirktv.app.domain.usecase.ObserveFavoriteSeriesUseCase
 import com.sirktv.app.domain.usecase.ReorderFavoriteUseCase
 import com.sirktv.app.domain.usecase.ToggleFavoriteUseCase
 import com.sirktv.app.domain.usecase.ToggleMovieFavoriteUseCase
@@ -15,6 +18,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -22,12 +26,18 @@ import javax.inject.Inject
 data class FavoritesUiState(
     val selectedType: ContentType = ContentType.LIVE,
     val sort: FavoriteSort = FavoriteSort.CUSTOM,
-    val items: List<FavoriteItem> = emptyList()
+    val items: List<FavoriteItem> = emptyList(),
+    val channelCount: Int = 0,
+    val movieCount: Int = 0,
+    val seriesCount: Int = 0
 )
 
 @HiltViewModel
 class FavoritesViewModel @Inject constructor(
     private val observeAllFavoritesUseCase: ObserveAllFavoritesUseCase,
+    private val observeFavoriteChannelsUseCase: ObserveFavoriteChannelsUseCase,
+    private val observeFavoriteMoviesUseCase: ObserveFavoriteMoviesUseCase,
+    private val observeFavoriteSeriesUseCase: ObserveFavoriteSeriesUseCase,
     private val reorderFavoriteUseCase: ReorderFavoriteUseCase,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val toggleMovieFavoriteUseCase: ToggleMovieFavoriteUseCase,
@@ -41,6 +51,16 @@ class FavoritesViewModel @Inject constructor(
 
     init {
         loadFavorites()
+        viewModelScope.launch {
+            combine(
+                observeFavoriteChannelsUseCase(),
+                observeFavoriteMoviesUseCase(),
+                observeFavoriteSeriesUseCase()
+            ) { channels, movies, series -> Triple(channels.size, movies.size, series.size) }
+                .collect { (channelCount, movieCount, seriesCount) ->
+                    _uiState.update { it.copy(channelCount = channelCount, movieCount = movieCount, seriesCount = seriesCount) }
+                }
+        }
     }
 
     fun onTypeSelected(type: ContentType) {

@@ -148,6 +148,7 @@ fun HomeScreen(
                             title = movie.title,
                             imageUrl = movie.posterUrl,
                             aspectRatio = 2f / 3f,
+                            rating = movie.rating,
                             isFavorite = movie.isFavorite,
                             onClick = { onNavigate(HomeNavTarget.MoviePlayer(movie.id)) },
                             modifier = Modifier.width(PosterCardWidth)
@@ -163,6 +164,7 @@ fun HomeScreen(
                             title = series.title,
                             imageUrl = series.posterUrl,
                             aspectRatio = 2f / 3f,
+                            rating = series.rating,
                             isFavorite = series.isFavorite,
                             onClick = { onNavigate(HomeNavTarget.SeriesDetail(series.id)) },
                             modifier = Modifier.width(PosterCardWidth)
@@ -241,16 +243,6 @@ private fun HeroBanner(title: String, subtitle: String, onPlayClicked: (() -> Un
                 Text(title, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Text(subtitle, color = SirKTVOnSurfaceMuted, fontSize = 14.sp)
             }
-        }
-    }
-}
-
-@Composable
-private fun <T> MediaRow(title: String, rowItems: List<T>, content: @Composable (T) -> Unit) {
-    Column {
-        RowHeader(title = title, count = rowItems.size)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
-            items(rowItems) { item -> content(item) }
         }
     }
 }

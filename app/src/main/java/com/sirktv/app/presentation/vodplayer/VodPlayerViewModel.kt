@@ -7,6 +7,7 @@ import androidx.media3.common.C
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.ui.PlayerView
+import com.sirktv.app.di.ApplicationScope
 import com.sirktv.app.domain.model.ContentIds
 import com.sirktv.app.domain.model.ContentType
 import com.sirktv.app.domain.model.Episode
@@ -28,6 +29,7 @@ import com.sirktv.app.network.XtreamStreamUrlBuilder
 import com.sirktv.app.player.PlaybackState
 import com.sirktv.app.player.SirKTVPlayerEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -74,7 +76,8 @@ class VodPlayerViewModel @Inject constructor(
     private val getPlayerSettingsUseCase: GetPlayerSettingsUseCase,
     private val getSubtitleAppearanceUseCase: GetSubtitleAppearanceUseCase,
     private val currentSession: CurrentSession,
-    private val playerEngine: SirKTVPlayerEngine
+    private val playerEngine: SirKTVPlayerEngine,
+    @ApplicationScope private val appScope: CoroutineScope
 ) : ViewModel() {
 
     private val movieIdArg: String? = savedStateHandle["movieId"]
@@ -93,6 +96,11 @@ class VodPlayerViewModel @Inject constructor(
     private var progressPollJob: Job? = null
     private var overlayHideJob: Job? = null
     private var tickCount = 0
+
+    // Tracks whichever contentId is currently playing (movieId, or the
+    // composite episode id) so onCleared() can persist the final resume
+    // position without needing to re-derive it from nav args.
+    private var activeContentId: String? = null
 
     init {
         viewModelScope.launch {
@@ -205,9 +213,8 @@ class VodPlayerViewModel @Inject constructor(
         }
     }
 
-    fun onBackPressed() {
-        if (_uiState.value.mode == VodPlayerMode.OVERLAY) setMode(VodPlayerMode.WATCHING)
-    }
+    /** First Back press while controls are hidden: reveal them instead of leaving the screen. */
+    fun onShowControls() = setMode(VodPlayerMode.OVERLAY)
 
     fun onSeekBack() = seekBy(-10_000)
     fun onSeekForward() = seekBy(10_000)
@@ -250,6 +257,7 @@ class VodPlayerViewModel @Inject constructor(
      * loses at most a few seconds of resume accuracy.
      */
     private fun startProgressPoll(contentId: String) {
+        activeContentId = contentId
         progressPollJob?.cancel()
         tickCount = 0
         progressPollJob = viewModelScope.launch(Dispatchers.Main) {
@@ -281,10 +289,23 @@ class VodPlayerViewModel @Inject constructor(
         )
     }
 
-    // Same rationale as LiveTvPlayerViewModel: playerEngine is an app-wide
-    // singleton, so playback survives navigating away from this screen.
+    // Unlike Live TV, VOD/episode playback must NOT survive navigating away —
+    // leaving this screen (Back, or any other nav away from the player) has
+    // to pause immediately and fully release the ExoPlayer instance so audio
+    // doesn't keep running in the background. viewModelScope is already
+    // cancelled by the time onCleared() runs, so the final progress save and
+    // release are dispatched on the process-lifetime appScope instead.
     override fun onCleared() {
         progressPollJob?.cancel()
         overlayHideJob?.cancel()
+        playerEngine.pause()
+        val (position, duration) = playerEngine.snapshotPosition()
+        val contentId = activeContentId
+        appScope.launch {
+            if (contentId != null && duration > 0) {
+                persistProgress(contentId, position, duration)
+            }
+            playerEngine.release()
+        }
     }
 }

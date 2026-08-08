@@ -37,6 +37,7 @@ import androidx.tv.material3.Surface
 import com.sirktv.app.domain.model.SearchResults
 import com.sirktv.app.presentation.common.CategoryPill
 import com.sirktv.app.presentation.common.tvFocusStyle
+import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.RowHeader
 import com.sirktv.app.presentation.theme.Dimens
@@ -97,7 +98,10 @@ fun SearchScreen(
                 results = uiState.results,
                 onChannelSelected = onChannelSelected,
                 onMovieSelected = onMovieSelected,
-                onSeriesSelected = onSeriesSelected
+                onSeriesSelected = onSeriesSelected,
+                onToggleChannelFavorite = viewModel::onToggleChannelFavorite,
+                onToggleMovieFavorite = viewModel::onToggleMovieFavorite,
+                onToggleSeriesFavorite = viewModel::onToggleSeriesFavorite
             )
         }
     }
@@ -136,7 +140,10 @@ private fun SearchResultsList(
     results: SearchResults,
     onChannelSelected: (String) -> Unit,
     onMovieSelected: (String) -> Unit,
-    onSeriesSelected: (String) -> Unit
+    onSeriesSelected: (String) -> Unit,
+    onToggleChannelFavorite: (String) -> Unit,
+    onToggleMovieFavorite: (String) -> Unit,
+    onToggleSeriesFavorite: (String) -> Unit
 ) {
     if (results.isEmpty) {
         Text("No matches found.", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)
@@ -147,12 +154,19 @@ private fun SearchResultsList(
             item {
                 ResultRow(title = "Live TV", count = results.channels.size) {
                     items(results.channels, key = { "ch-${it.id}" }) { channel ->
-                        MediaCard(
-                            title = channel.name,
-                            imageUrl = channel.logoUrl,
-                            onClick = { onChannelSelected(channel.id) },
-                            modifier = Modifier.width(220.dp)
-                        )
+                        Column(modifier = Modifier.width(220.dp)) {
+                            MediaCard(
+                                title = channel.name,
+                                imageUrl = channel.logoUrl,
+                                isFavorite = channel.isFavorite,
+                                onClick = { onChannelSelected(channel.id) }
+                            )
+                            FavoriteToggleChip(
+                                isFavorite = channel.isFavorite,
+                                onToggle = { onToggleChannelFavorite(channel.id) },
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -161,14 +175,21 @@ private fun SearchResultsList(
             item {
                 ResultRow(title = "Movies", count = results.movies.size) {
                     items(results.movies, key = { "mv-${it.id}" }) { movie ->
-                        MediaCard(
-                            title = movie.title,
-                            imageUrl = movie.posterUrl,
-                            aspectRatio = 2f / 3f,
-                            isFavorite = movie.isFavorite,
-                            onClick = { onMovieSelected(movie.id) },
-                            modifier = Modifier.width(140.dp)
-                        )
+                        Column(modifier = Modifier.width(140.dp)) {
+                            MediaCard(
+                                title = movie.title,
+                                imageUrl = movie.posterUrl,
+                                aspectRatio = 2f / 3f,
+                                rating = movie.rating,
+                                isFavorite = movie.isFavorite,
+                                onClick = { onMovieSelected(movie.id) }
+                            )
+                            FavoriteToggleChip(
+                                isFavorite = movie.isFavorite,
+                                onToggle = { onToggleMovieFavorite(movie.id) },
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -177,14 +198,21 @@ private fun SearchResultsList(
             item {
                 ResultRow(title = "Series", count = results.series.size) {
                     items(results.series, key = { "sr-${it.id}" }) { series ->
-                        MediaCard(
-                            title = series.title,
-                            imageUrl = series.posterUrl,
-                            aspectRatio = 2f / 3f,
-                            isFavorite = series.isFavorite,
-                            onClick = { onSeriesSelected(series.id) },
-                            modifier = Modifier.width(140.dp)
-                        )
+                        Column(modifier = Modifier.width(140.dp)) {
+                            MediaCard(
+                                title = series.title,
+                                imageUrl = series.posterUrl,
+                                aspectRatio = 2f / 3f,
+                                rating = series.rating,
+                                isFavorite = series.isFavorite,
+                                onClick = { onSeriesSelected(series.id) }
+                            )
+                            FavoriteToggleChip(
+                                isFavorite = series.isFavorite,
+                                onToggle = { onToggleSeriesFavorite(series.id) },
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
                     }
                 }
             }

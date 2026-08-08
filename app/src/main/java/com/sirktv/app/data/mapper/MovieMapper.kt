@@ -41,6 +41,7 @@ internal object MovieMapper {
         categoryId = row.categoryId,
         rating = row.rating,
         containerExtension = row.containerExtension,
+        addedAtEpochMillis = row.addedAtEpochMillis,
         isFavorite = row.isFavorite
     )
 

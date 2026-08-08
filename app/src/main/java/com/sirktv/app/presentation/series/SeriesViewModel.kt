@@ -20,8 +20,18 @@ data class SeriesUiState(
     val categories: List<Category> = emptyList(),
     val selectedCategoryId: String? = null,
     val allSeries: List<Series> = emptyList(),
-    val visibleSeries: List<Series> = emptyList()
-)
+    val visibleSeries: List<Series> = emptyList(),
+    val searchQuery: String = ""
+) {
+    val isSearching: Boolean get() = searchQuery.trim().length >= 2
+
+    val searchResults: List<Series>
+        get() {
+            val normalized = searchQuery.trim().lowercase()
+            if (normalized.length < 2) return emptyList()
+            return allSeries.filter { it.title.lowercase().contains(normalized) }
+        }
+}
 
 @HiltViewModel
 class SeriesViewModel @Inject constructor(
@@ -51,6 +61,10 @@ class SeriesViewModel @Inject constructor(
 
     fun onCategorySelected(categoryId: String?) {
         _uiState.update { it.copy(selectedCategoryId = categoryId, visibleSeries = filter(it.allSeries, categoryId)) }
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
     }
 
     fun onToggleFavorite(seriesId: String) {

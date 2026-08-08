@@ -7,6 +7,9 @@ import com.sirktv.app.domain.usecase.ClearSearchHistoryUseCase
 import com.sirktv.app.domain.usecase.ObserveRecentSearchesUseCase
 import com.sirktv.app.domain.usecase.RecordSearchQueryUseCase
 import com.sirktv.app.domain.usecase.SearchContentUseCase
+import com.sirktv.app.domain.usecase.ToggleFavoriteUseCase
+import com.sirktv.app.domain.usecase.ToggleMovieFavoriteUseCase
+import com.sirktv.app.domain.usecase.ToggleSeriesFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -31,7 +34,10 @@ class SearchViewModel @Inject constructor(
     observeRecentSearchesUseCase: ObserveRecentSearchesUseCase,
     private val searchContentUseCase: SearchContentUseCase,
     private val recordSearchQueryUseCase: RecordSearchQueryUseCase,
-    private val clearSearchHistoryUseCase: ClearSearchHistoryUseCase
+    private val clearSearchHistoryUseCase: ClearSearchHistoryUseCase,
+    private val toggleChannelFavoriteUseCase: ToggleFavoriteUseCase,
+    private val toggleMovieFavoriteUseCase: ToggleMovieFavoriteUseCase,
+    private val toggleSeriesFavoriteUseCase: ToggleSeriesFavoriteUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -69,6 +75,18 @@ class SearchViewModel @Inject constructor(
 
     fun onClearHistory() {
         viewModelScope.launch { clearSearchHistoryUseCase() }
+    }
+
+    /** Toggles favorite state directly from a result row, then re-runs the current search so the icon reflects it. */
+    fun onToggleChannelFavorite(channelId: String) = toggleAndRefresh { toggleChannelFavoriteUseCase(channelId) }
+    fun onToggleMovieFavorite(movieId: String) = toggleAndRefresh { toggleMovieFavoriteUseCase(movieId) }
+    fun onToggleSeriesFavorite(seriesId: String) = toggleAndRefresh { toggleSeriesFavoriteUseCase(seriesId) }
+
+    private fun toggleAndRefresh(toggle: suspend () -> Unit) {
+        viewModelScope.launch {
+            toggle()
+            runSearch(_uiState.value.query)
+        }
     }
 
     private suspend fun runSearch(query: String) {

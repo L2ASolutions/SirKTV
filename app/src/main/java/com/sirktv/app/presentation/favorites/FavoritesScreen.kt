@@ -50,17 +50,18 @@ fun FavoritesScreen(
     ) {
         Text("Favorites", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
 
+        // D-pad navigable tab row — Left/Right moves focus between pills like any other LazyRow/Row of focusables.
         Row(
             modifier = Modifier.padding(top = Dimens.SpaceMd, bottom = Dimens.SpaceSm),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            CategoryPill(label = "Live TV", selected = uiState.selectedType == ContentType.LIVE) {
+            CategoryPill(label = "Channels (${uiState.channelCount})", selected = uiState.selectedType == ContentType.LIVE) {
                 viewModel.onTypeSelected(ContentType.LIVE)
             }
-            CategoryPill(label = "Movies", selected = uiState.selectedType == ContentType.MOVIE) {
+            CategoryPill(label = "Movies (${uiState.movieCount})", selected = uiState.selectedType == ContentType.MOVIE) {
                 viewModel.onTypeSelected(ContentType.MOVIE)
             }
-            CategoryPill(label = "Series", selected = uiState.selectedType == ContentType.SERIES) {
+            CategoryPill(label = "Series (${uiState.seriesCount})", selected = uiState.selectedType == ContentType.SERIES) {
                 viewModel.onTypeSelected(ContentType.SERIES)
             }
         }
@@ -83,7 +84,7 @@ fun FavoritesScreen(
         Box(Modifier.fillMaxSize()) {
             if (uiState.items.isEmpty()) {
                 Text(
-                    "Nothing favorited in this category yet.",
+                    "No favorites yet — browse and add some!",
                     color = Color.White.copy(alpha = 0.5f),
                     fontSize = 13.sp
                 )

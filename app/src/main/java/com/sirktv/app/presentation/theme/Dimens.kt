@@ -17,4 +17,7 @@ object Dimens {
     val FocusBorderWidth = 3.dp
     val CornerRadius = 12.dp
     const val FocusScale = 1.06f
+
+    /** Alpha applied to unfocused focusable elements so the focused one reads unambiguously. */
+    const val UnfocusedAlpha = 0.85f
 }

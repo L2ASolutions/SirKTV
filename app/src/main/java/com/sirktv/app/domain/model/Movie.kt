@@ -7,7 +7,8 @@ data class Movie(
     val categoryId: String,
     val rating: Float?,
     val containerExtension: String,
-    val isFavorite: Boolean
+    val isFavorite: Boolean,
+    val addedAtEpochMillis: Long = 0L
 )
 
 /**

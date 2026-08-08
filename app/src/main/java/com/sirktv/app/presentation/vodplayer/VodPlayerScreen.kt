@@ -58,12 +58,22 @@ private enum class VodSheet { AUDIO, SUBTITLE, QUALITY }
 
 @Composable
 fun VodPlayerScreen(
+    onBack: () -> Unit,
     viewModel: VodPlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    BackHandler(enabled = uiState.mode != VodPlayerMode.WATCHING) {
-        viewModel.onBackPressed()
+    // Two-stage Back: first press reveals controls if hidden (matches the OK
+    // button's "show overlay" behavior); only a second press — with controls
+    // already visible — actually leaves the screen. Leaving pops the nav
+    // back stack, which destroys this screen's ViewModel and pauses/releases
+    // the player from VodPlayerViewModel.onCleared().
+    BackHandler(enabled = true) {
+        if (uiState.mode == VodPlayerMode.WATCHING) {
+            viewModel.onShowControls()
+        } else {
+            onBack()
+        }
     }
 
     val rootFocusRequester = remember { FocusRequester() }

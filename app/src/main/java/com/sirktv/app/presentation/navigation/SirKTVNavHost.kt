@@ -134,7 +134,7 @@ fun SirKTVNavHost() {
             route = SirKTVDestinations.MOVIE_PLAYER,
             arguments = listOf(navArgument("movieId") { type = NavType.StringType })
         ) {
-            VodPlayerScreen()
+            VodPlayerScreen(onBack = { navController.popBackStack() })
         }
 
         composable(
@@ -145,7 +145,7 @@ fun SirKTVNavHost() {
                 navArgument("episode") { type = NavType.IntType }
             )
         ) {
-            VodPlayerScreen()
+            VodPlayerScreen(onBack = { navController.popBackStack() })
         }
 
         composable(SirKTVDestinations.SETTINGS) {

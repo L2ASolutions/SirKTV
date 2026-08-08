@@ -1,5 +1,7 @@
 package com.sirktv.app.presentation.home
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -11,13 +13,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,10 +50,26 @@ fun RowHeader(title: String, count: Int? = null, modifier: Modifier = Modifier) 
     )
 }
 
+/** One horizontally-scrolling, D-pad navigable row with a header — shared by Home, Movies, and Series. */
+@Composable
+fun <T> MediaRow(title: String, rowItems: List<T>, modifier: Modifier = Modifier, content: @Composable (T) -> Unit) {
+    Column(modifier = modifier) {
+        RowHeader(title = title, count = rowItems.size)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+            items(rowItems) { item -> content(item) }
+        }
+    }
+}
+
 /**
  * One reusable poster/backdrop card for every row in the app (Home, Movies,
- * Series, Favorites, Sports). A missing image falls back to a brand-gradient
- * monogram rather than a broken-image icon or a stock placeholder.
+ * Series, Favorites, Search, Sports). A missing image falls back to a
+ * brand-gradient monogram rather than a broken-image icon or a stock
+ * placeholder. Title/subtitle are overlaid directly on the artwork, bottom-
+ * aligned against a scrim that fades from transparent to
+ * rgba(0,0,0,0.8) — this keeps the text readable no matter how light the
+ * underlying poster is, instead of relying on the app background showing
+ * through behind a separate text row.
  */
 @Composable
 fun MediaCard(
@@ -59,85 +81,115 @@ fun MediaCard(
     aspectRatio: Float = 16f / 9f,
     progressFraction: Float? = null,
     badge: String? = null,
+    rating: Float? = null,
     isFavorite: Boolean = false
 ) {
     Surface(onClick = onClick, modifier = modifier.tvFocusStyle()) {
-        Column {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(aspectRatio)
+                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(Dimens.CornerRadius))
+        ) {
+            if (!imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().background(SirKTVSurfaceVariant, RoundedCornerShape(Dimens.CornerRadius))
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(listOf(SirKTVPrimary, SirKTVPrimaryVariant)),
+                            RoundedCornerShape(Dimens.CornerRadius)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(title.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                }
+            }
+
+            // Bottom scrim + overlaid title/subtitle/rating — always on top of
+            // the artwork, transparent at the top so it never clips into a
+            // badge/favorite icon near the top of the card.
             Box(
-                Modifier
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .aspectRatio(aspectRatio)
-                    .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(Dimens.CornerRadius))
-            ) {
-                if (!imageUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize().background(SirKTVSurfaceVariant, RoundedCornerShape(Dimens.CornerRadius))
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            0.45f to Color.Black.copy(alpha = 0.55f),
+                            1f to Color.Black.copy(alpha = 0.8f)
+                        ),
+                        RoundedCornerShape(bottomStart = Dimens.CornerRadius, bottomEnd = Dimens.CornerRadius)
                     )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.linearGradient(listOf(SirKTVPrimary, SirKTVPrimaryVariant)),
-                                RoundedCornerShape(Dimens.CornerRadius)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(title.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                    }
-                }
-
-                badge?.let {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(6.dp)
-                            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(it, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                if (isFavorite) {
-                    Box(modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)) {
-                        Text("♥", color = SirKTVPrimary, fontSize = 13.sp)
-                    }
-                }
-
-                progressFraction?.let { fraction ->
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .background(Color.White.copy(alpha = 0.25f))
-                    ) {
-                        Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxSize().background(SirKTVPrimary))
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+            ) {
+                Column {
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        subtitle?.let {
+                            Text(
+                                text = it,
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                        }
+                        rating?.let {
+                            Text("★ ${"%.1f".format(it)}", color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
 
-            Text(
-                text = title,
-                color = Color.White,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 6.dp)
-            )
-            subtitle?.let {
-                Text(
-                    text = it,
-                    color = SirKTVOnSurfaceMuted,
-                    fontSize = 10.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            badge?.let {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(it, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            if (isFavorite) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(50)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("♥", color = SirKTVPrimary, fontSize = 13.sp, modifier = Modifier.padding(4.dp))
+                }
+            }
+
+            progressFraction?.let { fraction ->
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(Color.White.copy(alpha = 0.25f))
+                ) {
+                    Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxSize().background(SirKTVPrimary))
+                }
             }
         }
     }
@@ -151,6 +203,13 @@ fun MediaCard(
  */
 @Composable
 fun FavoriteToggleChip(isFavorite: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    // Small pulse on the icon whenever the favorite state flips, so toggling
+    // reads as a deliberate "fill" action rather than an instant color swap.
+    val fillScale by animateFloatAsState(
+        targetValue = if (isFavorite) 1f else 0.85f,
+        animationSpec = spring(dampingRatio = 0.4f),
+        label = "favoriteFillScale"
+    )
     Surface(onClick = onToggle, modifier = modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
         Row(
             modifier = Modifier
@@ -166,7 +225,8 @@ fun FavoriteToggleChip(isFavorite: Boolean, onToggle: () -> Unit, modifier: Modi
                 text = if (isFavorite) "♥ Favorited" else "♡ Add to Favorites",
                 color = if (isFavorite) SirKTVPrimary else Color.White.copy(alpha = 0.7f),
                 fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.graphicsLayer { scaleX = fillScale; scaleY = fillScale }
             )
         }
     }
