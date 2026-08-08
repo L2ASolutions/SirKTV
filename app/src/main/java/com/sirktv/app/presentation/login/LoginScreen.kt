@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,9 +31,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -121,11 +126,21 @@ private fun LoginContent(
     onToggleRememberMe: () -> Unit,
     onSignInClicked: () -> Unit
 ) {
-    val firstFieldFocusRequester = remember { FocusRequester() }
+    // One FocusRequester per stop so D-pad Up/Down and IME Next/Done can be
+    // pinned to an exact chain (serverUrl -> username -> password ->
+    // rememberMe -> signIn) instead of relying on default 2D focus search,
+    // which the password field's trailing SHOW/HIDE button could otherwise
+    // throw off.
+    val serverUrlFocusRequester = remember { FocusRequester() }
+    val usernameFocusRequester = remember { FocusRequester() }
+    val passwordFocusRequester = remember { FocusRequester() }
+    val rememberMeFocusRequester = remember { FocusRequester() }
+    val signInFocusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(Unit) {
-        firstFieldFocusRequester.requestFocus()
+        serverUrlFocusRequester.requestFocus()
     }
 
     Box(
@@ -188,10 +203,17 @@ private fun LoginContent(
                     placeholder = { Text("http://example.com:8080") },
                     singleLine = true,
                     enabled = !uiState.isLoading,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { usernameFocusRequester.requestFocus() }),
                     colors = loginFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(firstFieldFocusRequester)
+                        .focusRequester(serverUrlFocusRequester)
+                        .focusProperties { down = usernameFocusRequester }
+                        // D-pad focus alone doesn't pop the Fire TV system
+                        // keyboard the way a touch tap would — show it
+                        // explicitly the moment this field gains focus.
+                        .onFocusChanged { if (it.isFocused) keyboardController?.show() }
                         .tvFocusStyle()
                 )
 
@@ -201,9 +223,17 @@ private fun LoginContent(
                     label = { Text("Username") },
                     singleLine = true,
                     enabled = !uiState.isLoading,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { passwordFocusRequester.requestFocus() }),
                     colors = loginFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusRequester(usernameFocusRequester)
+                        .focusProperties {
+                            up = serverUrlFocusRequester
+                            down = passwordFocusRequester
+                        }
+                        .onFocusChanged { if (it.isFocused) keyboardController?.show() }
                         .tvFocusStyle()
                 )
 
@@ -213,7 +243,8 @@ private fun LoginContent(
                     label = { Text("Password") },
                     singleLine = true,
                     enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { signInFocusRequester.requestFocus() }),
                     visualTransformation = if (uiState.isPasswordVisible) {
                         VisualTransformation.None
                     } else {
@@ -227,28 +258,32 @@ private fun LoginContent(
                     colors = loginFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusRequester(passwordFocusRequester)
+                        .focusProperties {
+                            up = usernameFocusRequester
+                            down = rememberMeFocusRequester
+                        }
+                        .onFocusChanged { if (it.isFocused) keyboardController?.show() }
                         .tvFocusStyle()
                 )
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .tvFocusStyle(cornerRadius = 24.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
                 ) {
-                    Switch(checked = uiState.rememberMe, onCheckedChange = { onToggleRememberMe() })
-                    Text("Remember me on this device", fontSize = 13.sp, color = SirKTVOnSurfaceMuted)
-                }
-
-                uiState.errorMessage?.let { message ->
-                    Text(
-                        text = message,
-                        color = SirKTVError,
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
+                    Switch(
+                        checked = uiState.rememberMe,
+                        onCheckedChange = { onToggleRememberMe() },
+                        modifier = Modifier
+                            .focusRequester(rememberMeFocusRequester)
+                            .focusProperties {
+                                up = passwordFocusRequester
+                                down = signInFocusRequester
+                            }
+                            .tvFocusStyle(cornerRadius = 24.dp)
                     )
+                    Text("Remember me on this device", fontSize = 13.sp, color = SirKTVOnSurfaceMuted)
                 }
 
                 Button(
@@ -261,6 +296,8 @@ private fun LoginContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
+                        .focusRequester(signInFocusRequester)
+                        .focusProperties { up = rememberMeFocusRequester }
                         .tvFocusStyle()
                 ) {
                     if (uiState.isLoading) {
@@ -272,6 +309,16 @@ private fun LoginContent(
                     } else {
                         TvText("Sign In", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
+                }
+
+                uiState.errorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        color = SirKTVError,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
