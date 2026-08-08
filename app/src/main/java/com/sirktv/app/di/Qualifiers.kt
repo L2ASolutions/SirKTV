@@ -22,6 +22,10 @@ annotation class AppearanceSettingsDataStore
 @Retention(AnnotationRetention.BINARY)
 annotation class SubtitleAppearanceDataStore
 
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class DisplayNameDataStore
+
 /** Process-lifetime coroutine scope for best-effort background work (cache refreshes, etc). */
 @Qualifier
 @Retention(AnnotationRetention.BINARY)

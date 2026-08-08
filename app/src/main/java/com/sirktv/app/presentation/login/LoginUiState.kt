@@ -4,10 +4,12 @@ data class LoginUiState(
     val serverUrl: String = "",
     val username: String = "",
     val password: String = "",
+    val displayName: String = "",
     val rememberMe: Boolean = true,
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
     val isReconnecting: Boolean = false,
+    val isDisclaimerExpanded: Boolean = false,
     val errorMessage: String? = null
 )
 

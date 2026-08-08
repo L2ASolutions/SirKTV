@@ -9,13 +9,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
@@ -23,41 +22,38 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.tv.material3.Surface
 import com.sirktv.app.domain.model.Series
 import com.sirktv.app.presentation.common.CategoryPill
+import com.sirktv.app.presentation.common.SirKTVChrome
+import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
+import com.sirktv.app.presentation.home.MediaRow
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 
+private val PosterCardWidth = 150.dp
+
 @Composable
 fun SeriesScreen(
     onSeriesSelected: (seriesId: String) -> Unit,
+    onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: SeriesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var searchVisible by remember { mutableStateOf(false) }
-    val searchFocusRequester = remember { FocusRequester() }
 
     Column(
         modifier = Modifier
@@ -65,8 +61,14 @@ fun SeriesScreen(
             .background(SirKTVBackground)
             .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
-            Column(modifier = Modifier.weight(1f)) {
+        SirKTVChrome(activeItem = SirKTVNavItem.SERIES, onNavigate = onNavigate, onRefresh = {})
+
+        Row(
+            modifier = Modifier.padding(top = Dimens.SpaceLg),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
+        ) {
+            Column {
                 Text("Series", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 Text(
                     text = "${uiState.allSeries.size} series on this account",
@@ -75,43 +77,32 @@ fun SeriesScreen(
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            SeriesSearchIcon(
-                active = searchVisible,
-                onClick = {
-                    searchVisible = !searchVisible
-                    if (!searchVisible) viewModel.onSearchQueryChanged("")
-                }
-            )
         }
 
-        if (searchVisible) {
-            LaunchedEffect(Unit) { searchFocusRequester.requestFocus() }
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = viewModel::onSearchQueryChanged,
-                placeholder = { Text("Search series") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = {}),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = SirKTVBackground,
-                    unfocusedContainerColor = SirKTVBackground,
-                    focusedBorderColor = SirKTVPrimary,
-                    unfocusedBorderColor = SirKTVOnSurfaceMuted,
-                    cursorColor = SirKTVPrimary,
-                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = Dimens.SpaceMd)
-                    .focusRequester(searchFocusRequester)
-                    .tvFocusStyle()
-            )
-        }
+        OutlinedTextField(
+            value = uiState.searchQuery,
+            onValueChange = viewModel::onSearchQueryChanged,
+            placeholder = { Text("Search series") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = {}),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = SirKTVBackground,
+                unfocusedContainerColor = SirKTVBackground,
+                focusedBorderColor = SirKTVPrimary,
+                unfocusedBorderColor = SirKTVOnSurfaceMuted,
+                cursorColor = SirKTVPrimary,
+                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = Dimens.SpaceMd)
+                .tvFocusStyle()
+        )
 
         if (uiState.isSearching) {
-            Box(Modifier.padding(top = Dimens.SpaceMd)) {
+            Box(Modifier.padding(top = Dimens.SpaceMd).fillMaxSize()) {
                 SeriesResultsGrid(
                     series = uiState.searchResults,
                     categoryName = { categoryId -> uiState.categories.find { it.id == categoryId }?.name },
@@ -121,6 +112,25 @@ fun SeriesScreen(
                 )
             }
             return@Column
+        }
+
+        if (uiState.recentlyAdded.isNotEmpty()) {
+            MediaRow(
+                title = "Recently Added",
+                rowItems = uiState.recentlyAdded,
+                modifier = Modifier.padding(top = Dimens.SpaceMd)
+            ) { series ->
+                MediaCard(
+                    title = series.title,
+                    imageUrl = series.posterUrl,
+                    aspectRatio = 2f / 3f,
+                    rating = series.rating,
+                    badge = "NEW",
+                    isFavorite = series.isFavorite,
+                    onClick = { onSeriesSelected(series.id) },
+                    modifier = Modifier.width(PosterCardWidth)
+                )
+            }
         }
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = Dimens.SpaceMd)) {
@@ -136,7 +146,7 @@ fun SeriesScreen(
             }
         }
 
-        Box(Modifier.padding(top = Dimens.SpaceMd)) {
+        Box(Modifier.padding(top = Dimens.SpaceMd).fillMaxSize()) {
             SeriesResultsGrid(
                 series = uiState.visibleSeries,
                 categoryName = { null },
@@ -144,20 +154,6 @@ fun SeriesScreen(
                 onToggleFavorite = viewModel::onToggleFavorite,
                 emptyMessage = "No series found in this category."
             )
-        }
-    }
-}
-
-@Composable
-private fun SeriesSearchIcon(active: Boolean, onClick: () -> Unit) {
-    Surface(onClick = onClick, modifier = Modifier.tvFocusStyle(cornerRadius = 20.dp)) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(if (active) SirKTVPrimary else Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("🔍", fontSize = 16.sp)
         }
     }
 }

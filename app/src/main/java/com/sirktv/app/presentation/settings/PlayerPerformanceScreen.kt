@@ -1,14 +1,9 @@
 package com.sirktv.app.presentation.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -24,26 +19,19 @@ import com.sirktv.app.domain.model.BufferProfile
 import com.sirktv.app.domain.model.StreamQuality
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
-import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 
+/** Embedded inline as the expanded panel for the "Player Performance" settings tile. */
 @Composable
 fun PlayerPerformanceScreen(viewModel: PlayerPerformanceViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsState()
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(SirKTVBackground)
-            .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
-    ) {
+    Box(Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
         ) {
-            Text("Player & Performance", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
-
             SettingsSectionCard {
                 SettingsSegmentedRow(
                     label = "Buffer size",

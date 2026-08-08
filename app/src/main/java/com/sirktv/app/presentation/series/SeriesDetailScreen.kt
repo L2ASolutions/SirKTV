@@ -35,6 +35,8 @@ import androidx.tv.material3.Text as TvText
 import coil.compose.AsyncImage
 import com.sirktv.app.domain.model.Episode
 import com.sirktv.app.presentation.common.CategoryPill
+import com.sirktv.app.presentation.common.SirKTVChrome
+import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.glassCard
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
@@ -46,6 +48,8 @@ import com.sirktv.app.presentation.theme.SirKTVSurfaceVariant
 @Composable
 fun SeriesDetailScreen(
     onEpisodeSelected: (seriesId: String, season: Int, episode: Int) -> Unit,
+    onBack: () -> Unit,
+    onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: SeriesDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -58,6 +62,15 @@ fun SeriesDetailScreen(
             .background(SirKTVBackground)
             .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
     ) {
+        SirKTVChrome(activeItem = SirKTVNavItem.SERIES, onNavigate = onNavigate, onRefresh = {})
+
+        androidx.tv.material3.Surface(
+            onClick = onBack,
+            modifier = Modifier.padding(top = Dimens.SpaceLg, bottom = Dimens.SpaceSm).tvFocusStyle(cornerRadius = 6.dp)
+        ) {
+            Text("‹ Back", color = SirKTVPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)) {
             Box(
                 Modifier

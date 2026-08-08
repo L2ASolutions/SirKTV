@@ -16,6 +16,7 @@ import com.sirktv.app.domain.model.SeriesInfo
 import com.sirktv.app.domain.model.StreamQuality
 import com.sirktv.app.domain.model.WatchProgress
 import com.sirktv.app.domain.session.CurrentSession
+import com.sirktv.app.domain.session.PlayerPresence
 import com.sirktv.app.domain.usecase.GetPlayerSettingsUseCase
 import com.sirktv.app.domain.usecase.GetSeriesInfoUseCase
 import com.sirktv.app.domain.usecase.GetSubtitleAppearanceUseCase
@@ -53,7 +54,9 @@ data class VodPlayerUiState(
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val hasNextEpisode: Boolean = false,
-    val preferredQuality: StreamQuality = StreamQuality.AUTO
+    val preferredQuality: StreamQuality = StreamQuality.AUTO,
+    val captionsEnabled: Boolean = false,
+    val captionLanguageLabel: String = "English"
 )
 
 /**
@@ -77,8 +80,13 @@ class VodPlayerViewModel @Inject constructor(
     private val getSubtitleAppearanceUseCase: GetSubtitleAppearanceUseCase,
     private val currentSession: CurrentSession,
     private val playerEngine: SirKTVPlayerEngine,
-    @ApplicationScope private val appScope: CoroutineScope
+    @ApplicationScope private val appScope: CoroutineScope,
+    private val playerPresence: PlayerPresence
 ) : ViewModel() {
+
+    init {
+        playerPresence.setActive(true)
+    }
 
     private val movieIdArg: String? = savedStateHandle["movieId"]
     private val seriesId: String? = savedStateHandle["seriesId"]
@@ -97,6 +105,13 @@ class VodPlayerViewModel @Inject constructor(
     private var overlayHideJob: Job? = null
     private var tickCount = 0
 
+    // Captions default ON for VOD (English, or the stream's only text track if
+    // it has no English one) the first time text tracks become available for
+    // this playback session; the CC action afterward just toggles this same
+    // override on/off, it doesn't re-run the auto-pick.
+    private var hasAutoEnabledCaptions = false
+    private var lastCaptionOverride: TrackSelectionOverride? = null
+
     // Tracks whichever contentId is currently playing (movieId, or the
     // composite episode id) so onCleared() can persist the final resume
     // position without needing to re-derive it from nav args.
@@ -114,6 +129,9 @@ class VodPlayerViewModel @Inject constructor(
         }
         viewModelScope.launch {
             getSubtitleAppearanceUseCase().collect { playerEngine.updateSubtitleAppearance(it) }
+        }
+        viewModelScope.launch {
+            tracks.collect { current -> maybeAutoEnableCaptions(current) }
         }
         if (isEpisode) loadEpisode() else loadMovie()
     }
@@ -227,6 +245,51 @@ class VodPlayerViewModel @Inject constructor(
     fun clearAudioOverride() = playerEngine.clearTrackTypeOverride(C.TRACK_TYPE_AUDIO)
     fun disableSubtitles() = playerEngine.clearTrackTypeOverride(C.TRACK_TYPE_TEXT)
 
+    /** The VOD overlay's CC button — a direct on/off toggle, not a language picker. */
+    fun onToggleCaptions() {
+        if (_uiState.value.captionsEnabled) {
+            playerEngine.clearTrackTypeOverride(C.TRACK_TYPE_TEXT)
+            _uiState.update { it.copy(captionsEnabled = false) }
+        } else {
+            val override = lastCaptionOverride ?: findCaptionOverride(tracks.value)
+            if (override != null) {
+                playerEngine.setTrackOverride(override)
+                lastCaptionOverride = override
+                _uiState.update { it.copy(captionsEnabled = true, captionLanguageLabel = override.labelFor(tracks.value)) }
+            }
+        }
+    }
+
+    private fun maybeAutoEnableCaptions(currentTracks: Tracks?) {
+        if (hasAutoEnabledCaptions || currentTracks == null) return
+        val override = findCaptionOverride(currentTracks) ?: return
+        hasAutoEnabledCaptions = true
+        playerEngine.setTrackOverride(override)
+        lastCaptionOverride = override
+        _uiState.update { it.copy(captionsEnabled = true, captionLanguageLabel = override.labelFor(currentTracks)) }
+    }
+
+    /** Prefers an English text track; falls back to the stream's first text track if it has no English one. */
+    private fun findCaptionOverride(currentTracks: Tracks?): TrackSelectionOverride? {
+        val textGroups = currentTracks?.groups.orEmpty().filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
+        if (textGroups.isEmpty()) return null
+        textGroups.forEach { group ->
+            for (index in 0 until group.length) {
+                if (group.getTrackFormat(index).language?.startsWith("en", ignoreCase = true) == true) {
+                    return TrackSelectionOverride(group.mediaTrackGroup, index)
+                }
+            }
+        }
+        val firstGroup = textGroups.first()
+        return TrackSelectionOverride(firstGroup.mediaTrackGroup, 0)
+    }
+
+    private fun TrackSelectionOverride.labelFor(currentTracks: Tracks?): String {
+        val group = currentTracks?.groups.orEmpty().find { it.mediaTrackGroup == this.mediaTrackGroup } ?: return "English"
+        val format = group.getTrackFormat(this.trackIndices.firstOrNull() ?: 0)
+        return format.label ?: format.language?.uppercase() ?: "English"
+    }
+
     /** Session-only override — does not touch the persisted Settings default. */
     fun selectQuality(quality: StreamQuality) {
         playerEngine.applyPreferredQuality(quality)
@@ -296,6 +359,7 @@ class VodPlayerViewModel @Inject constructor(
     // cancelled by the time onCleared() runs, so the final progress save and
     // release are dispatched on the process-lifetime appScope instead.
     override fun onCleared() {
+        playerPresence.setActive(false)
         progressPollJob?.cancel()
         overlayHideJob?.cancel()
         playerEngine.pause()

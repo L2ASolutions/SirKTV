@@ -89,8 +89,10 @@ fun LoginScreen(
             onServerUrlChanged = viewModel::onServerUrlChanged,
             onUsernameChanged = viewModel::onUsernameChanged,
             onPasswordChanged = viewModel::onPasswordChanged,
+            onDisplayNameChanged = viewModel::onDisplayNameChanged,
             onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
             onToggleRememberMe = viewModel::onToggleRememberMe,
+            onToggleDisclaimer = viewModel::onToggleDisclaimer,
             onSignInClicked = viewModel::onSignInClicked
         )
     }
@@ -122,18 +124,21 @@ private fun LoginContent(
     onServerUrlChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
+    onDisplayNameChanged: (String) -> Unit,
     onTogglePasswordVisibility: () -> Unit,
     onToggleRememberMe: () -> Unit,
+    onToggleDisclaimer: () -> Unit,
     onSignInClicked: () -> Unit
 ) {
     // One FocusRequester per stop so D-pad Up/Down and IME Next/Done can be
     // pinned to an exact chain (serverUrl -> username -> password ->
-    // rememberMe -> signIn) instead of relying on default 2D focus search,
-    // which the password field's trailing SHOW/HIDE button could otherwise
-    // throw off.
+    // displayName -> rememberMe -> signIn) instead of relying on default 2D
+    // focus search, which the password field's trailing SHOW/HIDE button
+    // could otherwise throw off.
     val serverUrlFocusRequester = remember { FocusRequester() }
     val usernameFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
+    val displayNameFocusRequester = remember { FocusRequester() }
     val rememberMeFocusRequester = remember { FocusRequester() }
     val signInFocusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
@@ -162,7 +167,7 @@ private fun LoginContent(
             Column(
                 modifier = Modifier
                     .verticalScroll(scrollState)
-                    .padding(horizontal = Dimens.SpaceLg, vertical = Dimens.SpaceMd),
+                    .padding(Dimens.SpaceXl),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
             ) {
@@ -243,8 +248,8 @@ private fun LoginContent(
                     label = { Text("Password") },
                     singleLine = true,
                     enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { signInFocusRequester.requestFocus() }),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { displayNameFocusRequester.requestFocus() }),
                     visualTransformation = if (uiState.isPasswordVisible) {
                         VisualTransformation.None
                     } else {
@@ -261,6 +266,28 @@ private fun LoginContent(
                         .focusRequester(passwordFocusRequester)
                         .focusProperties {
                             up = usernameFocusRequester
+                            down = displayNameFocusRequester
+                        }
+                        .onFocusChanged { if (it.isFocused) keyboardController?.show() }
+                        .tvFocusStyle()
+                )
+
+                OutlinedTextField(
+                    value = uiState.displayName,
+                    onValueChange = onDisplayNameChanged,
+                    label = { Text("Display Name (optional)") },
+                    placeholder = { Text("How should we greet you?") },
+                    supportingText = { Text("Leave blank to use your username instead.", fontSize = 11.sp) },
+                    singleLine = true,
+                    enabled = !uiState.isLoading,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { rememberMeFocusRequester.requestFocus() }),
+                    colors = loginFieldColors(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(displayNameFocusRequester)
+                        .focusProperties {
+                            up = passwordFocusRequester
                             down = rememberMeFocusRequester
                         }
                         .onFocusChanged { if (it.isFocused) keyboardController?.show() }
@@ -278,7 +305,7 @@ private fun LoginContent(
                         modifier = Modifier
                             .focusRequester(rememberMeFocusRequester)
                             .focusProperties {
-                                up = passwordFocusRequester
+                                up = displayNameFocusRequester
                                 down = signInFocusRequester
                             }
                             .tvFocusStyle(cornerRadius = 24.dp)
@@ -320,7 +347,37 @@ private fun LoginContent(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+
+                DisclaimerSection(expanded = uiState.isDisclaimerExpanded, onToggle = onToggleDisclaimer)
             }
+        }
+    }
+}
+
+@Composable
+private fun DisclaimerSection(expanded: Boolean, onToggle: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = Dimens.SpaceXs)) {
+        TextButton(onClick = onToggle, modifier = Modifier.tvFocusStyle(cornerRadius = 6.dp)) {
+            Text(
+                text = if (expanded) "Disclaimer ▾" else "Disclaimer ▸",
+                color = SirKTVOnSurfaceMuted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        if (expanded) {
+            Text(
+                text = "SirKTV is a media player only and does not host, provide, or distribute any" +
+                    " content. All streams are supplied by the third-party service you sign in with" +
+                    " using your own account credentials. SirKTV is not responsible for the" +
+                    " availability, legality, or quality of any content accessed through your" +
+                    " provider. You are solely responsible for ensuring your use of any connected" +
+                    " service complies with the laws and regulations applicable to you.",
+                color = SirKTVOnSurfaceMuted,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Start,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.SpaceXs, vertical = Dimens.SpaceXs)
+            )
         }
     }
 }

@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -25,19 +24,17 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
-import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import androidx.tv.material3.Surface
 
+/** Embedded inline as the expanded panel for the "Startup Preferences" settings tile. */
 @Composable
 fun StartupPreferencesScreen(viewModel: StartupPreferencesViewModel = hiltViewModel()) {
     val preference by viewModel.preference.collectAsState()
     val channels by viewModel.channels.collectAsState()
 
-    Box(Modifier.fillMaxSize().background(SirKTVBackground).padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)) {
-        Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)) {
-            Text("Startup Preferences", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
-
+    Box(Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)) {
             SettingsSectionCard {
                 SettingsToggleRow(
                     label = "Launch Live TV automatically",

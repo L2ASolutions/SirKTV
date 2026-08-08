@@ -42,6 +42,9 @@ fun LiveTvOverlay(
     onSelectSubtitleTrack: (androidx.media3.common.Tracks.Group, Int) -> Unit,
     onDisableSubtitles: () -> Unit,
     onSelectQuality: (com.sirktv.app.domain.model.StreamQuality) -> Unit,
+    onChannelListToggle: () -> Unit,
+    onChannelUp: () -> Unit,
+    onChannelDown: () -> Unit,
     tracks: androidx.media3.common.Tracks?
 ) {
     var activeSheet by remember { mutableStateOf<OverlaySheet?>(null) }
@@ -75,6 +78,9 @@ fun LiveTvOverlay(
                 onAudioClick = { activeSheet = OverlaySheet.AUDIO },
                 onSubtitleClick = { activeSheet = OverlaySheet.SUBTITLE },
                 onQualityClick = { activeSheet = OverlaySheet.QUALITY },
+                onChannelListToggle = onChannelListToggle,
+                onChannelUp = onChannelUp,
+                onChannelDown = onChannelDown,
                 showPip = context.supportsPip(),
                 onPipClick = { (context as? Activity)?.enterSirKTVPip() }
             )
@@ -202,6 +208,9 @@ private fun ActionRow(
     onAudioClick: () -> Unit,
     onSubtitleClick: () -> Unit,
     onQualityClick: () -> Unit,
+    onChannelListToggle: () -> Unit,
+    onChannelUp: () -> Unit,
+    onChannelDown: () -> Unit,
     showPip: Boolean,
     onPipClick: () -> Unit
 ) {
@@ -210,6 +219,9 @@ private fun ActionRow(
         ActionIcon(label = "AUD", onClick = onAudioClick)
         ActionIcon(label = "CC", onClick = onSubtitleClick)
         ActionIcon(label = "HD", onClick = onQualityClick)
+        ActionIcon(label = "☰", onClick = onChannelListToggle)
+        ActionIcon(label = "⌃", onClick = onChannelUp)
+        ActionIcon(label = "⌄", onClick = onChannelDown)
         if (showPip) ActionIcon(label = "⧉", onClick = onPipClick)
     }
 }

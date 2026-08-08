@@ -31,7 +31,15 @@ data class SeriesUiState(
             if (normalized.length < 2) return emptyList()
             return allSeries.filter { it.title.lowercase().contains(normalized) }
         }
+
+    // Series has no add-time column in the local schema (unlike Movie), so
+    // "recently added" is approximated by catalog order — the order the
+    // provider itself returns it in — rather than a fabricated timestamp.
+    val recentlyAdded: List<Series>
+        get() = allSeries.take(RECENTLY_ADDED_LIMIT)
 }
+
+private const val RECENTLY_ADDED_LIMIT = 20
 
 @HiltViewModel
 class SeriesViewModel @Inject constructor(

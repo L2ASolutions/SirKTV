@@ -55,7 +55,7 @@ import com.sirktv.app.presentation.livetv.TrackTypes
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 
-private enum class VodSheet { AUDIO, SUBTITLE, QUALITY }
+private enum class VodSheet { AUDIO, QUALITY }
 
 @Composable
 fun VodPlayerScreen(
@@ -136,8 +136,7 @@ fun VodPlayerScreen(
                 onSeekForward = viewModel::onSeekForward,
                 onSelectAudioTrack = viewModel::selectTrack,
                 onClearAudioTrack = viewModel::clearAudioOverride,
-                onSelectSubtitleTrack = viewModel::selectTrack,
-                onDisableSubtitles = viewModel::disableSubtitles,
+                onToggleCaptions = viewModel::onToggleCaptions,
                 onSelectQuality = viewModel::selectQuality
             )
         }
@@ -155,8 +154,7 @@ private fun VodOverlay(
     onSeekForward: () -> Unit,
     onSelectAudioTrack: (androidx.media3.common.Tracks.Group, Int) -> Unit,
     onClearAudioTrack: () -> Unit,
-    onSelectSubtitleTrack: (androidx.media3.common.Tracks.Group, Int) -> Unit,
-    onDisableSubtitles: () -> Unit,
+    onToggleCaptions: () -> Unit,
     onSelectQuality: (com.sirktv.app.domain.model.StreamQuality) -> Unit
 ) {
     var activeSheet by remember { mutableStateOf<VodSheet?>(null) }
@@ -179,8 +177,11 @@ private fun VodOverlay(
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
         ) {
             SeekBar(positionMs = uiState.positionMs, durationMs = uiState.durationMs)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(formatDurationMs(uiState.positionMs), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+                if (uiState.captionsEnabled) {
+                    Text("CC · ${uiState.captionLanguageLabel}", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+                }
                 Text(formatDurationMs(uiState.durationMs), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
@@ -192,7 +193,7 @@ private fun VodOverlay(
                 ActionIcon(label = "⏩", onClick = onSeekForward)
                 ActionIcon(label = if (uiState.isFavorite) "♥" else "♡", active = uiState.isFavorite, onClick = onFavoriteClick)
                 ActionIcon(label = "AUD", onClick = { activeSheet = VodSheet.AUDIO })
-                ActionIcon(label = "CC", onClick = { activeSheet = VodSheet.SUBTITLE })
+                ActionIcon(label = "CC", active = uiState.captionsEnabled, onClick = onToggleCaptions)
                 ActionIcon(label = "HD", onClick = { activeSheet = VodSheet.QUALITY })
                 if (uiState.isEpisode && uiState.hasNextEpisode) {
                     ActionIcon(label = "⏭", onClick = onNextEpisode)
@@ -209,15 +210,6 @@ private fun VodOverlay(
             allowOff = false,
             onSelect = onSelectAudioTrack,
             onClear = onClearAudioTrack,
-            onDismiss = { activeSheet = null }
-        )
-        VodSheet.SUBTITLE -> TrackSelectorSheet(
-            title = "Subtitles",
-            tracks = tracks,
-            trackType = TrackTypes.TEXT,
-            allowOff = true,
-            onSelect = onSelectSubtitleTrack,
-            onClear = onDisableSubtitles,
             onDismiss = { activeSheet = null }
         )
         VodSheet.QUALITY -> QualitySelectorSheet(

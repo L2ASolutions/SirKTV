@@ -164,6 +164,9 @@ fun LiveTvPlayerScreen(
                 onSelectSubtitleTrack = viewModel::selectTrack,
                 onDisableSubtitles = viewModel::disableSubtitles,
                 onSelectQuality = viewModel::selectQuality,
+                onChannelListToggle = viewModel::onLeftPressed,
+                onChannelUp = viewModel::onChannelUp,
+                onChannelDown = viewModel::onChannelDown,
                 tracks = tracks
             )
         }

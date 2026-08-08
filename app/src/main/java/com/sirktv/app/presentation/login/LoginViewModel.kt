@@ -6,9 +6,11 @@ import com.sirktv.app.domain.model.LoginResult
 import com.sirktv.app.domain.model.SavedCredentials
 import com.sirktv.app.domain.model.StartupDestination
 import com.sirktv.app.domain.session.CurrentSession
+import com.sirktv.app.domain.usecase.GetDisplayNameUseCase
 import com.sirktv.app.domain.usecase.GetSavedCredentialsUseCase
 import com.sirktv.app.domain.usecase.LoginUseCase
 import com.sirktv.app.domain.usecase.ResolveStartupDestinationUseCase
+import com.sirktv.app.domain.usecase.UpdateDisplayNameUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +27,8 @@ class LoginViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
     private val getSavedCredentialsUseCase: GetSavedCredentialsUseCase,
     private val resolveStartupDestinationUseCase: ResolveStartupDestinationUseCase,
+    private val getDisplayNameUseCase: GetDisplayNameUseCase,
+    private val updateDisplayNameUseCase: UpdateDisplayNameUseCase,
     private val currentSession: CurrentSession
 ) : ViewModel() {
 
@@ -36,6 +40,8 @@ class LoginViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val savedDisplayName = getDisplayNameUseCase().orEmpty()
+            _uiState.update { it.copy(displayName = savedDisplayName) }
             val saved = getSavedCredentialsUseCase()
             if (saved != null) {
                 _uiState.update {
@@ -62,8 +68,16 @@ class LoginViewModel @Inject constructor(
         _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
     }
 
+    fun onDisplayNameChanged(value: String) {
+        _uiState.update { it.copy(displayName = value) }
+    }
+
     fun onToggleRememberMe() {
         _uiState.update { it.copy(rememberMe = !it.rememberMe) }
+    }
+
+    fun onToggleDisclaimer() {
+        _uiState.update { it.copy(isDisclaimerExpanded = !it.isDisclaimerExpanded) }
     }
 
     fun onSignInClicked() {
@@ -80,6 +94,7 @@ class LoginViewModel @Inject constructor(
                         result.profile,
                         SavedCredentials(state.serverUrl, state.username, state.password)
                     )
+                    updateDisplayNameUseCase(state.displayName)
                     _uiState.update { it.copy(isLoading = false, isReconnecting = false) }
                     when (val destination = resolveStartupDestinationUseCase()) {
                         is StartupDestination.LiveTv -> _events.emit(LoginEvent.NavigateToLiveTv(destination.channelId))

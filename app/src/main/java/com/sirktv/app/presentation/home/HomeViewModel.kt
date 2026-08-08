@@ -8,20 +8,18 @@ import com.sirktv.app.domain.model.ContentType
 import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.domain.model.Movie
 import com.sirktv.app.domain.model.Series
-import com.sirktv.app.domain.model.UserProfile
 import com.sirktv.app.domain.model.WatchProgress
 import com.sirktv.app.domain.session.CurrentSession
 import com.sirktv.app.domain.usecase.ClearSavedCredentialsUseCase
 import com.sirktv.app.domain.usecase.GetEpgNowNextUseCase
+import com.sirktv.app.domain.usecase.GetMovieDetailUseCase
 import com.sirktv.app.domain.usecase.ObserveChannelsUseCase
 import com.sirktv.app.domain.usecase.ObserveContinueWatchingUseCase
-import com.sirktv.app.domain.usecase.ObserveFavoriteChannelsUseCase
-import com.sirktv.app.domain.usecase.ObserveFavoriteMoviesUseCase
-import com.sirktv.app.domain.usecase.ObserveFavoriteSeriesUseCase
+import com.sirktv.app.domain.usecase.ObserveMovieCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveMoviesUseCase
 import com.sirktv.app.domain.usecase.ObserveRecentlyWatchedUseCase
+import com.sirktv.app.domain.usecase.ObserveSeriesCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveSeriesUseCase
-import com.sirktv.app.domain.usecase.ObserveSportsChannelsUseCase
 import com.sirktv.app.domain.usecase.SyncChannelsUseCase
 import com.sirktv.app.domain.usecase.SyncMoviesUseCase
 import com.sirktv.app.domain.usecase.SyncSeriesUseCase
@@ -41,6 +39,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val LIVE_TV_ROW_LIMIT = 25
+private const val RECENTLY_ADDED_MOVIE_LIMIT = 14
+private const val RECENTLY_ADDED_SERIES_LIMIT = 8
+private const val HERO_ITEM_LIMIT = 6
 
 sealed interface HomeNavTarget {
     data class LiveTv(val channelId: String) : HomeNavTarget
@@ -53,33 +54,53 @@ sealed interface HomeEvent {
     data object NavigateToLogin : HomeEvent
 }
 
+/**
+ * One rotating slide in the Home hero carousel — sourced from top-rated
+ * movies and series. [contentId] is the raw movie/series id (no prefix), used
+ * to key the lazy movie-synopsis cache; [id] is the list key.
+ */
+data class HeroItem(
+    val id: String,
+    val contentId: String,
+    val title: String,
+    val imageUrl: String?,
+    val genre: String?,
+    val rating: Float?,
+    val isFavorite: Boolean,
+    val synopsis: String?,
+    val contentType: ContentType,
+    val navTarget: HomeNavTarget
+)
+
+/** One tile in the Home "Recently Added" row — movies (real add time) and series (catalog order) merged. */
+data class RecentlyAddedItem(
+    val id: String,
+    val title: String,
+    val imageUrl: String?,
+    val rating: Float?,
+    val isFavorite: Boolean,
+    val navTarget: HomeNavTarget
+)
+
 data class HomeUiState(
-    val heroTitle: String = "SirKTV",
-    val heroSubtitle: String = "Your World. Your Channels.",
-    val heroTarget: HomeNavTarget? = null,
+    val heroItems: List<HeroItem> = emptyList(),
     val continueWatching: List<WatchProgress> = emptyList(),
-    val liveChannels: List<Channel> = emptyList(),
-    val favoriteChannels: List<Channel> = emptyList(),
-    val favoriteMovies: List<Movie> = emptyList(),
-    val favoriteSeries: List<Series> = emptyList(),
+    val recentlyAdded: List<RecentlyAddedItem> = emptyList(),
     val recentlyWatched: List<WatchProgress> = emptyList(),
-    val trendingMovies: List<Movie> = emptyList(),
-    val popularSeries: List<Series> = emptyList(),
-    val liveSportsNow: List<Channel> = emptyList()
+    val liveChannels: List<Channel> = emptyList()
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     observeContinueWatchingUseCase: ObserveContinueWatchingUseCase,
     observeChannelsUseCase: ObserveChannelsUseCase,
-    observeFavoriteChannelsUseCase: ObserveFavoriteChannelsUseCase,
-    observeFavoriteMoviesUseCase: ObserveFavoriteMoviesUseCase,
-    observeFavoriteSeriesUseCase: ObserveFavoriteSeriesUseCase,
     observeRecentlyWatchedUseCase: ObserveRecentlyWatchedUseCase,
     observeMoviesUseCase: ObserveMoviesUseCase,
     observeSeriesUseCase: ObserveSeriesUseCase,
-    observeSportsChannelsUseCase: ObserveSportsChannelsUseCase,
+    observeMovieCategoriesUseCase: ObserveMovieCategoriesUseCase,
+    observeSeriesCategoriesUseCase: ObserveSeriesCategoriesUseCase,
     private val getEpgNowNextUseCase: GetEpgNowNextUseCase,
+    private val getMovieDetailUseCase: GetMovieDetailUseCase,
     private val syncChannelsUseCase: SyncChannelsUseCase,
     private val syncMoviesUseCase: SyncMoviesUseCase,
     private val syncSeriesUseCase: SyncSeriesUseCase,
@@ -93,15 +114,11 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    val profile: StateFlow<UserProfile?> = currentSession.profile
-
     private val _events = MutableSharedFlow<HomeEvent>()
     val events: SharedFlow<HomeEvent> = _events.asSharedFlow()
 
-    // Lazy-on-visible EPG now/next for the Live TV and Favorite Channels rows —
-    // same pattern as LiveTvPlayerViewModel/LiveTvBrowseViewModel: a card
-    // requests its own now/next when it enters composition, so nothing is
-    // fetched for a channel the user never scrolls to.
+    // Lazy-on-visible EPG now/next for the Live TV row — same pattern as
+    // LiveTvPlayerViewModel/LiveTvBrowseViewModel.
     private val _channelEpgCache = MutableStateFlow<Map<String, EpgNowNext>>(emptyMap())
     val channelEpgCache: StateFlow<Map<String, EpgNowNext>> = _channelEpgCache.asStateFlow()
     private val requestedEpgChannelIds = mutableSetOf<String>()
@@ -114,75 +131,132 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    // Lazy-on-open synopsis for a movie hero item in the Preview modal — Movie
+    // has no inline synopsis (unlike Series), so it's fetched only when the
+    // modal actually needs it, same "on demand" contract GetMovieDetailUseCase
+    // already documents.
+    private val _movieSynopsisCache = MutableStateFlow<Map<String, String?>>(emptyMap())
+    val movieSynopsisCache: StateFlow<Map<String, String?>> = _movieSynopsisCache.asStateFlow()
+    private val requestedMovieSynopsisIds = mutableSetOf<String>()
+
+    fun requestMovieSynopsis(movieId: String) {
+        if (!requestedMovieSynopsisIds.add(movieId)) return
+        viewModelScope.launch {
+            val detail = getMovieDetailUseCase(movieId)
+            _movieSynopsisCache.update { it + (movieId to detail?.synopsis) }
+        }
+    }
+
     init {
         // Best-effort background refresh so Home has real data even if the
         // user never separately opens Live TV/Movies/Series first.
-        viewModelScope.launch { syncChannelsUseCase() }
-        viewModelScope.launch { syncMoviesUseCase() }
-        viewModelScope.launch { syncSeriesUseCase() }
+        refresh()
 
         val catalogFlow = combine(
             observeMoviesUseCase(),
             observeSeriesUseCase(),
-            observeSportsChannelsUseCase()
-        ) { movies, series, sportsCatalog ->
-            Triple(
-                movies.sortedByDescending { it.rating ?: 0f }.take(15),
-                series.sortedByDescending { it.rating ?: 0f }.take(15),
-                sportsCatalog.channels.take(15)
-            )
+            observeMovieCategoriesUseCase(),
+            observeSeriesCategoriesUseCase()
+        ) { movies, series, movieCategories, seriesCategories ->
+            CatalogQuad(movies, series, movieCategories.associate { it.id to it.name }, seriesCategories.associate { it.id to it.name })
         }
         val watchFlow = combine(
             observeContinueWatchingUseCase(),
             observeChannelsUseCase(),
-            observeFavoriteChannelsUseCase(),
             observeRecentlyWatchedUseCase()
-        ) { continueWatching, channels, favorites, recent ->
-            WatchQuad(continueWatching, channels.take(LIVE_TV_ROW_LIMIT), favorites, recent)
+        ) { continueWatching, channels, recent ->
+            WatchTriple(continueWatching, channels.take(LIVE_TV_ROW_LIMIT), recent)
         }
-        val favoritesFlow = combine(
-            observeFavoriteMoviesUseCase(),
-            observeFavoriteSeriesUseCase()
-        ) { favMovies, favSeries -> favMovies to favSeries }
 
         viewModelScope.launch {
-            combine(watchFlow, catalogFlow, favoritesFlow) { watch, catalog, favorites ->
-                val (continueWatching, liveChannels, favoriteChannels, recent) = watch
-                val (movies, series, sports) = catalog
-                val (favoriteMovies, favoriteSeries) = favorites
-                val hero = buildHero(continueWatching, movies)
+            combine(watchFlow, catalogFlow) { watch, catalog ->
                 HomeUiState(
-                    heroTitle = hero.first,
-                    heroSubtitle = hero.second,
-                    heroTarget = hero.third,
-                    continueWatching = continueWatching,
-                    liveChannels = liveChannels,
-                    favoriteChannels = favoriteChannels,
-                    favoriteMovies = favoriteMovies,
-                    favoriteSeries = favoriteSeries,
-                    recentlyWatched = recent,
-                    trendingMovies = movies,
-                    popularSeries = series,
-                    liveSportsNow = sports
+                    heroItems = buildHeroItems(catalog),
+                    continueWatching = watch.continueWatching,
+                    recentlyAdded = buildRecentlyAdded(catalog),
+                    recentlyWatched = watch.recentlyWatched,
+                    liveChannels = watch.liveChannels
                 )
             }.collect { state -> _uiState.value = state }
         }
     }
 
-    private fun buildHero(
-        continueWatching: List<WatchProgress>,
-        movies: List<Movie>
-    ): Triple<String, String, HomeNavTarget?> {
-        val top = continueWatching.firstOrNull()
-        if (top != null) {
-            val target = watchProgressTarget(top)
-            return Triple(top.title, "Continue watching" + (top.subtitle?.let { " · $it" } ?: ""), target)
-        }
-        val trendingMovie = movies.firstOrNull()
-        if (trendingMovie != null) {
-            return Triple(trendingMovie.title, "Trending now", HomeNavTarget.MoviePlayer(trendingMovie.id))
-        }
-        return Triple("SirKTV", "Your World. Your Channels.", null)
+    fun refresh() {
+        viewModelScope.launch { syncChannelsUseCase() }
+        viewModelScope.launch { syncMoviesUseCase() }
+        viewModelScope.launch { syncSeriesUseCase() }
+    }
+
+    private fun buildHeroItems(catalog: CatalogQuad): List<HeroItem> {
+        val movieHeroes = catalog.movies
+            .sortedByDescending { it.rating ?: 0f }
+            .take(HERO_ITEM_LIMIT)
+            .map { movie ->
+                HeroItem(
+                    id = "movie-${movie.id}",
+                    contentId = movie.id,
+                    title = movie.title,
+                    imageUrl = movie.posterUrl,
+                    genre = catalog.movieCategoryNames[movie.categoryId],
+                    rating = movie.rating,
+                    isFavorite = movie.isFavorite,
+                    synopsis = null,
+                    contentType = ContentType.MOVIE,
+                    navTarget = HomeNavTarget.MoviePlayer(movie.id)
+                )
+            }
+        val seriesHeroes = catalog.series
+            .sortedByDescending { it.rating ?: 0f }
+            .take(HERO_ITEM_LIMIT)
+            .map { series ->
+                HeroItem(
+                    id = "series-${series.id}",
+                    contentId = series.id,
+                    title = series.title,
+                    imageUrl = series.posterUrl,
+                    genre = catalog.seriesCategoryNames[series.categoryId],
+                    rating = series.rating,
+                    isFavorite = series.isFavorite,
+                    synopsis = series.synopsis,
+                    contentType = ContentType.SERIES,
+                    navTarget = HomeNavTarget.SeriesDetail(series.id)
+                )
+            }
+        return (movieHeroes + seriesHeroes)
+            .sortedByDescending { it.rating ?: 0f }
+            .take(HERO_ITEM_LIMIT)
+    }
+
+    private fun buildRecentlyAdded(catalog: CatalogQuad): List<RecentlyAddedItem> {
+        val movies = catalog.movies
+            .sortedByDescending { it.addedAtEpochMillis }
+            .take(RECENTLY_ADDED_MOVIE_LIMIT)
+            .map { movie ->
+                RecentlyAddedItem(
+                    id = "movie-${movie.id}",
+                    title = movie.title,
+                    imageUrl = movie.posterUrl,
+                    rating = movie.rating,
+                    isFavorite = movie.isFavorite,
+                    navTarget = HomeNavTarget.MoviePlayer(movie.id)
+                )
+            }
+        // Series has no add-time column in the local schema, so it's ranked by
+        // catalog order (the order the provider itself returns it in) rather
+        // than a fabricated timestamp.
+        val series = catalog.series
+            .take(RECENTLY_ADDED_SERIES_LIMIT)
+            .map { series ->
+                RecentlyAddedItem(
+                    id = "series-${series.id}",
+                    title = series.title,
+                    imageUrl = series.posterUrl,
+                    rating = series.rating,
+                    isFavorite = series.isFavorite,
+                    navTarget = HomeNavTarget.SeriesDetail(series.id)
+                )
+            }
+        return movies + series
     }
 
     fun onLogoutClicked() {
@@ -215,9 +289,15 @@ class HomeViewModel @Inject constructor(
     }
 }
 
-private data class WatchQuad(
+private data class WatchTriple(
     val continueWatching: List<WatchProgress>,
     val liveChannels: List<Channel>,
-    val favoriteChannels: List<Channel>,
     val recentlyWatched: List<WatchProgress>
+)
+
+private data class CatalogQuad(
+    val movies: List<Movie>,
+    val series: List<Series>,
+    val movieCategoryNames: Map<String, String>,
+    val seriesCategoryNames: Map<String, String>
 )

@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.sirktv.app.player.SirKTVPlayerEngine
 import com.sirktv.app.presentation.navigation.SirKTVNavHost
+import com.sirktv.app.presentation.screensaver.IdleScreensaverHost
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,7 +27,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             SirKTVTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = SirKTVBackground) {
-                    SirKTVNavHost()
+                    IdleScreensaverHost {
+                        SirKTVNavHost()
+                    }
                 }
             }
         }

@@ -36,6 +36,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Surface
 import com.sirktv.app.domain.model.SearchResults
 import com.sirktv.app.presentation.common.CategoryPill
+import com.sirktv.app.presentation.common.SirKTVChrome
+import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
@@ -50,6 +52,7 @@ fun SearchScreen(
     onChannelSelected: (channelId: String) -> Unit,
     onMovieSelected: (movieId: String) -> Unit,
     onSeriesSelected: (seriesId: String) -> Unit,
+    onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -62,7 +65,8 @@ fun SearchScreen(
             .background(SirKTVBackground)
             .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
     ) {
-        Text("Search", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        SirKTVChrome(activeItem = SirKTVNavItem.SEARCH, onNavigate = onNavigate, onRefresh = {})
+        Text("Search", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = Dimens.SpaceLg))
 
         OutlinedTextField(
             value = uiState.query,

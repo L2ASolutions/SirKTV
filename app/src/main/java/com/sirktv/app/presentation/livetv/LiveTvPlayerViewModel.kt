@@ -12,6 +12,7 @@ import com.sirktv.app.domain.model.EpgProgram
 import com.sirktv.app.domain.model.PlayerSettings
 import com.sirktv.app.domain.model.StreamQuality
 import com.sirktv.app.domain.session.CurrentSession
+import com.sirktv.app.domain.session.PlayerPresence
 import com.sirktv.app.domain.usecase.GetEpgListingsUseCase
 import com.sirktv.app.domain.usecase.GetEpgNowNextUseCase
 import com.sirktv.app.domain.usecase.GetPlayerSettingsUseCase
@@ -61,10 +62,15 @@ class LiveTvPlayerViewModel @Inject constructor(
     private val getSubtitleAppearanceUseCase: GetSubtitleAppearanceUseCase,
     private val currentSession: CurrentSession,
     private val playerEngine: SirKTVPlayerEngine,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val playerPresence: PlayerPresence
 ) : ViewModel() {
 
     private val initialChannelId: String? = savedStateHandle.get<String>("channelId")
+
+    init {
+        playerPresence.setActive(true)
+    }
 
     private val _uiState = MutableStateFlow(LiveTvUiState())
     val uiState: StateFlow<LiveTvUiState> = _uiState.asStateFlow()
@@ -267,5 +273,6 @@ class LiveTvPlayerViewModel @Inject constructor(
     override fun onCleared() {
         overlayHideJob?.cancel()
         epgFetchJob?.cancel()
+        playerPresence.setActive(false)
     }
 }

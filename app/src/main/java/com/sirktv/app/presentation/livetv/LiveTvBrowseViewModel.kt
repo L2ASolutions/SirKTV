@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Channel
 import com.sirktv.app.domain.model.EpgNowNext
+import com.sirktv.app.domain.model.EpgProgram
+import com.sirktv.app.domain.usecase.GetEpgListingsUseCase
 import com.sirktv.app.domain.usecase.GetEpgNowNextUseCase
 import com.sirktv.app.domain.usecase.ObserveCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveChannelsUseCase
@@ -22,17 +24,24 @@ import javax.inject.Inject
 data class LiveTvBrowseUiState(
     val isLoading: Boolean = true,
     val categories: List<Category> = emptyList(),
+    val countryGroups: List<CountryGroup> = emptyList(),
     val allChannels: List<Channel> = emptyList(),
     val visibleChannels: List<Channel> = emptyList(),
+    val selectedCountryCode: String? = null,
     val selectedCategoryId: String? = null,
+    val selectedChannelId: String? = null,
     val epgCache: Map<String, EpgNowNext> = emptyMap(),
+    val epgListingsCache: Map<String, List<EpgProgram>> = emptyMap(),
     val loadError: String? = null
-)
+) {
+    val selectedChannel: Channel? get() = allChannels.find { it.id == selectedChannelId } ?: visibleChannels.firstOrNull()
+}
 
 /**
- * Category sidebar + channel list shown after login/from Home so the user
- * picks a channel manually — nothing plays until [Channel] is tapped. Replaces
- * the old behavior of auto-tuning a channel on the user's behalf.
+ * Country sidebar + channel list + preview panel shown after login/from Home
+ * so the user picks a channel manually — nothing plays until "Watch Full
+ * Screen" is pressed. Replaces the old behavior of auto-tuning a channel on
+ * the user's behalf.
  */
 @HiltViewModel
 class LiveTvBrowseViewModel @Inject constructor(
@@ -40,6 +49,7 @@ class LiveTvBrowseViewModel @Inject constructor(
     private val observeChannelsUseCase: ObserveChannelsUseCase,
     private val syncChannelsUseCase: SyncChannelsUseCase,
     private val getEpgNowNextUseCase: GetEpgNowNextUseCase,
+    private val getEpgListingsUseCase: GetEpgListingsUseCase,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase
 ) : ViewModel() {
 
@@ -47,6 +57,7 @@ class LiveTvBrowseViewModel @Inject constructor(
     val uiState: StateFlow<LiveTvBrowseUiState> = _uiState.asStateFlow()
 
     private val requestedEpgChannelIds = mutableSetOf<String>()
+    private val requestedEpgListingChannelIds = mutableSetOf<String>()
 
     init {
         viewModelScope.launch {
@@ -54,10 +65,13 @@ class LiveTvBrowseViewModel @Inject constructor(
                 categories to channels
             }.collect { (categories, channels) ->
                 _uiState.update {
+                    val visible = filterChannels(channels, it.selectedCategoryId)
                     it.copy(
                         categories = categories,
+                        countryGroups = groupCategoriesByCountry(categories),
                         allChannels = channels,
-                        visibleChannels = filterChannels(channels, it.selectedCategoryId),
+                        visibleChannels = visible,
+                        selectedChannelId = it.selectedChannelId ?: visible.firstOrNull()?.id,
                         isLoading = if (channels.isNotEmpty()) false else it.isLoading
                     )
                 }
@@ -81,8 +95,19 @@ class LiveTvBrowseViewModel @Inject constructor(
         }
     }
 
+    fun onCountrySelected(code: String?) {
+        _uiState.update { it.copy(selectedCountryCode = code, selectedCategoryId = null) }
+    }
+
     fun onCategorySelected(categoryId: String?) {
-        _uiState.update { it.copy(selectedCategoryId = categoryId, visibleChannels = filterChannels(it.allChannels, categoryId)) }
+        _uiState.update {
+            val visible = filterChannels(it.allChannels, categoryId)
+            it.copy(selectedCategoryId = categoryId, visibleChannels = visible, selectedChannelId = visible.firstOrNull()?.id)
+        }
+    }
+
+    fun onChannelHighlighted(channelId: String) {
+        _uiState.update { it.copy(selectedChannelId = channelId) }
     }
 
     fun requestEpgFor(channelId: String) {
@@ -90,6 +115,14 @@ class LiveTvBrowseViewModel @Inject constructor(
         viewModelScope.launch {
             val nowNext = getEpgNowNextUseCase(channelId)
             _uiState.update { it.copy(epgCache = it.epgCache + (channelId to nowNext)) }
+        }
+    }
+
+    fun requestEpgListingsFor(channelId: String) {
+        if (!requestedEpgListingChannelIds.add(channelId)) return
+        viewModelScope.launch {
+            val listings = getEpgListingsUseCase(channelId)
+            _uiState.update { it.copy(epgListingsCache = it.epgListingsCache + (channelId to listings)) }
         }
     }
 

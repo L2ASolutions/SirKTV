@@ -1,15 +1,12 @@
 package com.sirktv.app.presentation.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,89 +28,71 @@ import com.sirktv.app.domain.model.SubtitleEdgeStyle
 import com.sirktv.app.domain.model.SubtitleTextColor
 import com.sirktv.app.domain.model.SubtitleTextSize
 import com.sirktv.app.presentation.theme.Dimens
-import com.sirktv.app.presentation.theme.SirKTVBackground
 
+/** Embedded inline as the expanded panel for the "Subtitle Appearance" settings tile. */
 @Composable
 fun SubtitleAppearanceScreen(viewModel: SubtitleAppearanceViewModel = hiltViewModel()) {
     val appearance by viewModel.appearance.collectAsState()
 
-    Box(Modifier.fillMaxSize().background(SirKTVBackground)) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = Dimens.SafeAreaHorizontal,
-                vertical = Dimens.SafeAreaVertical
-            ),
+    Box(Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
         ) {
-            item {
-                Text("Subtitle Appearance", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            SubtitlePreview(appearance)
+
+            SettingsSectionCard {
+                SettingsSegmentedRow(
+                    label = "Text Size",
+                    options = listOf(
+                        "Small" to SubtitleTextSize.SMALL,
+                        "Medium" to SubtitleTextSize.MEDIUM,
+                        "Large" to SubtitleTextSize.LARGE,
+                        "Extra Large" to SubtitleTextSize.EXTRA_LARGE
+                    ),
+                    selected = appearance.textSize,
+                    onSelect = viewModel::setTextSize
+                )
             }
 
-            item {
-                SubtitlePreview(appearance)
+            SettingsSectionCard {
+                SettingsSegmentedRow(
+                    label = "Text Color",
+                    options = listOf(
+                        "White" to SubtitleTextColor.WHITE,
+                        "Yellow" to SubtitleTextColor.YELLOW,
+                        "Green" to SubtitleTextColor.GREEN,
+                        "Cyan" to SubtitleTextColor.CYAN
+                    ),
+                    selected = appearance.textColor,
+                    onSelect = viewModel::setTextColor
+                )
             }
 
-            item {
-                SettingsSectionCard {
-                    SettingsSegmentedRow(
-                        label = "Text Size",
-                        options = listOf(
-                            "Small" to SubtitleTextSize.SMALL,
-                            "Medium" to SubtitleTextSize.MEDIUM,
-                            "Large" to SubtitleTextSize.LARGE,
-                            "Extra Large" to SubtitleTextSize.EXTRA_LARGE
-                        ),
-                        selected = appearance.textSize,
-                        onSelect = viewModel::setTextSize
-                    )
-                }
+            SettingsSectionCard {
+                SettingsSegmentedRow(
+                    label = "Background",
+                    options = listOf(
+                        "None" to SubtitleBackground.NONE,
+                        "Semi-transparent" to SubtitleBackground.SEMI_TRANSPARENT,
+                        "Solid" to SubtitleBackground.SOLID
+                    ),
+                    selected = appearance.background,
+                    onSelect = viewModel::setBackground
+                )
             }
 
-            item {
-                SettingsSectionCard {
-                    SettingsSegmentedRow(
-                        label = "Text Color",
-                        options = listOf(
-                            "White" to SubtitleTextColor.WHITE,
-                            "Yellow" to SubtitleTextColor.YELLOW,
-                            "Green" to SubtitleTextColor.GREEN,
-                            "Cyan" to SubtitleTextColor.CYAN
-                        ),
-                        selected = appearance.textColor,
-                        onSelect = viewModel::setTextColor
-                    )
-                }
-            }
-
-            item {
-                SettingsSectionCard {
-                    SettingsSegmentedRow(
-                        label = "Background",
-                        options = listOf(
-                            "None" to SubtitleBackground.NONE,
-                            "Semi-transparent" to SubtitleBackground.SEMI_TRANSPARENT,
-                            "Solid" to SubtitleBackground.SOLID
-                        ),
-                        selected = appearance.background,
-                        onSelect = viewModel::setBackground
-                    )
-                }
-            }
-
-            item {
-                SettingsSectionCard {
-                    SettingsSegmentedRow(
-                        label = "Edge Style",
-                        options = listOf(
-                            "None" to SubtitleEdgeStyle.NONE,
-                            "Outline" to SubtitleEdgeStyle.OUTLINE,
-                            "Drop Shadow" to SubtitleEdgeStyle.DROP_SHADOW
-                        ),
-                        selected = appearance.edgeStyle,
-                        onSelect = viewModel::setEdgeStyle
-                    )
-                }
+            SettingsSectionCard {
+                SettingsSegmentedRow(
+                    label = "Edge Style",
+                    options = listOf(
+                        "None" to SubtitleEdgeStyle.NONE,
+                        "Outline" to SubtitleEdgeStyle.OUTLINE,
+                        "Drop Shadow" to SubtitleEdgeStyle.DROP_SHADOW
+                    ),
+                    selected = appearance.edgeStyle,
+                    onSelect = viewModel::setEdgeStyle
+                )
             }
         }
     }

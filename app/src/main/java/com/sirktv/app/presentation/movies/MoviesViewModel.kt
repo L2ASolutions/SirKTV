@@ -40,11 +40,10 @@ data class MoviesUiState(
             return allMovies.filter { it.title.lowercase().contains(normalized) }
         }
 
-    /** Trending/Recently Added/category rows — pulled dynamically from whatever categories the Xtream account has. */
+    /** Recently Added + genre rows — pulled dynamically from whatever categories the Xtream account has. */
     val rows: List<MovieRow>
         get() = buildList {
             if (allMovies.isNotEmpty()) {
-                add(MovieRow("Trending", allMovies.sortedByDescending { it.rating ?: 0f }.take(ROW_LIMIT)))
                 add(MovieRow("Recently Added", allMovies.sortedByDescending { it.addedAtEpochMillis }.take(ROW_LIMIT)))
             }
             categories.forEach { category ->

@@ -3,6 +3,7 @@ package com.sirktv.app.di
 import com.sirktv.app.data.repository.AppearanceSettingsRepositoryImpl
 import com.sirktv.app.data.repository.AuthRepositoryImpl
 import com.sirktv.app.data.repository.ChannelRepositoryImpl
+import com.sirktv.app.data.repository.DisplayNameRepositoryImpl
 import com.sirktv.app.data.repository.FavoritesRepositoryImpl
 import com.sirktv.app.data.repository.MovieRepositoryImpl
 import com.sirktv.app.data.repository.ParentalSettingsRepositoryImpl
@@ -15,6 +16,7 @@ import com.sirktv.app.data.repository.WatchProgressRepositoryImpl
 import com.sirktv.app.domain.repository.AppearanceSettingsRepository
 import com.sirktv.app.domain.repository.AuthRepository
 import com.sirktv.app.domain.repository.ChannelRepository
+import com.sirktv.app.domain.repository.DisplayNameRepository
 import com.sirktv.app.domain.repository.FavoritesRepository
 import com.sirktv.app.domain.repository.MovieRepository
 import com.sirktv.app.domain.repository.ParentalSettingsRepository
@@ -81,4 +83,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSubtitleAppearanceRepository(impl: SubtitleAppearanceRepositoryImpl): SubtitleAppearanceRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDisplayNameRepository(impl: DisplayNameRepositoryImpl): DisplayNameRepository
 }
