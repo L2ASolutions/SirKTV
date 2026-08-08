@@ -1,5 +1,6 @@
 package com.sirktv.app.presentation.livetv
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -34,6 +35,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text as TvText
 import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Channel
+import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.presentation.common.SirKTVLogoMark
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
@@ -72,6 +74,7 @@ fun LiveTvBrowseScreen(
                     channels = uiState.visibleChannels,
                     epgCache = uiState.epgCache,
                     onChannelSelected = { onChannelSelected(it.id) },
+                    onToggleFavorite = viewModel::onToggleFavorite,
                     onVisible = viewModel::requestEpgFor
                 )
             }
@@ -166,10 +169,13 @@ private fun CategoryRow(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun ChannelGrid(
     channels: List<Channel>,
-    epgCache: Map<String, com.sirktv.app.domain.model.EpgNowNext>,
+    epgCache: Map<String, EpgNowNext>,
     onChannelSelected: (Channel) -> Unit,
+    onToggleFavorite: (String) -> Unit,
     onVisible: (String) -> Unit
 ) {
+    val context = LocalContext.current
+
     Box(Modifier.fillMaxSize()) {
         if (channels.isEmpty()) {
             Text(
@@ -181,65 +187,26 @@ private fun ChannelGrid(
         } else {
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(channels, key = { it.id }) { channel ->
-                    BrowseChannelRow(
+                    LaunchedEffect(channel.id) { onVisible(channel.id) }
+                    ChannelCard(
                         channel = channel,
-                        epgTitle = epgCache[channel.id]?.now?.title,
-                        onSelect = { onChannelSelected(channel) },
-                        onVisible = { onVisible(channel.id) }
+                        nowNext = epgCache[channel.id],
+                        onClick = { onChannelSelected(channel) },
+                        onToggleFavorite = {
+                            Toast.makeText(
+                                context,
+                                if (channel.isFavorite) "Removed from Favorites" else "Added to Favorites",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            onToggleFavorite(channel.id)
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BrowseChannelRow(
-    channel: Channel,
-    epgTitle: String?,
-    onSelect: () -> Unit,
-    onVisible: () -> Unit
-) {
-    LaunchedEffect(channel.id) { onVisible() }
-
-    Surface(onClick = onSelect, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 12.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                Modifier.size(34.dp).background(SirKTVPrimary, RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(channel.name.take(2).uppercase(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "${channel.channelNumber} · ${channel.name}",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = epgTitle ?: " ",
-                    color = SirKTVOnSurfaceMuted,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            if (channel.isFavorite) {
-                Text("♥", color = SirKTVPrimary, fontSize = 14.sp)
             }
         }
     }

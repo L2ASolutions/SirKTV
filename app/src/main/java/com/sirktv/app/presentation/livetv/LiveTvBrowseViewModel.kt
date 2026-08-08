@@ -9,6 +9,7 @@ import com.sirktv.app.domain.usecase.GetEpgNowNextUseCase
 import com.sirktv.app.domain.usecase.ObserveCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveChannelsUseCase
 import com.sirktv.app.domain.usecase.SyncChannelsUseCase
+import com.sirktv.app.domain.usecase.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +39,8 @@ class LiveTvBrowseViewModel @Inject constructor(
     private val observeCategoriesUseCase: ObserveCategoriesUseCase,
     private val observeChannelsUseCase: ObserveChannelsUseCase,
     private val syncChannelsUseCase: SyncChannelsUseCase,
-    private val getEpgNowNextUseCase: GetEpgNowNextUseCase
+    private val getEpgNowNextUseCase: GetEpgNowNextUseCase,
+    private val toggleFavoriteUseCase: ToggleFavoriteUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LiveTvBrowseUiState())
@@ -89,6 +91,10 @@ class LiveTvBrowseViewModel @Inject constructor(
             val nowNext = getEpgNowNextUseCase(channelId)
             _uiState.update { it.copy(epgCache = it.epgCache + (channelId to nowNext)) }
         }
+    }
+
+    fun onToggleFavorite(channelId: String) {
+        viewModelScope.launch { toggleFavoriteUseCase(channelId) }
     }
 
     private fun filterChannels(channels: List<Channel>, categoryId: String?): List<Channel> =

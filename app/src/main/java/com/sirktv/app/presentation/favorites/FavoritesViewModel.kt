@@ -3,8 +3,10 @@ package com.sirktv.app.presentation.favorites
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sirktv.app.domain.model.ContentType
+import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.domain.model.FavoriteItem
 import com.sirktv.app.domain.model.FavoriteSort
+import com.sirktv.app.domain.usecase.GetEpgNowNextUseCase
 import com.sirktv.app.domain.usecase.ObserveAllFavoritesUseCase
 import com.sirktv.app.domain.usecase.ObserveFavoriteChannelsUseCase
 import com.sirktv.app.domain.usecase.ObserveFavoriteMoviesUseCase
@@ -41,13 +43,28 @@ class FavoritesViewModel @Inject constructor(
     private val reorderFavoriteUseCase: ReorderFavoriteUseCase,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val toggleMovieFavoriteUseCase: ToggleMovieFavoriteUseCase,
-    private val toggleSeriesFavoriteUseCase: ToggleSeriesFavoriteUseCase
+    private val toggleSeriesFavoriteUseCase: ToggleSeriesFavoriteUseCase,
+    private val getEpgNowNextUseCase: GetEpgNowNextUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FavoritesUiState())
     val uiState: StateFlow<FavoritesUiState> = _uiState.asStateFlow()
 
     private var favoritesJob: Job? = null
+
+    // Same lazy-on-visible EPG pattern as Home/LiveTvBrowse — populates now/next
+    // for the Channels tab's ChannelCard grid.
+    private val _channelEpgCache = MutableStateFlow<Map<String, EpgNowNext>>(emptyMap())
+    val channelEpgCache: StateFlow<Map<String, EpgNowNext>> = _channelEpgCache.asStateFlow()
+    private val requestedEpgChannelIds = mutableSetOf<String>()
+
+    fun requestEpgFor(channelId: String) {
+        if (!requestedEpgChannelIds.add(channelId)) return
+        viewModelScope.launch {
+            val nowNext = getEpgNowNextUseCase(channelId)
+            _channelEpgCache.update { it + (channelId to nowNext) }
+        }
+    }
 
     init {
         loadFavorites()

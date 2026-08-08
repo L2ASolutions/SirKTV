@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.sirktv.app.presentation.common.tvFocusStyle
+import com.sirktv.app.presentation.common.tvPressLongPress
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVPrimary
@@ -82,15 +83,46 @@ fun MediaCard(
     progressFraction: Float? = null,
     badge: String? = null,
     rating: Float? = null,
-    isFavorite: Boolean = false
+    isFavorite: Boolean = false,
+    // Opt-in only: when set, the card swaps its root from a tv.material3
+    // Surface (which owns its own internal D-pad click handling) to a plain
+    // focusable Box driving tvPressLongPress directly — bolting long-press
+    // detection onto Surface's opaque internal click node risks double
+    // handling, so every other call site (which passes null) keeps the
+    // original, unmodified Surface behavior.
+    onLongClick: (() -> Unit)? = null
 ) {
-    Surface(onClick = onClick, modifier = modifier.tvFocusStyle()) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(aspectRatio)
-                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(Dimens.CornerRadius))
-        ) {
+    val content = @Composable {
+        MediaCardArt(title, imageUrl, subtitle, aspectRatio, progressFraction, badge, rating, isFavorite)
+    }
+    if (onLongClick != null) {
+        Box(modifier = modifier.tvFocusStyle().tvPressLongPress(onClick = onClick, onLongPress = onLongClick)) {
+            content()
+        }
+    } else {
+        Surface(onClick = onClick, modifier = modifier.tvFocusStyle()) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun MediaCardArt(
+    title: String,
+    imageUrl: String?,
+    subtitle: String?,
+    aspectRatio: Float,
+    progressFraction: Float?,
+    badge: String?,
+    rating: Float?,
+    isFavorite: Boolean
+) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(aspectRatio)
+            .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(Dimens.CornerRadius))
+    ) {
             if (!imageUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = imageUrl,
@@ -191,7 +223,6 @@ fun MediaCard(
                     Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxSize().background(SirKTVPrimary))
                 }
             }
-        }
     }
 }
 

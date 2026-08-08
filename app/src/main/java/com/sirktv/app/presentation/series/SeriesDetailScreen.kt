@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Button
+import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text as TvText
 import coil.compose.AsyncImage
@@ -49,6 +50,7 @@ fun SeriesDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val series = uiState.series
+    val firstEpisode = uiState.seasons.firstOrNull()?.episodes?.firstOrNull()
 
     Column(
         modifier = Modifier
@@ -87,8 +89,27 @@ fun SeriesDetailScreen(
                 series?.synopsis?.let {
                     Text(it, color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
                 }
-                Button(onClick = viewModel::onToggleFavorite, modifier = Modifier.tvFocusStyle()) {
-                    TvText(if (series?.isFavorite == true) "♥ Favorited" else "♡ Add to Favorites")
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm), modifier = Modifier.padding(top = Dimens.SpaceXs)) {
+                    if (firstEpisode != null) {
+                        Button(
+                            onClick = { onEpisodeSelected(firstEpisode.seriesId, firstEpisode.seasonNumber, firstEpisode.episodeNumber) },
+                            colors = ButtonDefaults.colors(containerColor = SirKTVPrimary, contentColor = Color.White),
+                            modifier = Modifier.tvFocusStyle()
+                        ) {
+                            TvText("▶ Play")
+                        }
+                    }
+                    Button(
+                        onClick = viewModel::onToggleFavorite,
+                        colors = if (series?.isFavorite == true) {
+                            ButtonDefaults.colors(containerColor = SirKTVPrimary, contentColor = Color.White)
+                        } else {
+                            ButtonDefaults.colors(containerColor = Color.White.copy(alpha = 0.10f), contentColor = Color.White)
+                        },
+                        modifier = Modifier.tvFocusStyle()
+                    ) {
+                        TvText(if (series?.isFavorite == true) "♥ Favorited" else "♡ Add to Favorites")
+                    }
                 }
             }
         }
