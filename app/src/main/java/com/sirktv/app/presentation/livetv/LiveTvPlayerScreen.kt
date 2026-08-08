@@ -43,6 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.ui.PlayerView
 import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.player.PlaybackState
+import com.sirktv.app.presentation.common.KeepScreenOnWhilePlaying
 import com.sirktv.app.presentation.common.SirKTVLogoMark
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVPrimary
@@ -63,6 +64,8 @@ fun LiveTvPlayerScreen(
     BackHandler(enabled = uiState.mode != LiveTvMode.WATCHING) {
         viewModel.onBackPressed()
     }
+
+    KeepScreenOnWhilePlaying(uiState.playbackState)
 
     var okDownAt by remember { mutableStateOf(0L) }
     var longPressTriggered by remember { mutableStateOf(false) }

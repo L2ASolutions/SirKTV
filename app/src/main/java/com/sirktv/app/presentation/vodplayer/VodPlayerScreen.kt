@@ -45,6 +45,7 @@ import androidx.tv.material3.Button
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text as TvText
 import com.sirktv.app.player.PlaybackState
+import com.sirktv.app.presentation.common.KeepScreenOnWhilePlaying
 import com.sirktv.app.presentation.common.SirKTVLogoMark
 import com.sirktv.app.presentation.common.glassCard
 import com.sirktv.app.presentation.common.tvFocusStyle
@@ -75,6 +76,8 @@ fun VodPlayerScreen(
             onBack()
         }
     }
+
+    KeepScreenOnWhilePlaying(uiState.playbackState)
 
     val rootFocusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { rootFocusRequester.requestFocus() }
