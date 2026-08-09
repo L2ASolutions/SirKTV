@@ -33,6 +33,7 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text as TvText
 import coil.compose.AsyncImage
+import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
@@ -106,7 +107,7 @@ fun HeroPreviewModal(
                     Button(
                         onClick = onPlay,
                         colors = ButtonDefaults.colors(containerColor = SirKTVPrimary, contentColor = Color.White),
-                        modifier = Modifier.tvFocusStyle()
+                        modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)
                     ) {
                         TvText("▶ Play")
                     }
@@ -117,7 +118,7 @@ fun HeroPreviewModal(
                         } else {
                             ButtonDefaults.colors(containerColor = Color.White.copy(alpha = 0.10f), contentColor = Color.White)
                         },
-                        modifier = Modifier.tvFocusStyle()
+                        modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)
                     ) {
                         TvText(if (item.isFavorite) "♥ Favorited" else "♡ Add to Favorites")
                     }

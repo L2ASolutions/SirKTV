@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sirktv.app.domain.model.Movie
 import com.sirktv.app.domain.model.WatchProgress
+import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.TvSearchField
@@ -131,14 +132,14 @@ private fun MoviesRows(
             }
         }
         items(rows, key = { it.title }) { row ->
-            val isRecentlyAdded = row.title == "Recently Added"
+            val isRecentlyAddedRow = row.title == "Recently Added"
             MediaRow(title = row.title, rowItems = row.movies) { movie ->
                 MediaCard(
                     title = movie.title,
                     imageUrl = movie.posterUrl,
                     aspectRatio = 2f / 3f,
                     rating = movie.rating,
-                    badge = if (isRecentlyAdded) "NEW" else null,
+                    badge = if (isRecentlyAddedRow && RecentlyAdded.isWithinNewWindow(movie.addedAtEpochMillis)) "NEW" else null,
                     isFavorite = movie.isFavorite,
                     onClick = { onMovieSelected(movie.id) },
                     modifier = Modifier.width(PosterCardWidth)

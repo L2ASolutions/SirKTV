@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sirktv.app.presentation.common.SirKTVLogoMark
+import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
@@ -325,7 +326,7 @@ private fun LoginContent(
                         .height(56.dp)
                         .focusRequester(signInFocusRequester)
                         .focusProperties { up = rememberMeFocusRequester }
-                        .tvFocusStyle()
+                        .tvFocusStyle(accent = TvFocusAccent.BORDER)
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(

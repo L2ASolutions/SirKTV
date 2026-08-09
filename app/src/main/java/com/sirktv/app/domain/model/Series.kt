@@ -14,7 +14,8 @@ data class Series(
     val cast: List<String>,
     val director: String?,
     val synopsis: String?,
-    val isFavorite: Boolean
+    val isFavorite: Boolean,
+    val lastModifiedEpochMillis: Long = 0L
 )
 
 data class Episode(

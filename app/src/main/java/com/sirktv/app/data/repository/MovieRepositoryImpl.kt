@@ -75,9 +75,8 @@ class MovieRepositoryImpl @Inject constructor(
             val playerApiUrl = XtreamUrlBuilder.buildPlayerApiUrl(credentials.serverUrl)
             val categoriesDto = apiService.getVodCategories(playerApiUrl, credentials.username, credentials.password)
             val streamsDto = apiService.getVodStreams(playerApiUrl, credentials.username, credentials.password)
-            val now = System.currentTimeMillis()
             val categories = categoriesDto.mapNotNull(MovieMapper::toCategoryEntity)
-            val movies = streamsDto.mapNotNull { MovieMapper.toMovieEntity(it, now) }
+            val movies = streamsDto.mapNotNull(MovieMapper::toMovieEntity)
             movieDao.replaceAll(categories, movies)
         }
     }

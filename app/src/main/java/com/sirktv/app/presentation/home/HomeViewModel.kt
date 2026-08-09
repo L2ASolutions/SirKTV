@@ -10,6 +10,7 @@ import com.sirktv.app.domain.model.Movie
 import com.sirktv.app.domain.model.Series
 import com.sirktv.app.domain.model.WatchProgress
 import com.sirktv.app.domain.session.CurrentSession
+import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.domain.usecase.ClearSavedCredentialsUseCase
 import com.sirktv.app.domain.usecase.GetEpgNowNextUseCase
 import com.sirktv.app.domain.usecase.GetMovieDetailUseCase
@@ -72,14 +73,15 @@ data class HeroItem(
     val navTarget: HomeNavTarget
 )
 
-/** One tile in the Home "Recently Added" row — movies (real add time) and series (catalog order) merged. */
+/** One tile in the Home "Recently Added" row — movies and series ranked by real Xtream add time. */
 data class RecentlyAddedItem(
     val id: String,
     val title: String,
     val imageUrl: String?,
     val rating: Float?,
     val isFavorite: Boolean,
-    val navTarget: HomeNavTarget
+    val navTarget: HomeNavTarget,
+    val addedAtEpochMillis: Long
 )
 
 data class HomeUiState(
@@ -228,34 +230,38 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun buildRecentlyAdded(catalog: CatalogQuad): List<RecentlyAddedItem> {
-        val movies = catalog.movies
-            .sortedByDescending { it.addedAtEpochMillis }
-            .take(RECENTLY_ADDED_MOVIE_LIMIT)
-            .map { movie ->
-                RecentlyAddedItem(
-                    id = "movie-${movie.id}",
-                    title = movie.title,
-                    imageUrl = movie.posterUrl,
-                    rating = movie.rating,
-                    isFavorite = movie.isFavorite,
-                    navTarget = HomeNavTarget.MoviePlayer(movie.id)
-                )
-            }
-        // Series has no add-time column in the local schema, so it's ranked by
-        // catalog order (the order the provider itself returns it in) rather
-        // than a fabricated timestamp.
-        val series = catalog.series
-            .take(RECENTLY_ADDED_SERIES_LIMIT)
-            .map { series ->
-                RecentlyAddedItem(
-                    id = "series-${series.id}",
-                    title = series.title,
-                    imageUrl = series.posterUrl,
-                    rating = series.rating,
-                    isFavorite = series.isFavorite,
-                    navTarget = HomeNavTarget.SeriesDetail(series.id)
-                )
-            }
+        val movies = RecentlyAdded.select(
+            items = catalog.movies,
+            limit = RECENTLY_ADDED_MOVIE_LIMIT,
+            addedAtEpochMillis = { it.addedAtEpochMillis },
+            fallbackKey = { it.id.toLongOrNull() ?: 0L }
+        ).map { movie ->
+            RecentlyAddedItem(
+                id = "movie-${movie.id}",
+                title = movie.title,
+                imageUrl = movie.posterUrl,
+                rating = movie.rating,
+                isFavorite = movie.isFavorite,
+                navTarget = HomeNavTarget.MoviePlayer(movie.id),
+                addedAtEpochMillis = movie.addedAtEpochMillis
+            )
+        }
+        val series = RecentlyAdded.select(
+            items = catalog.series,
+            limit = RECENTLY_ADDED_SERIES_LIMIT,
+            addedAtEpochMillis = { it.lastModifiedEpochMillis },
+            fallbackKey = { it.id.toLongOrNull() ?: 0L }
+        ).map { series ->
+            RecentlyAddedItem(
+                id = "series-${series.id}",
+                title = series.title,
+                imageUrl = series.posterUrl,
+                rating = series.rating,
+                isFavorite = series.isFavorite,
+                navTarget = HomeNavTarget.SeriesDetail(series.id),
+                addedAtEpochMillis = series.lastModifiedEpochMillis
+            )
+        }
         return movies + series
     }
 

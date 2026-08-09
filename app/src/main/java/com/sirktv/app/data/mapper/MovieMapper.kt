@@ -18,7 +18,15 @@ internal object MovieMapper {
         return CategoryEntity(id = id, name = dto.categoryName ?: id, contentType = ContentType.MOVIE.name)
     }
 
-    fun toMovieEntity(dto: VodStreamDto, nowEpochMillis: Long): MovieEntity? {
+    /**
+     * [addedAtEpochMillis] is the real Xtream "added" timestamp when the
+     * panel provides one, not the time of this sync — stamping every row
+     * with the current sync time made every movie look equally "new" (and
+     * re-ranked the whole catalog on every refresh), which is exactly what
+     * broke the Recently Added row. 0 means "unknown"; callers fall back to
+     * sorting by numeric stream ID in that case.
+     */
+    fun toMovieEntity(dto: VodStreamDto): MovieEntity? {
         val id = dto.streamId?.toString() ?: return null
         val categoryId = dto.categoryId ?: return null
         return MovieEntity(
@@ -28,7 +36,7 @@ internal object MovieMapper {
             categoryId = categoryId,
             rating = dto.rating?.toFloatOrNull(),
             containerExtension = dto.containerExtension?.takeIf { it.isNotBlank() } ?: "mp4",
-            addedAtEpochMillis = nowEpochMillis
+            addedAtEpochMillis = dto.added?.toLongOrNull()?.takeIf { it > 0 }?.times(1000) ?: 0L
         )
     }
 

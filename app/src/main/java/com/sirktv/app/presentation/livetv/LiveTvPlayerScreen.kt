@@ -45,6 +45,8 @@ import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.player.PlaybackState
 import com.sirktv.app.presentation.common.KeepScreenOnWhilePlaying
 import com.sirktv.app.presentation.common.SirKTVLogoMark
+import com.sirktv.app.presentation.common.TvFocusAccent
+import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import java.text.SimpleDateFormat
@@ -246,10 +248,10 @@ private fun ErrorOverlay(channelName: String?, onRetry: () -> Unit, onBackToChan
                 horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
                 modifier = Modifier.padding(top = Dimens.SpaceSm)
             ) {
-                androidx.tv.material3.Button(onClick = onRetry) {
+                androidx.tv.material3.Button(onClick = onRetry, modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)) {
                     androidx.tv.material3.Text("Retry")
                 }
-                androidx.tv.material3.Button(onClick = onBackToChannelList) {
+                androidx.tv.material3.Button(onClick = onBackToChannelList, modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)) {
                     androidx.tv.material3.Text("Channel List")
                 }
             }

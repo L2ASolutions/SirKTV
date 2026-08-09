@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sirktv.app.domain.model.Channel
 import com.sirktv.app.domain.model.ContentType
 import com.sirktv.app.domain.model.EpgNowNext
+import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.livetv.ChannelCard
@@ -92,7 +93,7 @@ fun HomeScreen(
                             imageUrl = added.imageUrl,
                             aspectRatio = 2f / 3f,
                             rating = added.rating,
-                            badge = "NEW",
+                            badge = if (RecentlyAdded.isWithinNewWindow(added.addedAtEpochMillis)) "NEW" else null,
                             isFavorite = added.isFavorite,
                             onClick = { onOpenContent(added.navTarget) },
                             modifier = Modifier.width(PosterCardWidth)

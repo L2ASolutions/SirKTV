@@ -12,7 +12,9 @@ data class SeriesDto(
     val cast: String? = null,
     val director: String? = null,
     @SerialName("category_id") val categoryId: String? = null,
-    val rating: String? = null
+    val rating: String? = null,
+    // Epoch seconds as a string, same caveats as VodStreamDto.added.
+    @SerialName("last_modified") val lastModified: String? = null
 )
 
 /** Episode map keys are season numbers, as strings — e.g. {"1": [...], "2": [...]}. */

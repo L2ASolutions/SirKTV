@@ -10,7 +10,11 @@ data class VodStreamDto(
     @SerialName("stream_icon") val streamIcon: String? = null,
     @SerialName("category_id") val categoryId: String? = null,
     @SerialName("container_extension") val containerExtension: String? = null,
-    val rating: String? = null
+    val rating: String? = null,
+    // Xtream's "date this was added to the panel" — epoch seconds as a
+    // string. Some panels omit or zero this out, so it's read defensively
+    // and the mapper falls back to stream_id ordering when it's missing.
+    val added: String? = null
 )
 
 @Serializable

@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         WatchProgressEntity::class,
         SearchHistoryEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

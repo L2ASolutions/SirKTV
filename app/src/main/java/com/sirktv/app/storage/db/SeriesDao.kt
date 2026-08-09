@@ -16,6 +16,7 @@ data class SeriesWithFavorite(
     val cast: String?,
     val director: String?,
     val synopsis: String?,
+    val lastModifiedEpochMillis: Long,
     val isFavorite: Boolean
 )
 
@@ -29,6 +30,7 @@ interface SeriesDao {
         """
         SELECT series.id AS id, series.title AS title, series.posterUrl AS posterUrl, series.categoryId AS categoryId,
                series.rating AS rating, series.`cast` AS `cast`, series.director AS director, series.synopsis AS synopsis,
+               series.lastModifiedEpochMillis AS lastModifiedEpochMillis,
                CASE WHEN favorites.contentId IS NULL THEN 0 ELSE 1 END AS isFavorite
         FROM series
         LEFT JOIN favorites ON series.id = favorites.contentId AND favorites.contentType = 'SERIES'
@@ -41,7 +43,8 @@ interface SeriesDao {
     @Query(
         """
         SELECT series.id AS id, series.title AS title, series.posterUrl AS posterUrl, series.categoryId AS categoryId,
-               series.rating AS rating, series.`cast` AS `cast`, series.director AS director, series.synopsis AS synopsis, 1 AS isFavorite
+               series.rating AS rating, series.`cast` AS `cast`, series.director AS director, series.synopsis AS synopsis,
+               series.lastModifiedEpochMillis AS lastModifiedEpochMillis, 1 AS isFavorite
         FROM series
         INNER JOIN favorites ON series.id = favorites.contentId AND favorites.contentType = 'SERIES'
         ORDER BY favorites.addedAtEpochMillis DESC

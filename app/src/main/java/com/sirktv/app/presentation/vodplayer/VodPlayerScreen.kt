@@ -49,6 +49,7 @@ import androidx.tv.material3.Text as TvText
 import com.sirktv.app.player.PlaybackState
 import com.sirktv.app.presentation.common.KeepScreenOnWhilePlaying
 import com.sirktv.app.presentation.common.SirKTVLogoMark
+import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.glassCard
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.livetv.QualitySelectorSheet
@@ -292,7 +293,7 @@ private fun ErrorOverlay(title: String, onRetry: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
-            Button(onClick = onRetry, modifier = Modifier.padding(top = Dimens.SpaceSm)) {
+            Button(onClick = onRetry, modifier = Modifier.padding(top = Dimens.SpaceSm).tvFocusStyle(accent = TvFocusAccent.BORDER)) {
                 TvText("Retry")
             }
         }

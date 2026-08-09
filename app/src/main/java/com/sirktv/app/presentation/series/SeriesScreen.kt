@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sirktv.app.domain.model.Series
+import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.presentation.common.CategoryPill
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
@@ -111,7 +112,7 @@ fun SeriesScreen(
                     imageUrl = series.posterUrl,
                     aspectRatio = 2f / 3f,
                     rating = series.rating,
-                    badge = "NEW",
+                    badge = if (RecentlyAdded.isWithinNewWindow(series.lastModifiedEpochMillis)) "NEW" else null,
                     isFavorite = series.isFavorite,
                     onClick = { onSeriesSelected(series.id) },
                     modifier = Modifier.width(PosterCardWidth)

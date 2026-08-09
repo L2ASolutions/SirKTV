@@ -6,6 +6,7 @@ import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.ContentType
 import com.sirktv.app.domain.model.Movie
 import com.sirktv.app.domain.model.WatchProgress
+import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.domain.usecase.ObserveContinueWatchingUseCase
 import com.sirktv.app.domain.usecase.ObserveMovieCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveMoviesUseCase
@@ -44,13 +45,25 @@ data class MoviesUiState(
     val rows: List<MovieRow>
         get() = buildList {
             if (allMovies.isNotEmpty()) {
-                add(MovieRow("Recently Added", allMovies.sortedByDescending { it.addedAtEpochMillis }.take(ROW_LIMIT)))
+                add(MovieRow("Recently Added", recentlyAddedMovies))
             }
             categories.forEach { category ->
                 val inCategory = allMovies.filter { it.categoryId == category.id }
                 if (inCategory.isNotEmpty()) add(MovieRow(category.name, inCategory))
             }
         }
+
+    /**
+     * Ranked most-recently-added first (real "added" timestamp, falling back
+     * to stream ID when the provider doesn't send one) — see [RecentlyAdded].
+     */
+    val recentlyAddedMovies: List<Movie>
+        get() = RecentlyAdded.select(
+            items = allMovies,
+            limit = ROW_LIMIT,
+            addedAtEpochMillis = { it.addedAtEpochMillis },
+            fallbackKey = { it.id.toLongOrNull() ?: 0L }
+        )
 }
 
 @HiltViewModel

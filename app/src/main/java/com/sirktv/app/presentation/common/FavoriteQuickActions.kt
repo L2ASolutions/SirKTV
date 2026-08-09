@@ -117,12 +117,12 @@ fun ConfirmDialog(
             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
                 Button(
                     onClick = onCancel,
-                    modifier = Modifier.tvFocusStyle()
+                    modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)
                 ) { TvText(cancelLabel) }
                 Button(
                     onClick = onConfirm,
                     colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = SirKTVError, contentColor = Color.White),
-                    modifier = Modifier.tvFocusStyle()
+                    modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)
                 ) { TvText(confirmLabel) }
             }
         }

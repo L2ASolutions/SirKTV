@@ -46,6 +46,7 @@ class SeriesRepositoryImpl @Inject constructor(
                 cast = entity.cast?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty(),
                 director = entity.director,
                 synopsis = entity.synopsis,
+                lastModifiedEpochMillis = entity.lastModifiedEpochMillis,
                 isFavorite = entity.id in favoriteIds
             )
         }

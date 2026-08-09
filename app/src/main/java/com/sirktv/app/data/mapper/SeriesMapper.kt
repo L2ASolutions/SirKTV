@@ -31,7 +31,8 @@ internal object SeriesMapper {
             rating = dto.rating?.toFloatOrNull(),
             cast = dto.cast?.takeIf { it.isNotBlank() },
             director = dto.director?.takeIf { it.isNotBlank() },
-            synopsis = dto.plot?.takeIf { it.isNotBlank() }
+            synopsis = dto.plot?.takeIf { it.isNotBlank() },
+            lastModifiedEpochMillis = dto.lastModified?.toLongOrNull()?.takeIf { it > 0 }?.times(1000) ?: 0L
         )
     }
 
@@ -46,6 +47,7 @@ internal object SeriesMapper {
         cast = row.cast?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty(),
         director = row.director,
         synopsis = row.synopsis,
+        lastModifiedEpochMillis = row.lastModifiedEpochMillis,
         isFavorite = row.isFavorite
     )
 

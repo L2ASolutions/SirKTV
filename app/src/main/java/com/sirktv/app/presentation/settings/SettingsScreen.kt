@@ -1,6 +1,7 @@
 package com.sirktv.app.presentation.settings
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -38,6 +39,7 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Text as TvText
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
+import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
@@ -113,7 +115,7 @@ fun SettingsScreen(
                 Button(
                     onClick = viewModel::onLogoutClicked,
                     colors = ButtonDefaults.colors(containerColor = SirKTVError, contentColor = Color.White),
-                    modifier = Modifier.tvFocusStyle()
+                    modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)
                 ) {
                     TvText("Log Out")
                 }
@@ -124,14 +126,20 @@ fun SettingsScreen(
 
 @Composable
 private fun SettingsTileCard(tile: SettingsTile, selected: Boolean, onClick: () -> Unit) {
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).tvFocusStyle()) {
+    var isFocused by remember { mutableStateOf(false) }
+    val background by animateColorAsState(
+        targetValue = when {
+            selected -> SirKTVPrimary.copy(alpha = 0.22f)
+            isFocused -> SirKTVPrimary.copy(alpha = 0.12f)
+            else -> SirKTVSurface
+        },
+        label = "settingsTileBackground"
+    )
+    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).tvFocusStyle { isFocused = it }) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    if (selected) SirKTVPrimary.copy(alpha = 0.22f) else SirKTVSurface,
-                    RoundedCornerShape(Dimens.CornerRadius)
-                ),
+                .background(background, RoundedCornerShape(Dimens.CornerRadius)),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

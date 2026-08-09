@@ -1,5 +1,7 @@
 package com.sirktv.app.presentation.livetv
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +16,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -25,8 +31,11 @@ import androidx.compose.ui.unit.sp
 import com.sirktv.app.domain.model.Channel
 import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.domain.model.EpgProgram
+import com.sirktv.app.presentation.common.TvFocusAccent
+import com.sirktv.app.presentation.common.tvChannelRowFocusStyle
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.common.tvPressLongPress
+import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
@@ -53,13 +62,18 @@ fun ChannelCard(
     // See MediaCard's onLongClick doc — same opt-in Surface-vs-Box tradeoff.
     onLongClick: (() -> Unit)? = null
 ) {
-    val content = @Composable { ChannelCardRow(channel, nowNext, isCurrent, onToggleFavorite) }
+    var isFocused by remember { mutableStateOf(false) }
+    val content = @Composable { ChannelCardRow(channel, nowNext, isCurrent, isFocused, onToggleFavorite) }
     if (onLongClick != null) {
-        Box(modifier = modifier.tvFocusStyle(cornerRadius = 12.dp).tvPressLongPress(onClick = onClick, onLongPress = onLongClick)) {
+        Box(
+            modifier = modifier
+                .tvChannelRowFocusStyle(cornerRadius = 12.dp) { isFocused = it }
+                .tvPressLongPress(onClick = onClick, onLongPress = onLongClick)
+        ) {
             content()
         }
     } else {
-        Surface(onClick = onClick, modifier = modifier.tvFocusStyle(cornerRadius = 12.dp)) {
+        Surface(onClick = onClick, modifier = modifier.tvChannelRowFocusStyle(cornerRadius = 12.dp) { isFocused = it }) {
             content()
         }
     }
@@ -70,9 +84,18 @@ private fun ChannelCardRow(
     channel: Channel,
     nowNext: EpgNowNext?,
     isCurrent: Boolean,
+    isFocused: Boolean,
     onToggleFavorite: (() -> Unit)?
 ) {
     val now = nowNext?.now
+    val accentBarWidth by animateDpAsState(
+        targetValue = if (isFocused) Dimens.RowFocusAccentBarWidth else 3.dp,
+        label = "channelCardAccentBarWidth"
+    )
+    val accentBarColor by animateColorAsState(
+        targetValue = if (isFocused || isCurrent) SirKTVPrimary else Color.Transparent,
+        label = "channelCardAccentBarColor"
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -82,9 +105,9 @@ private fun ChannelCardRow(
     ) {
             Box(
                 Modifier
-                    .width(3.dp)
+                    .width(accentBarWidth)
                     .height(32.dp)
-                    .background(if (isCurrent) SirKTVPrimary else Color.Transparent, RoundedCornerShape(2.dp))
+                    .background(accentBarColor, RoundedCornerShape(2.dp))
             )
 
             Box(

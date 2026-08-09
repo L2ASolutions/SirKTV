@@ -22,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Text as TvText
+import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVError
@@ -105,12 +106,12 @@ private fun PinSetupForm(onCancel: () -> Unit, onConfirm: (String) -> Unit) {
             Text("PINs don't match.", color = SirKTVError, fontSize = 12.sp)
         }
         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
-            Button(onClick = onCancel, modifier = Modifier.tvFocusStyle()) { TvText("Cancel") }
+            Button(onClick = onCancel, modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)) { TvText("Cancel") }
             Button(
                 onClick = { onConfirm(pin) },
                 enabled = valid,
                 colors = ButtonDefaults.colors(containerColor = SirKTVPrimary, contentColor = Color.White),
-                modifier = Modifier.tvFocusStyle()
+                modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)
             ) { TvText("Save PIN") }
         }
     }

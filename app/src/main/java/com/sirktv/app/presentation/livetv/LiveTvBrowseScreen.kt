@@ -1,5 +1,7 @@
 package com.sirktv.app.presentation.livetv
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +46,8 @@ import com.sirktv.app.domain.model.EpgProgram
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.SirKTVLogoMark
+import com.sirktv.app.presentation.common.TvFocusAccent
+import com.sirktv.app.presentation.common.tvChannelRowFocusStyle
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
@@ -131,7 +135,7 @@ private fun LoadErrorState(message: String, onRetry: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
             Text("No channels available", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text(message, color = SirKTVOnSurfaceMuted, fontSize = 13.sp)
-            Button(onClick = onRetry, modifier = Modifier.padding(top = Dimens.SpaceSm).tvFocusStyle()) {
+            Button(onClick = onRetry, modifier = Modifier.padding(top = Dimens.SpaceSm).tvFocusStyle(accent = TvFocusAccent.BORDER)) {
                 TvText("Retry")
             }
         }
@@ -263,7 +267,20 @@ private fun BrowseChannelRow(
     onToggleFavorite: () -> Unit,
     accentColor: Color = SirKTVPrimary
 ) {
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 12.dp)) {
+    var isFocused by remember { mutableStateOf(false) }
+    val accentBarWidth by animateDpAsState(
+        targetValue = if (isFocused) Dimens.RowFocusAccentBarWidth else 3.dp,
+        label = "channelRowAccentBarWidth"
+    )
+    val accentBarColor by animateColorAsState(
+        targetValue = if (isFocused || isSelected) accentColor else Color.Transparent,
+        label = "channelRowAccentBarColor"
+    )
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 12.dp) { isFocused = it }
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -273,9 +290,9 @@ private fun BrowseChannelRow(
         ) {
             Box(
                 Modifier
-                    .width(3.dp)
+                    .width(accentBarWidth)
                     .height(36.dp)
-                    .background(if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(2.dp))
+                    .background(accentBarColor, RoundedCornerShape(2.dp))
             )
             Box(
                 Modifier
@@ -381,7 +398,7 @@ internal fun PreviewPanel(
             Button(
                 onClick = { onWatchFullScreen(channel) },
                 colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = accentColor),
-                modifier = Modifier.fillMaxWidth().tvFocusStyle()
+                modifier = Modifier.fillMaxWidth().tvFocusStyle(accent = TvFocusAccent.BORDER)
             ) {
                 TvText("▶ Watch Full Screen")
             }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Series
+import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.domain.usecase.ObserveSeriesCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveSeriesUseCase
 import com.sirktv.app.domain.usecase.SyncSeriesUseCase
@@ -32,11 +33,16 @@ data class SeriesUiState(
             return allSeries.filter { it.title.lowercase().contains(normalized) }
         }
 
-    // Series has no add-time column in the local schema (unlike Movie), so
-    // "recently added" is approximated by catalog order — the order the
-    // provider itself returns it in — rather than a fabricated timestamp.
+    // Ranked by Xtream's real last_modified timestamp, falling back to
+    // numeric series ID (higher = newer) when the provider doesn't send
+    // one — see [RecentlyAdded].
     val recentlyAdded: List<Series>
-        get() = allSeries.take(RECENTLY_ADDED_LIMIT)
+        get() = RecentlyAdded.select(
+            items = allSeries,
+            limit = RECENTLY_ADDED_LIMIT,
+            addedAtEpochMillis = { it.lastModifiedEpochMillis },
+            fallbackKey = { it.id.toLongOrNull() ?: 0L }
+        )
 }
 
 private const val RECENTLY_ADDED_LIMIT = 20
