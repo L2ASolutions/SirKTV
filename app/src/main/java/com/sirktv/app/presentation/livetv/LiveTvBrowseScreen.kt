@@ -1,7 +1,9 @@
 package com.sirktv.app.presentation.livetv
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,15 +15,18 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,8 +35,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,6 +57,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Button
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text as TvText
+import coil.compose.AsyncImage
+import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Channel
 import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.domain.model.EpgProgram
@@ -55,14 +74,19 @@ import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
+import kotlinx.coroutines.delay
 
 private val SidebarWidth = 200.dp
 internal val ChannelListWidth = 340.dp
+private val ChannelRowHeight = 72.dp
+internal val LiveTvLiveRed = Color(0xFFFF4757)
+internal val LiveTvTrackGray = Color(0xFF333333)
 
 /**
- * Landing point for Live TV: country sidebar, channel list, and a preview
- * panel so the user picks a channel manually. Nothing plays until "Watch
- * Full Screen" is pressed — this screen never auto-tunes on its own.
+ * Landing point for Live TV: a flat Xtream-category sidebar, channel list,
+ * and a real (muted, looping) preview panel so the user picks a channel
+ * manually. Nothing plays unmuted until "Watch Full Screen" is pressed —
+ * this screen never auto-tunes the fullscreen player on its own.
  */
 @Composable
 fun LiveTvBrowseScreen(
@@ -71,6 +95,26 @@ fun LiveTvBrowseScreen(
     viewModel: LiveTvBrowseViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val previewPlayer by viewModel.previewPlayer.collectAsState()
+    val previewState by viewModel.previewState.collectAsState()
+
+    // The preview ExoPlayer is a screen-scoped resource, independent of the
+    // fullscreen SirKTVPlayerEngine singleton — it must stop the moment this
+    // screen leaves composition, not just when the ViewModel is cleared (the
+    // nav back-stack entry can outlive that if the user is routed elsewhere
+    // without popping this destination).
+    DisposableEffect(Unit) {
+        onDispose { viewModel.releasePreview() }
+    }
+
+    val sidebarFocusRequester = remember { FocusRequester() }
+    val channelListFocusRequester = remember { FocusRequester() }
+    val watchFullScreenFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(300)
+        sidebarFocusRequester.requestFocus()
+    }
 
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
         Box(Modifier.padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)) {
@@ -83,28 +127,38 @@ fun LiveTvBrowseScreen(
                 message = uiState.loadError!!,
                 onRetry = viewModel::refresh
             )
+            // Full width, edge-to-edge — no horizontal safe-zone padding on the three columns themselves.
             else -> Row(Modifier.fillMaxSize()) {
-                CountrySidebar(
-                    countryGroups = uiState.countryGroups,
+                LiveTvCategorySidebar(
+                    categories = uiState.categories,
                     selectedCategoryId = uiState.selectedCategoryId,
-                    onAllCountries = { viewModel.onCategorySelected(null) },
+                    focusRequester = sidebarFocusRequester,
+                    rightFocusRequester = channelListFocusRequester,
                     onCategorySelected = viewModel::onCategorySelected
                 )
-                ChannelListColumn(
+                LiveTvChannelListColumn(
                     channels = uiState.visibleChannels,
-                    categoryName = { id -> uiState.categories.find { it.id == id }?.name },
-                    countryLabel = { id -> uiState.countryGroups.find { group -> group.categories.any { it.id == id } }?.let { "${it.code} ${it.name}" } },
-                    selectedChannelId = uiState.selectedChannel?.id,
+                    selectedChannelId = uiState.selectedChannelId,
+                    nowPlayingChannelId = uiState.nowPlayingChannelId,
                     epgCache = uiState.epgCache,
+                    focusRequester = channelListFocusRequester,
+                    leftFocusRequester = sidebarFocusRequester,
+                    rightFocusRequester = watchFullScreenFocusRequester,
                     onVisible = viewModel::requestEpgFor,
                     onHighlight = viewModel::onChannelHighlighted,
                     onToggleFavorite = viewModel::onToggleFavorite
                 )
-                PreviewPanel(
+                LiveTvPreviewPanel(
                     channel = uiState.selectedChannel,
+                    categoryLabel = uiState.categories.find { it.id == uiState.selectedChannel?.categoryId }?.name,
                     nowNext = uiState.selectedChannel?.let { uiState.epgCache[it.id] },
                     listings = uiState.selectedChannel?.let { uiState.epgListingsCache[it.id] }.orEmpty(),
+                    previewPlayer = previewPlayer,
+                    previewState = previewState,
+                    watchFullScreenFocusRequester = watchFullScreenFocusRequester,
+                    leftFocusRequester = channelListFocusRequester,
                     onRequestListings = viewModel::requestEpgListingsFor,
+                    onToggleFavorite = { uiState.selectedChannel?.let { viewModel.onToggleFavorite(it.id) } },
                     onWatchFullScreen = { channel -> onChannelSelected(channel.id) },
                     modifier = Modifier.weight(1f)
                 )
@@ -142,23 +196,35 @@ private fun LoadErrorState(message: String, onRetry: () -> Unit) {
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
-private fun CountrySidebar(
-    countryGroups: List<CountryGroup>,
+private fun LiveTvCategorySidebar(
+    categories: List<Category>,
     selectedCategoryId: String?,
-    onAllCountries: () -> Unit,
-    onCategorySelected: (String) -> Unit
+    focusRequester: FocusRequester,
+    rightFocusRequester: FocusRequester,
+    onCategorySelected: (String?) -> Unit
 ) {
-    var expandedCode by remember { mutableStateOf<String?>(null) }
-
     Box(Modifier.fillMaxHeight().width(SidebarWidth).background(Color(0xEE0A0A0F))) {
         LazyColumn(
-            modifier = Modifier.fillMaxHeight().fillMaxWidth().padding(vertical = Dimens.SpaceMd, horizontal = Dimens.SpaceSm),
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+                .focusRestorer()
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    if (event.key == Key.DirectionRight) {
+                        rightFocusRequester.requestFocus()
+                        true
+                    } else false
+                }
+                .padding(vertical = Dimens.SpaceMd, horizontal = Dimens.SpaceSm),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             item {
                 Text(
-                    text = "COUNTRIES",
+                    text = "CATEGORIES",
                     color = Color.White.copy(alpha = 0.4f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -166,24 +232,103 @@ private fun CountrySidebar(
                 )
             }
             item {
-                SidebarRow(label = "All Countries", selected = selectedCategoryId == null, onClick = onAllCountries)
+                CategorySidebarRow(label = "All Channels", selected = selectedCategoryId == null, onClick = { onCategorySelected(null) })
             }
-            items(countryGroups, key = { it.code }) { group ->
-                val isExpanded = expandedCode == group.code
-                SidebarRow(
-                    label = "${group.code} · ${group.name}",
-                    selected = false,
-                    onClick = { expandedCode = if (isExpanded) null else group.code }
-                )
-                if (isExpanded) {
-                    group.categories.forEach { category ->
-                        SidebarRow(
-                            label = category.name,
-                            selected = selectedCategoryId == category.id,
-                            indent = true,
-                            onClick = { onCategorySelected(category.id) }
-                        )
+            items(categories, key = { it.id }) { category ->
+                CategorySidebarRow(label = category.name, selected = selectedCategoryId == category.id, onClick = { onCategorySelected(category.id) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategorySidebarRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    val accentBarColor by animateColorAsState(targetValue = if (selected) SirKTVPrimary else Color.Transparent, label = "categoryAccent")
+
+    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(if (selected) SirKTVCardBackground else Color.Transparent, RoundedCornerShape(8.dp))
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.width(4.dp).height(18.dp).background(accentBarColor, RoundedCornerShape(2.dp)))
+            Text(
+                text = label,
+                color = if (selected) SirKTVOnSurfaceStrong else SirKTVOnSurfaceMuted,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 8.dp, end = 8.dp)
+            )
+        }
+    }
+}
+
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+@Composable
+private fun LiveTvChannelListColumn(
+    channels: List<Channel>,
+    selectedChannelId: String?,
+    nowPlayingChannelId: String?,
+    epgCache: Map<String, EpgNowNext>,
+    focusRequester: FocusRequester,
+    leftFocusRequester: FocusRequester,
+    rightFocusRequester: FocusRequester,
+    onVisible: (String) -> Unit,
+    onHighlight: (String) -> Unit,
+    onToggleFavorite: (String) -> Unit
+) {
+    // Shared across every row's favorite heart: whichever heart last reported
+    // focus, so the column-level Left/Right handler below knows whether the
+    // currently focused element is a row body (exits the column) or a heart
+    // (the row's own secondary focus zone, reached by default 2D search).
+    var heartFocused by remember { mutableStateOf(false) }
+
+    Box(Modifier.fillMaxHeight().width(ChannelListWidth)) {
+        if (channels.isEmpty()) {
+            Text(
+                "No channels in this category yet.",
+                color = SirKTVOnSurfaceMuted,
+                fontSize = 13.sp,
+                modifier = Modifier.align(Alignment.Center).padding(Dimens.SpaceMd)
+            )
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = Dimens.SpaceMd, vertical = Dimens.SpaceMd),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .focusRequester(focusRequester)
+                    .focusRestorer()
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                        when (event.key) {
+                            Key.DirectionRight -> if (heartFocused) {
+                                rightFocusRequester.requestFocus(); true
+                            } else false
+                            Key.DirectionLeft -> if (heartFocused) {
+                                false
+                            } else {
+                                leftFocusRequester.requestFocus(); true
+                            }
+                            else -> false
+                        }
                     }
+            ) {
+                items(channels, key = { it.id }) { channel ->
+                    LaunchedEffect(channel.id) { onVisible(channel.id) }
+                    LiveTvChannelRow(
+                        channel = channel,
+                        nowNext = epgCache[channel.id],
+                        isSelected = channel.id == selectedChannelId,
+                        isNowPlayingFullscreen = channel.id == nowPlayingChannelId,
+                        onFocusSelected = { onHighlight(channel.id) },
+                        onToggleFavorite = { onToggleFavorite(channel.id) },
+                        onHeartFocusChanged = { heartFocused = it }
+                    )
                 }
             }
         }
@@ -191,27 +336,172 @@ private fun CountrySidebar(
 }
 
 @Composable
-private fun SidebarRow(label: String, selected: Boolean, indent: Boolean = false, onClick: () -> Unit) {
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
-        Box(
+private fun LiveTvChannelRow(
+    channel: Channel,
+    nowNext: EpgNowNext?,
+    isSelected: Boolean,
+    isNowPlayingFullscreen: Boolean,
+    onFocusSelected: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onHeartFocusChanged: (Boolean) -> Unit
+) {
+    val showAccent = isSelected || isNowPlayingFullscreen
+    val accentBarColor by animateColorAsState(targetValue = if (showAccent) SirKTVPrimary else Color.Transparent, label = "rowAccent")
+
+    Row(modifier = Modifier.fillMaxWidth().height(ChannelRowHeight), verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            onClick = onFocusSelected,
             modifier = Modifier
-                .fillMaxWidth()
-                .background(if (selected) SirKTVPrimary.copy(alpha = 0.22f) else Color.Transparent, RoundedCornerShape(8.dp))
-                .padding(start = if (indent) 20.dp else 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
+                .weight(1f)
+                .fillMaxHeight()
+                .tvChannelRowFocusStyle(cornerRadius = 12.dp)
+                // "Preview on focus" — no OK press required, matching every
+                // other player screen in this app where D-pad navigation
+                // alone drives what's on screen.
+                .onFocusChanged { if (it.isFocused) onFocusSelected() }
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(if (isSelected) SirKTVCardBackground else Color.Transparent, RoundedCornerShape(12.dp)),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.width(4.dp).height(40.dp).background(accentBarColor, RoundedCornerShape(2.dp)))
+                LiveTvChannelLogo(channel = channel, showLiveBadge = isSelected, modifier = Modifier.padding(start = 10.dp))
+                Column(modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                    Text(
+                        text = channel.name,
+                        color = SirKTVOnSurfaceStrong,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    LiveTvNowPlayingLine(nowNext)
+                    if (isNowPlayingFullscreen) {
+                        Text(
+                            "NOW PLAYING",
+                            color = SirKTVPrimary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+        LiveTvFavoriteHeart(
+            isFavorite = channel.isFavorite,
+            onToggle = onToggleFavorite,
+            onFocusChanged = onHeartFocusChanged,
+            modifier = Modifier.padding(horizontal = 10.dp)
+        )
+    }
+}
+
+@Composable
+internal fun LiveTvChannelLogo(channel: Channel, showLiveBadge: Boolean, modifier: Modifier = Modifier) {
+    val hasLogo = !channel.logoUrl.isNullOrBlank()
+    Box(modifier.size(48.dp)) {
+        if (hasLogo) {
+            AsyncImage(
+                model = channel.logoUrl,
+                contentDescription = channel.name,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().clip(CircleShape).background(SirKTVCardBackground)
+            )
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize().clip(CircleShape).background(SirKTVCardBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(channel.name.take(1).uppercase(), color = SirKTVPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        if (showLiveBadge) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = (-4).dp)
+                    .background(LiveTvLiveRed, RoundedCornerShape(4.dp))
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
+            ) {
+                Text("LIVE", color = Color.White, fontSize = 7.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiveTvNowPlayingLine(nowNext: EpgNowNext?) {
+    val now = nowNext?.now
+    if (now != null) {
+        Text(
+            text = now.title,
+            color = SirKTVOnSurfaceMuted,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+        LiveTvEpgProgressBar(now, modifier = Modifier.padding(top = 3.dp))
+    } else {
+        Text("Live", color = LiveTvLiveRed, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 2.dp))
+    }
+}
+
+@Composable
+internal fun LiveTvEpgProgressBar(program: EpgProgram, modifier: Modifier = Modifier) {
+    val fraction = programProgressFraction(program)
+    Box(modifier.fillMaxWidth(0.85f).height(2.dp).background(LiveTvTrackGray, RoundedCornerShape(1.dp))) {
+        Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(SirKTVPrimary, RoundedCornerShape(1.dp)))
+    }
+}
+
+internal fun programProgressFraction(program: EpgProgram): Float {
+    val total = (program.endEpochSeconds - program.startEpochSeconds).toFloat()
+    if (total <= 0f) return 0f
+    val nowSeconds = System.currentTimeMillis() / 1000
+    return ((nowSeconds - program.startEpochSeconds).toFloat() / total).coerceIn(0f, 1f)
+}
+
+@Composable
+internal fun LiveTvFavoriteHeart(
+    isFavorite: Boolean,
+    onToggle: () -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scale = remember { Animatable(1f) }
+    var isFirstComposition by remember { mutableStateOf(true) }
+    LaunchedEffect(isFavorite) {
+        if (isFirstComposition) {
+            isFirstComposition = false
+        } else {
+            scale.animateTo(1.3f, tween(100))
+            scale.animateTo(1f, tween(100))
+        }
+    }
+
+    Surface(
+        onClick = onToggle,
+        modifier = modifier
+            .size(40.dp)
+            .tvFocusStyle(cornerRadius = 20.dp)
+            .onFocusChanged { onFocusChanged(it.isFocused) }
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
-                text = label,
-                color = if (selected) Color.White else Color.White.copy(alpha = 0.75f),
-                fontSize = 12.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                text = if (isFavorite) "♥" else "♡",
+                color = if (isFavorite) SirKTVPrimary else SirKTVOnSurfaceMuted,
+                fontSize = 20.sp,
+                modifier = Modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value }
             )
         }
     }
 }
 
-/** Reused by [LiveTvBrowseScreen] (blue accent) and SportsScreen (green accent). */
+/** Reused by SportsScreen (green accent) — kept exactly as-is; Sports is out of scope for the Live TV browse overhaul. */
 @Composable
 internal fun ChannelListColumn(
     channels: List<Channel>,
@@ -337,7 +627,7 @@ private fun InlineTag(text: String) {
     }
 }
 
-/** Reused by [LiveTvBrowseScreen] (blue accent) and SportsScreen (green accent). */
+/** Reused by SportsScreen (green accent) — kept exactly as-is; Live TV browse now uses [LiveTvPreviewPanel] instead. */
 @Composable
 internal fun PreviewPanel(
     channel: Channel?,
