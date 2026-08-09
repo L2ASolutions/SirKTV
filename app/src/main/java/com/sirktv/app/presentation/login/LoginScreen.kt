@@ -16,12 +16,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -55,9 +57,12 @@ import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVError
-import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVSurface
+import com.sirktv.app.presentation.theme.SirKTVSurfaceElevated
+import com.sirktv.app.presentation.theme.SirKTVTextPrimary
+import com.sirktv.app.presentation.theme.SirKTVTextSecondary
+import com.sirktv.app.presentation.theme.SirKTVTextTertiary
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Switch
@@ -106,6 +111,8 @@ fun LoginScreen(
     // to a TV turning on than an app booting up.
     if (uiState.isReconnecting) {
         BrandedSplash()
+    } else if (uiState.isSyncing) {
+        SyncLoadingScreen(status = uiState.syncStatus)
     } else {
         LoginContent(
             uiState = uiState,
@@ -134,9 +141,32 @@ private fun BrandedSplash() {
             Text(
                 text = "Your World. Your Channels.",
                 fontSize = 13.sp,
-                color = SirKTVOnSurfaceMuted
+                color = SirKTVTextTertiary
             )
             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = SirKTVPrimary)
+        }
+    }
+}
+
+/**
+ * Shown right after a successful sign-in while Live TV categories/channels
+ * sync — the only content Home actually needs to be useful. Movies/Series
+ * keep syncing in the background once we navigate away from here.
+ */
+@Composable
+private fun SyncLoadingScreen(status: String) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(SirKTVBackground),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)) {
+            SirKTVLogoMark()
+            LinearProgressIndicator(
+                color = SirKTVPrimary,
+                trackColor = SirKTVSurfaceElevated,
+                modifier = Modifier.width(220.dp).height(3.dp).clip(RoundedCornerShape(999.dp))
+            )
+            Text(text = status, color = SirKTVTextSecondary, fontSize = 13.sp)
         }
     }
 }
@@ -178,196 +208,219 @@ private fun LoginContent(
     // card) — a Box that centers its content vertically would clip the
     // bottom of the card (Sign In, the error message, the disclaimer) any
     // time the card's natural height exceeds the viewport, since centering
-    // pushes the overflow equally off both the top and bottom edges.
-    Column(
+    // pushes the overflow equally off both the top and bottom edges. A
+    // faint Royal Blue radial glow sits behind everything — just a hint of
+    // brand color on top of the near-black background, never enough to
+    // compete with the card.
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(SirKTVBackground)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(SirKTVPrimary.copy(alpha = 0.08f), Color.Transparent),
+                    radius = 900f
+                )
+            )
     ) {
-        Surface(
-            modifier = Modifier.width(440.dp),
-            shape = RoundedCornerShape(Dimens.CornerRadius * 2),
-            color = SirKTVSurface,
-            tonalElevation = 4.dp
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier.padding(Dimens.SpaceXl),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
+            Surface(
+                modifier = Modifier.width(440.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = SirKTVSurface,
+                shadowElevation = 32.dp
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
+                Column(
+                    modifier = Modifier.padding(40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
                 ) {
-                    SirKTVLogoMark()
-                    Column {
-                        Text(
-                            text = "SirKTV",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SirKTVPrimary
-                        )
-                        Text(
-                            text = "Sign in with your Xtream Codes account",
-                            fontSize = 11.sp,
-                            color = SirKTVOnSurfaceMuted
-                        )
-                    }
-                }
-
-                if (uiState.isReconnecting) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Text("Reconnecting to your saved account...", fontSize = 12.sp, color = SirKTVOnSurfaceMuted)
-                    }
-                }
-
-                OutlinedTextField(
-                    value = uiState.serverUrl,
-                    onValueChange = onServerUrlChanged,
-                    label = { Text("Server address") },
-                    placeholder = { Text("http://example.com:8080") },
-                    singleLine = true,
-                    enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { usernameFocusRequester.requestFocus() }),
-                    colors = loginFieldColors(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(serverUrlFocusRequester)
-                        .tvDpadNav(down = usernameFocusRequester)
-                        // D-pad focus alone doesn't pop the Fire TV system
-                        // keyboard the way a touch tap would — show it
-                        // explicitly the moment this field gains focus.
-                        .onFocusChanged { if (it.isFocused) keyboardController?.show() }
-                        .tvFocusStyle()
-                )
-
-                OutlinedTextField(
-                    value = uiState.username,
-                    onValueChange = onUsernameChanged,
-                    label = { Text("Username") },
-                    singleLine = true,
-                    enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { passwordFocusRequester.requestFocus() }),
-                    colors = loginFieldColors(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(usernameFocusRequester)
-                        .tvDpadNav(up = serverUrlFocusRequester, down = passwordFocusRequester)
-                        .onFocusChanged { if (it.isFocused) keyboardController?.show() }
-                        .tvFocusStyle()
-                )
-
-                OutlinedTextField(
-                    value = uiState.password,
-                    onValueChange = onPasswordChanged,
-                    label = { Text("Password") },
-                    singleLine = true,
-                    enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { displayNameFocusRequester.requestFocus() }),
-                    visualTransformation = if (uiState.isPasswordVisible) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
-                    trailingIcon = {
-                        TextButton(onClick = onTogglePasswordVisibility) {
-                            Text(if (uiState.isPasswordVisible) "HIDE" else "SHOW", fontSize = 11.sp)
+                        SirKTVLogoMark()
+                        Column {
+                            Text(
+                                text = "SirKTV",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.W600,
+                                color = SirKTVTextPrimary
+                            )
+                            Text(
+                                text = "Sign in with your Xtream Codes account",
+                                fontSize = 12.sp,
+                                color = SirKTVTextTertiary
+                            )
                         }
-                    },
-                    colors = loginFieldColors(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(passwordFocusRequester)
-                        .tvDpadNav(up = usernameFocusRequester, down = displayNameFocusRequester)
-                        .onFocusChanged { if (it.isFocused) keyboardController?.show() }
-                        .tvFocusStyle()
-                )
-
-                OutlinedTextField(
-                    value = uiState.displayName,
-                    onValueChange = onDisplayNameChanged,
-                    label = { Text("Display Name (optional)") },
-                    placeholder = { Text("How should we greet you?") },
-                    supportingText = { Text("Leave blank to use your username instead.", fontSize = 11.sp) },
-                    singleLine = true,
-                    enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { rememberMeFocusRequester.requestFocus() }),
-                    colors = loginFieldColors(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(displayNameFocusRequester)
-                        .tvDpadNav(up = passwordFocusRequester, down = rememberMeFocusRequester)
-                        .onFocusChanged { if (it.isFocused) keyboardController?.show() }
-                        .tvFocusStyle()
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
-                ) {
-                    Switch(
-                        checked = uiState.rememberMe,
-                        onCheckedChange = { onToggleRememberMe() },
-                        modifier = Modifier
-                            .focusRequester(rememberMeFocusRequester)
-                            .tvDpadNav(up = displayNameFocusRequester, down = signInFocusRequester)
-                            .tvFocusStyle(cornerRadius = 24.dp)
-                    )
-                    Text("Remember me on this device", fontSize = 13.sp, color = SirKTVOnSurfaceMuted)
-                }
-
-                Button(
-                    onClick = onSignInClicked,
-                    enabled = !uiState.isLoading,
-                    colors = ButtonDefaults.colors(
-                        containerColor = SirKTVPrimary,
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .focusRequester(signInFocusRequester)
-                        .tvDpadNav(up = rememberMeFocusRequester, down = disclaimerFocusRequester)
-                        .tvFocusStyle(accent = TvFocusAccent.BORDER)
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.dp,
-                            color = Color.White
-                        )
-                    } else {
-                        TvText("Sign In", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
-                }
 
-                uiState.errorMessage?.let { message ->
-                    Text(
-                        text = message,
-                        color = SirKTVError,
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
+                    if (uiState.isReconnecting) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Text("Reconnecting to your saved account...", fontSize = 12.sp, color = SirKTVTextTertiary)
+                        }
+                    }
+
+                    TextField(
+                        value = uiState.serverUrl,
+                        onValueChange = onServerUrlChanged,
+                        label = { Text("Server address") },
+                        placeholder = { Text("http://example.com:8080") },
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { usernameFocusRequester.requestFocus() }),
+                        colors = loginFieldColors(),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(serverUrlFocusRequester)
+                            .tvDpadNav(down = usernameFocusRequester)
+                            // D-pad focus alone doesn't pop the Fire TV system
+                            // keyboard the way a touch tap would — show it
+                            // explicitly the moment this field gains focus.
+                            .onFocusChanged { if (it.isFocused) keyboardController?.show() }
+                            .tvFocusStyle()
+                    )
+
+                    TextField(
+                        value = uiState.username,
+                        onValueChange = onUsernameChanged,
+                        label = { Text("Username") },
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { passwordFocusRequester.requestFocus() }),
+                        colors = loginFieldColors(),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(usernameFocusRequester)
+                            .tvDpadNav(up = serverUrlFocusRequester, down = passwordFocusRequester)
+                            .onFocusChanged { if (it.isFocused) keyboardController?.show() }
+                            .tvFocusStyle()
+                    )
+
+                    TextField(
+                        value = uiState.password,
+                        onValueChange = onPasswordChanged,
+                        label = { Text("Password") },
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { displayNameFocusRequester.requestFocus() }),
+                        visualTransformation = if (uiState.isPasswordVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
+                        trailingIcon = {
+                            TextButton(onClick = onTogglePasswordVisibility) {
+                                Text(
+                                    if (uiState.isPasswordVisible) "HIDE" else "SHOW",
+                                    fontSize = 11.sp,
+                                    color = SirKTVTextSecondary
+                                )
+                            }
+                        },
+                        colors = loginFieldColors(),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(passwordFocusRequester)
+                            .tvDpadNav(up = usernameFocusRequester, down = displayNameFocusRequester)
+                            .onFocusChanged { if (it.isFocused) keyboardController?.show() }
+                            .tvFocusStyle()
+                    )
+
+                    TextField(
+                        value = uiState.displayName,
+                        onValueChange = onDisplayNameChanged,
+                        label = { Text("Display Name (optional)") },
+                        placeholder = { Text("How should we greet you?") },
+                        supportingText = { Text("Leave blank to use your username instead.", fontSize = 11.sp, color = SirKTVTextTertiary) },
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { rememberMeFocusRequester.requestFocus() }),
+                        colors = loginFieldColors(),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(displayNameFocusRequester)
+                            .tvDpadNav(up = passwordFocusRequester, down = rememberMeFocusRequester)
+                            .onFocusChanged { if (it.isFocused) keyboardController?.show() }
+                            .tvFocusStyle()
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
+                    ) {
+                        Switch(
+                            checked = uiState.rememberMe,
+                            onCheckedChange = { onToggleRememberMe() },
+                            modifier = Modifier
+                                .focusRequester(rememberMeFocusRequester)
+                                .tvDpadNav(up = displayNameFocusRequester, down = signInFocusRequester)
+                                .tvFocusStyle(cornerRadius = 24.dp)
+                        )
+                        Text("Remember me on this device", fontSize = 13.sp, color = SirKTVTextSecondary)
+                    }
+
+                    Button(
+                        onClick = onSignInClicked,
+                        enabled = !uiState.isLoading,
+                        colors = ButtonDefaults.colors(
+                            containerColor = SirKTVPrimary,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .focusRequester(signInFocusRequester)
+                            .tvDpadNav(up = rememberMeFocusRequester, down = disclaimerFocusRequester)
+                            .tvFocusStyle(accent = TvFocusAccent.BORDER, cornerRadius = Dimens.ButtonCornerRadius)
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                        } else {
+                            TvText("Sign In", fontSize = 16.sp, fontWeight = FontWeight.W600)
+                        }
+                    }
+
+                    uiState.errorMessage?.let { message ->
+                        Text(
+                            text = message,
+                            color = SirKTVError,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    DisclaimerSection(
+                        expanded = uiState.isDisclaimerExpanded,
+                        onToggle = onToggleDisclaimer,
+                        focusRequester = disclaimerFocusRequester,
+                        upFocusRequester = signInFocusRequester
                     )
                 }
-
-                DisclaimerSection(
-                    expanded = uiState.isDisclaimerExpanded,
-                    onToggle = onToggleDisclaimer,
-                    focusRequester = disclaimerFocusRequester,
-                    upFocusRequester = signInFocusRequester
-                )
             }
         }
     }
@@ -391,9 +444,9 @@ private fun DisclaimerSection(
         ) {
             Text(
                 text = if (expanded) "Disclaimer ▾" else "Disclaimer ▸",
-                color = SirKTVOnSurfaceMuted,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
+                color = SirKTVTextTertiary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.W600
             )
         }
         if (expanded) {
@@ -404,8 +457,8 @@ private fun DisclaimerSection(
                     " availability, legality, or quality of any content accessed through your" +
                     " provider. You are solely responsible for ensuring your use of any connected" +
                     " service complies with the laws and regulations applicable to you.",
-                color = SirKTVOnSurfaceMuted,
-                fontSize = 11.sp,
+                color = SirKTVTextTertiary,
+                fontSize = 12.sp,
                 textAlign = TextAlign.Start,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.SpaceXs, vertical = Dimens.SpaceXs)
             )
@@ -413,15 +466,23 @@ private fun DisclaimerSection(
     }
 }
 
+/**
+ * Filled, borderless field style: `SirKTVSurfaceElevated` background with only
+ * the bottom indicator line visible (Material3's `TextField`, not
+ * `OutlinedTextField`, draws exactly that by default) — Royal Blue when
+ * focused, invisible otherwise. Never a full outline box.
+ */
 @Composable
-private fun loginFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = SirKTVBackground,
-    unfocusedContainerColor = SirKTVBackground,
-    disabledContainerColor = SirKTVBackground,
-    focusedBorderColor = SirKTVPrimary,
-    unfocusedBorderColor = SirKTVOnSurfaceMuted,
+private fun loginFieldColors() = TextFieldDefaults.colors(
+    focusedContainerColor = SirKTVSurfaceElevated,
+    unfocusedContainerColor = SirKTVSurfaceElevated,
+    disabledContainerColor = SirKTVSurfaceElevated,
+    focusedIndicatorColor = SirKTVPrimary,
+    unfocusedIndicatorColor = Color.Transparent,
+    disabledIndicatorColor = Color.Transparent,
     focusedLabelColor = SirKTVPrimary,
+    unfocusedLabelColor = SirKTVTextTertiary,
     cursorColor = SirKTVPrimary,
-    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+    focusedTextColor = SirKTVTextPrimary,
+    unfocusedTextColor = SirKTVTextPrimary
 )

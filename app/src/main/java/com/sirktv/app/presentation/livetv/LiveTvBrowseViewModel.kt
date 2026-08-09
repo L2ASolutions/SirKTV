@@ -79,7 +79,6 @@ class LiveTvBrowseViewModel @Inject constructor(
 
     private val requestedEpgChannelIds = mutableSetOf<String>()
     private val requestedEpgListingChannelIds = mutableSetOf<String>()
-    private var hasLoadedInitialPreview = false
 
     // --- Preview player: a second, independent ExoPlayer instance (muted,
     // looping) dedicated to this screen only — never shared with the
@@ -129,12 +128,11 @@ class LiveTvBrowseViewModel @Inject constructor(
                         isLoading = if (channels.isNotEmpty()) false else it.isLoading
                     )
                 }
-                if (!hasLoadedInitialPreview) {
-                    _uiState.value.selectedChannel?.let {
-                        hasLoadedInitialPreview = true
-                        loadPreview(it.id)
-                    }
-                }
+                // Deliberately does NOT auto-load a preview here: the preview
+                // ExoPlayer is only ever built/used once a channel row actually
+                // gains D-pad focus (see onChannelHighlighted) — never eagerly
+                // on screen entry, so a slow/failing player build can't take
+                // down the initial render of this screen.
             }
         }
         viewModelScope.launch {
@@ -178,7 +176,8 @@ class LiveTvBrowseViewModel @Inject constructor(
     fun requestEpgFor(channelId: String) {
         if (!requestedEpgChannelIds.add(channelId)) return
         viewModelScope.launch {
-            val nowNext = getEpgNowNextUseCase(channelId)
+            val nowNext = runCatching { getEpgNowNextUseCase(channelId) }
+                .getOrDefault(EpgNowNext(now = null, next = null))
             _uiState.update { it.copy(epgCache = it.epgCache + (channelId to nowNext)) }
         }
     }
@@ -186,7 +185,8 @@ class LiveTvBrowseViewModel @Inject constructor(
     fun requestEpgListingsFor(channelId: String) {
         if (!requestedEpgListingChannelIds.add(channelId)) return
         viewModelScope.launch {
-            val listings = getEpgListingsUseCase(channelId, limit = 20)
+            val listings = runCatching { getEpgListingsUseCase(channelId, limit = 20) }
+                .getOrDefault(emptyList())
             _uiState.update { it.copy(epgListingsCache = it.epgListingsCache + (channelId to listings)) }
         }
     }
@@ -198,31 +198,22 @@ class LiveTvBrowseViewModel @Inject constructor(
     private fun filterChannels(channels: List<Channel>, categoryId: String?): List<Channel> =
         if (categoryId == null) channels else channels.filter { it.categoryId == categoryId }
 
-    private fun loadPreview(channelId: String) {
-        if (previewChannelId == channelId && _previewState.value !is PlaybackState.Error) return
-        val credentials = currentSession.credentials.value ?: return
-        previewChannelId = channelId
-        val url = XtreamStreamUrlBuilder.buildPrimaryUrl(credentials.serverUrl, credentials.username, credentials.password, channelId)
-
-        val player = ensurePreviewPlayer()
-        previewLoadTimeoutJob?.cancel()
-        _previewState.value = PlaybackState.Buffering
-        player.stop()
-        player.setMediaItem(MediaItem.fromUri(url))
-        player.prepare()
-        player.play()
-
-        previewLoadTimeoutJob = viewModelScope.launch {
-            delay(8_000)
-            if (_previewState.value is PlaybackState.Buffering) {
-                _previewState.value = PlaybackState.Error(attemptsExhausted = true)
-            }
-        }
+    /**
+     * Builds the preview ExoPlayer if it doesn't exist yet. Called explicitly
+     * from the screen's `LaunchedEffect(Unit)` — never from init/the
+     * constructor — so construction only ever happens once the Composable is
+     * actually alive, and a failure here (device without the right codec,
+     * ExoPlayer internals throwing during setup, etc.) can't take the whole
+     * screen down before it even renders.
+     */
+    fun initPreviewPlayer() {
+        if (_previewPlayer.value != null) return
+        runCatching { buildPreviewPlayer() }
+            .onSuccess { _previewPlayer.value = it }
+            .onFailure { _previewState.value = PlaybackState.Error(attemptsExhausted = true) }
     }
 
-    private fun ensurePreviewPlayer(): ExoPlayer {
-        _previewPlayer.value?.let { return it }
-
+    private fun buildPreviewPlayer(): ExoPlayer {
         // Same buffer profile the fullscreen engine defaults to, but with a
         // much shorter start buffer so previews feel instant while scrolling.
         val buffer = PlayerSettings.MEDIUM_BUFFER
@@ -241,17 +232,46 @@ class LiveTvBrowseViewModel @Inject constructor(
         player.volume = 0f
         player.repeatMode = Player.REPEAT_MODE_ONE
         player.addListener(previewListener)
-        _previewPlayer.value = player
         return player
+    }
+
+    /** Lazy, focus-driven — called only from [onChannelHighlighted]/[onCategorySelected], never on screen entry. */
+    private fun loadPreview(channelId: String) {
+        if (previewChannelId == channelId && _previewState.value !is PlaybackState.Error) return
+        val credentials = currentSession.credentials.value ?: return
+        initPreviewPlayer()
+        val player = _previewPlayer.value ?: return
+
+        runCatching {
+            previewChannelId = channelId
+            val url = XtreamStreamUrlBuilder.buildPrimaryUrl(credentials.serverUrl, credentials.username, credentials.password, channelId)
+            previewLoadTimeoutJob?.cancel()
+            _previewState.value = PlaybackState.Buffering
+            player.stop()
+            player.setMediaItem(MediaItem.fromUri(url))
+            player.prepare()
+            player.play()
+
+            previewLoadTimeoutJob = viewModelScope.launch {
+                delay(8_000)
+                if (_previewState.value is PlaybackState.Buffering) {
+                    _previewState.value = PlaybackState.Error(attemptsExhausted = true)
+                }
+            }
+        }.onFailure {
+            _previewState.value = PlaybackState.Error(attemptsExhausted = true)
+        }
     }
 
     /** Full teardown — called from the screen's DisposableEffect(onDispose) and from [onCleared]. */
     fun releasePreview() {
         previewLoadTimeoutJob?.cancel()
-        _previewPlayer.value?.let {
-            it.removeListener(previewListener)
-            it.stop()
-            it.release()
+        runCatching {
+            _previewPlayer.value?.let {
+                it.removeListener(previewListener)
+                it.stop()
+                it.release()
+            }
         }
         _previewPlayer.value = null
         _previewState.value = PlaybackState.Idle

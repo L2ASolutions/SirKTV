@@ -92,7 +92,15 @@ fun HomeScreen(
             }
 
             item {
-                HeroCarousel(items = state.heroItems, onItemClick = { previewItem = it })
+                // Negative horizontal padding bleeds the hero out past the
+                // LazyColumn's own safe-area content padding — the one
+                // deliberately full-bleed, edge-to-edge element on the page.
+                HeroCarousel(
+                    items = state.heroItems,
+                    onPlay = { item -> onOpenContent(item.navTarget) },
+                    onMoreInfo = { item -> previewItem = item },
+                    modifier = Modifier.padding(horizontal = -Dimens.SafeAreaHorizontal)
+                )
             }
 
             if (state.continueWatching.isNotEmpty()) {

@@ -15,17 +15,19 @@ object Dimens {
     val SpaceXxl = 48.dp
 
     val CornerRadius = 12.dp
+    val CardCornerRadius = 6.dp
+    val ButtonCornerRadius = 8.dp
 
     /** Alpha applied to unfocused focusable elements so the focused one reads unambiguously. */
-    const val UnfocusedAlpha = 0.85f
+    const val UnfocusedAlpha = 0.92f
 
-    // Premium D-pad focus language: a soft Royal Blue glow + gentle scale for
-    // cards/tabs/icons, a thin 2dp border only for Button (which already has
-    // its own solid fill and needs a crisper edge instead of a glow), and a
-    // left accent bar for dense list rows (channel rows) instead of any
-    // border at all.
-    const val FocusScale = 1.05f
+    // Premium D-pad focus language, Netflix/Apple-TV style: focus is ALWAYS a
+    // soft Royal Blue glow + scale-up — never a border, on cards or buttons.
+    // Cards scale a touch more (they're the primary browsing unit); buttons
+    // scale less since a 56dp-tall filled button scaling 1.08x would feel
+    // heavy. tvFocusStyle picks between these by [TvFocusAccent].
+    const val FocusScale = 1.08f
+    const val ButtonFocusScale = 1.03f
     val FocusGlowElevation = 20.dp
-    val ButtonFocusBorderWidth = 2.dp
     val RowFocusAccentBarWidth = 4.dp
 }

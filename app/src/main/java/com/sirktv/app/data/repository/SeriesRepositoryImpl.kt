@@ -12,6 +12,8 @@ import com.sirktv.app.network.XtreamUrlBuilder
 import com.sirktv.app.storage.db.FavoriteDao
 import com.sirktv.app.storage.db.FavoriteEntity
 import com.sirktv.app.storage.db.SeriesDao
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -75,11 +77,13 @@ class SeriesRepositoryImpl @Inject constructor(
         val credentials = currentSession.credentials.value ?: return
         runCatching {
             val playerApiUrl = XtreamUrlBuilder.buildPlayerApiUrl(credentials.serverUrl)
-            val categoriesDto = apiService.getSeriesCategories(playerApiUrl, credentials.username, credentials.password)
-            val seriesDto = apiService.getSeriesList(playerApiUrl, credentials.username, credentials.password)
-            val categories = categoriesDto.mapNotNull(SeriesMapper::toCategoryEntity)
-            val series = seriesDto.mapNotNull(SeriesMapper::toSeriesEntity)
-            seriesDao.replaceAll(categories, series)
+            coroutineScope {
+                val categoriesDto = async { apiService.getSeriesCategories(playerApiUrl, credentials.username, credentials.password) }
+                val seriesDto = async { apiService.getSeriesList(playerApiUrl, credentials.username, credentials.password) }
+                val categories = categoriesDto.await().mapNotNull(SeriesMapper::toCategoryEntity)
+                val series = seriesDto.await().mapNotNull(SeriesMapper::toSeriesEntity)
+                seriesDao.replaceAll(categories, series)
+            }
         }
     }
 

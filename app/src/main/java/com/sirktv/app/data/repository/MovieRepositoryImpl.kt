@@ -12,6 +12,8 @@ import com.sirktv.app.network.XtreamVodApiService
 import com.sirktv.app.storage.db.FavoriteDao
 import com.sirktv.app.storage.db.FavoriteEntity
 import com.sirktv.app.storage.db.MovieDao
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -73,11 +75,13 @@ class MovieRepositoryImpl @Inject constructor(
         val credentials = currentSession.credentials.value ?: return
         runCatching {
             val playerApiUrl = XtreamUrlBuilder.buildPlayerApiUrl(credentials.serverUrl)
-            val categoriesDto = apiService.getVodCategories(playerApiUrl, credentials.username, credentials.password)
-            val streamsDto = apiService.getVodStreams(playerApiUrl, credentials.username, credentials.password)
-            val categories = categoriesDto.mapNotNull(MovieMapper::toCategoryEntity)
-            val movies = streamsDto.mapNotNull(MovieMapper::toMovieEntity)
-            movieDao.replaceAll(categories, movies)
+            coroutineScope {
+                val categoriesDto = async { apiService.getVodCategories(playerApiUrl, credentials.username, credentials.password) }
+                val streamsDto = async { apiService.getVodStreams(playerApiUrl, credentials.username, credentials.password) }
+                val categories = categoriesDto.await().mapNotNull(MovieMapper::toCategoryEntity)
+                val movies = streamsDto.await().mapNotNull(MovieMapper::toMovieEntity)
+                movieDao.replaceAll(categories, movies)
+            }
         }
     }
 

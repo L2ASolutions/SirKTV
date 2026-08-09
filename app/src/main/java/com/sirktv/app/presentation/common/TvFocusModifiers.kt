@@ -7,7 +7,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.getValue
@@ -31,26 +30,27 @@ import com.sirktv.app.presentation.theme.SirKTVFocusBorder
 private val FocusAnimSpecFloat = tween<Float>(180)
 private val FocusAnimSpecDp = tween<Dp>(180)
 
-/** How a focused element signals focus, layered on top of the shared scale/dim treatment. */
+/**
+ * How strongly a focused element scales up, layered on top of the shared
+ * Royal Blue glow. Focus is NEVER a border/outline anywhere in this app —
+ * only scale + glow, Netflix/Apple-TV style.
+ */
 enum class TvFocusAccent {
-    /** Soft Royal Blue glow (shadow), no hard edge — the default for cards, icons, and pills. */
+    /** Card-scale glow (1.08x) — the default for cards, tiles, icons, and pills. */
     GLOW,
 
-    /** Thin 2dp Royal Blue border with soft corners — for Button, which already has a solid fill. */
+    /** Button-scale glow (1.03x) — for Button, which already has a solid fill and shouldn't scale as dramatically. */
     BORDER,
 
-    /** No glow/border at all — used where a component draws its own focus cue (e.g. a left accent bar). */
+    /** No glow/scale at all — used where a component draws its own focus cue (e.g. a left accent bar). */
     NONE
 }
 
 /**
- * Shared D-pad focus feedback: the focused element scales up gently and
- * (depending on [accent]) gets either a soft Royal Blue glow or a thin
- * border; every unfocused sibling dims to [Dimens.UnfocusedAlpha] so the
- * focused element is unambiguous at a glance. Deliberately avoids a hard
- * rectangular border by default — [TvFocusAccent.GLOW] uses an elevation
- * shadow tinted Royal Blue instead, which reads as a premium glow rather
- * than a harsh outline.
+ * Shared D-pad focus feedback: the focused element scales up gently and gets
+ * a soft Royal Blue glow (an elevation shadow tinted Royal Blue, not a hard
+ * rectangular border); every unfocused sibling dims to [Dimens.UnfocusedAlpha]
+ * so the focused element is unambiguous at a glance.
  */
 fun Modifier.tvFocusStyle(
     cornerRadius: Dp = Dimens.CornerRadius,
@@ -59,8 +59,9 @@ fun Modifier.tvFocusStyle(
     onFocusChanged: (Boolean) -> Unit = {}
 ): Modifier = composed {
     var isFocused by remember { mutableStateOf(false) }
+    val targetScale = if (accent == TvFocusAccent.BORDER) Dimens.ButtonFocusScale else Dimens.FocusScale
     val scale by animateFloatAsState(
-        targetValue = if (isFocused && scaleOnFocus) Dimens.FocusScale else 1f,
+        targetValue = if (isFocused && scaleOnFocus) targetScale else 1f,
         animationSpec = FocusAnimSpecFloat,
         label = "tvFocusScale"
     )
@@ -70,14 +71,9 @@ fun Modifier.tvFocusStyle(
         label = "tvFocusDim"
     )
     val glowElevation by animateDpAsState(
-        targetValue = if (isFocused && accent == TvFocusAccent.GLOW) Dimens.FocusGlowElevation else 0.dp,
+        targetValue = if (isFocused && accent != TvFocusAccent.NONE) Dimens.FocusGlowElevation else 0.dp,
         animationSpec = FocusAnimSpecDp,
         label = "tvFocusGlow"
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (isFocused && accent == TvFocusAccent.BORDER) SirKTVFocusBorder else Color.Transparent,
-        animationSpec = tween(180),
-        label = "tvFocusBorderColor"
     )
 
     this
@@ -92,13 +88,6 @@ fun Modifier.tvFocusStyle(
             clip = false,
             ambientColor = SirKTVFocusBorder,
             spotColor = SirKTVFocusBorder
-        )
-        .then(
-            if (accent == TvFocusAccent.BORDER) {
-                Modifier.border(Dimens.ButtonFocusBorderWidth, borderColor, RoundedCornerShape(cornerRadius))
-            } else {
-                Modifier
-            }
         )
 }
 

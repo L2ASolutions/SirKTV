@@ -19,11 +19,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 
-private const val IDLE_TIMEOUT_MS = 45_000L
+private const val IDLE_TIMEOUT_MS = 60_000L
 
 /**
  * Wraps the whole app: tracks input activity app-wide (without consuming any
- * of it) and shows [ScreensaverOverlay] after 45 seconds of inactivity, but
+ * of it) and shows [ScreensaverOverlay] after 60 seconds of inactivity, but
  * only while logged in and outside the fullscreen player. Any key, D-pad, or
  * pointer-down event dismisses it and resets the idle clock.
  */

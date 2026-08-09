@@ -67,13 +67,13 @@ fun ChannelCard(
     if (onLongClick != null) {
         Box(
             modifier = modifier
-                .tvChannelRowFocusStyle(cornerRadius = 12.dp) { isFocused = it }
+                .tvChannelRowFocusStyle(cornerRadius = Dimens.CardCornerRadius) { isFocused = it }
                 .tvPressLongPress(onClick = onClick, onLongPress = onLongClick)
         ) {
             content()
         }
     } else {
-        Surface(onClick = onClick, modifier = modifier.tvChannelRowFocusStyle(cornerRadius = 12.dp) { isFocused = it }) {
+        Surface(onClick = onClick, modifier = modifier.tvChannelRowFocusStyle(cornerRadius = Dimens.CardCornerRadius) { isFocused = it }) {
             content()
         }
     }
@@ -99,7 +99,7 @@ private fun ChannelCardRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SirKTVCardBackground, RoundedCornerShape(12.dp))
+            .background(SirKTVCardBackground, RoundedCornerShape(Dimens.CardCornerRadius))
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -3,7 +3,6 @@ package com.sirktv.app.presentation.home
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,12 +33,14 @@ import coil.compose.AsyncImage
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.common.tvPressLongPress
 import com.sirktv.app.presentation.theme.Dimens
+import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVCardBackground
-import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
-import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVPrimaryVariant
 import com.sirktv.app.presentation.theme.SirKTVSurfaceVariant
+import com.sirktv.app.presentation.theme.SirKTVTextPrimary
+import com.sirktv.app.presentation.theme.SirKTVTextSecondary
+import com.sirktv.app.presentation.theme.SirKTVTextTertiary
 import androidx.tv.material3.Surface
 
 /** Section header shared by every horizontally-scrolling row on Home/Movies/Series/Favorites. */
@@ -47,9 +48,9 @@ import androidx.tv.material3.Surface
 fun RowHeader(title: String, count: Int? = null, modifier: Modifier = Modifier) {
     Text(
         text = if (count != null) "$title  ($count)" else title,
-        color = Color.White,
-        fontWeight = FontWeight.Bold,
-        fontSize = 15.sp,
+        color = SirKTVTextPrimary,
+        fontWeight = FontWeight.W600,
+        fontSize = 18.sp,
         modifier = modifier.padding(bottom = Dimens.SpaceSm)
     )
 }
@@ -126,14 +127,13 @@ private fun MediaCardArt(
         Modifier
             .fillMaxWidth()
             .aspectRatio(aspectRatio)
-            .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(Dimens.CornerRadius))
     ) {
             if (hasImage) {
                 AsyncImage(
                     model = imageUrl,
                     contentDescription = title,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().background(SirKTVSurfaceVariant, RoundedCornerShape(Dimens.CornerRadius))
+                    modifier = Modifier.fillMaxSize().background(SirKTVSurfaceVariant, RoundedCornerShape(Dimens.CardCornerRadius))
                 )
             } else {
                 // No artwork: a flat dark card (never a bright/colorful fill
@@ -142,7 +142,7 @@ private fun MediaCardArt(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(SirKTVCardBackground, RoundedCornerShape(Dimens.CornerRadius)),
+                        .background(SirKTVCardBackground, RoundedCornerShape(Dimens.CardCornerRadius)),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
@@ -171,13 +171,16 @@ private fun MediaCardArt(
                     .fillMaxWidth()
                     .then(
                         if (hasImage) {
+                            // Transparent until 50% down, then ramps to a near-opaque
+                            // scrim at the bottom — the poster stays fully visible in
+                            // its top half, the title/subtitle stay readable in its bottom.
                             Modifier.background(
                                 Brush.verticalGradient(
                                     0f to Color.Transparent,
-                                    0.45f to Color.Black.copy(alpha = 0.6f),
-                                    1f to Color.Black.copy(alpha = 0.85f)
+                                    0.5f to Color.Transparent,
+                                    1f to SirKTVBackground.copy(alpha = 0.9f)
                                 ),
-                                RoundedCornerShape(bottomStart = Dimens.CornerRadius, bottomEnd = Dimens.CornerRadius)
+                                RoundedCornerShape(bottomStart = Dimens.CardCornerRadius, bottomEnd = Dimens.CardCornerRadius)
                             )
                         } else Modifier
                     )
@@ -186,9 +189,9 @@ private fun MediaCardArt(
                 Column {
                     Text(
                         text = title,
-                        color = if (hasImage) Color.White else SirKTVOnSurfaceStrong,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
+                        color = SirKTVTextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.W600,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -196,8 +199,8 @@ private fun MediaCardArt(
                         subtitle?.let {
                             Text(
                                 text = it,
-                                color = if (hasImage) Color.White.copy(alpha = 0.75f) else SirKTVOnSurfaceMuted,
-                                fontSize = 10.sp,
+                                color = SirKTVTextSecondary,
+                                fontSize = 11.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false)
@@ -206,9 +209,9 @@ private fun MediaCardArt(
                         rating?.let {
                             Text(
                                 "★ ${"%.1f".format(it)}",
-                                color = if (hasImage) Color.White.copy(alpha = 0.85f) else SirKTVOnSurfaceMuted,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
+                                color = SirKTVTextTertiary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.W600
                             )
                         }
                     }

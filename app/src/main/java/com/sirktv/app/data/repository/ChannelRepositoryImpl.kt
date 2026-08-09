@@ -14,6 +14,8 @@ import com.sirktv.app.network.XtreamUrlBuilder
 import com.sirktv.app.storage.db.ChannelDao
 import com.sirktv.app.storage.db.FavoriteDao
 import com.sirktv.app.storage.db.FavoriteEntity
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -69,11 +71,13 @@ class ChannelRepositoryImpl @Inject constructor(
         // an error — a stale channel list beats a broken one.
         runCatching {
             val playerApiUrl = XtreamUrlBuilder.buildPlayerApiUrl(credentials.serverUrl)
-            val categoriesDto = apiService.getLiveCategories(playerApiUrl, credentials.username, credentials.password)
-            val streamsDto = apiService.getLiveStreams(playerApiUrl, credentials.username, credentials.password)
-            val categories = categoriesDto.mapNotNull(ChannelMapper::toCategoryEntity)
-            val channels = streamsDto.mapNotNull(ChannelMapper::toChannelEntity)
-            channelDao.replaceAll(categories, channels)
+            coroutineScope {
+                val categoriesDto = async { apiService.getLiveCategories(playerApiUrl, credentials.username, credentials.password) }
+                val streamsDto = async { apiService.getLiveStreams(playerApiUrl, credentials.username, credentials.password) }
+                val categories = categoriesDto.await().mapNotNull(ChannelMapper::toCategoryEntity)
+                val channels = streamsDto.await().mapNotNull(ChannelMapper::toChannelEntity)
+                channelDao.replaceAll(categories, channels)
+            }
         }
     }
 

@@ -46,7 +46,7 @@ import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVError
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
-import com.sirktv.app.presentation.theme.SirKTVSurface
+import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import androidx.tv.material3.Surface
 
 @Composable
@@ -131,15 +131,15 @@ private fun SettingsTileCard(tile: SettingsTile, selected: Boolean, onClick: () 
         targetValue = when {
             selected -> SirKTVPrimary.copy(alpha = 0.22f)
             isFocused -> SirKTVPrimary.copy(alpha = 0.12f)
-            else -> SirKTVSurface
+            else -> SirKTVCardBackground
         },
         label = "settingsTileBackground"
     )
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).tvFocusStyle { isFocused = it }) {
+    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).tvFocusStyle(cornerRadius = Dimens.CardCornerRadius) { isFocused = it }) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(background, RoundedCornerShape(Dimens.CornerRadius)),
+                .background(background, RoundedCornerShape(Dimens.CardCornerRadius)),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

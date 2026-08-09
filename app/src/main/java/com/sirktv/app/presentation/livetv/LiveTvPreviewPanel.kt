@@ -205,15 +205,20 @@ private fun LiveTvPreviewVideo(
             .clickable(onClick = onClick)
             .tvFocusStyle(accent = TvFocusAccent.BORDER, cornerRadius = Dimens.CornerRadius)
     ) {
+        // Gated behind a null check — the preview player is built lazily and
+        // defensively (see LiveTvBrowseViewModel.initPreviewPlayer), so it may
+        // genuinely be null (not yet built, or failed to build) at any point.
         if (previewPlayer != null && previewState !is PlaybackState.Error) {
             AndroidView(
                 factory = { context ->
-                    PlayerView(context).apply {
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    }
+                    runCatching {
+                        PlayerView(context).apply {
+                            useController = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        }
+                    }.getOrElse { PlayerView(context) }
                 },
-                update = { view -> view.player = previewPlayer },
+                update = { view -> runCatching { view.player = previewPlayer } },
                 modifier = Modifier.fillMaxSize()
             )
         }

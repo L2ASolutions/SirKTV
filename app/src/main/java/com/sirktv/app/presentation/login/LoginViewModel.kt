@@ -2,6 +2,7 @@ package com.sirktv.app.presentation.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sirktv.app.di.ApplicationScope
 import com.sirktv.app.domain.model.LoginResult
 import com.sirktv.app.domain.model.SavedCredentials
 import com.sirktv.app.domain.model.StartupDestination
@@ -10,8 +11,12 @@ import com.sirktv.app.domain.usecase.GetDisplayNameUseCase
 import com.sirktv.app.domain.usecase.GetSavedCredentialsUseCase
 import com.sirktv.app.domain.usecase.LoginUseCase
 import com.sirktv.app.domain.usecase.ResolveStartupDestinationUseCase
+import com.sirktv.app.domain.usecase.SyncChannelsUseCase
+import com.sirktv.app.domain.usecase.SyncMoviesUseCase
+import com.sirktv.app.domain.usecase.SyncSeriesUseCase
 import com.sirktv.app.domain.usecase.UpdateDisplayNameUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -29,7 +34,11 @@ class LoginViewModel @Inject constructor(
     private val resolveStartupDestinationUseCase: ResolveStartupDestinationUseCase,
     private val getDisplayNameUseCase: GetDisplayNameUseCase,
     private val updateDisplayNameUseCase: UpdateDisplayNameUseCase,
-    private val currentSession: CurrentSession
+    private val currentSession: CurrentSession,
+    private val syncChannelsUseCase: SyncChannelsUseCase,
+    private val syncMoviesUseCase: SyncMoviesUseCase,
+    private val syncSeriesUseCase: SyncSeriesUseCase,
+    @ApplicationScope private val appScope: CoroutineScope
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -95,11 +104,7 @@ class LoginViewModel @Inject constructor(
                         SavedCredentials(state.serverUrl, state.username, state.password)
                     )
                     updateDisplayNameUseCase(state.displayName)
-                    _uiState.update { it.copy(isLoading = false, isReconnecting = false) }
-                    when (val destination = resolveStartupDestinationUseCase()) {
-                        is StartupDestination.LiveTv -> _events.emit(LoginEvent.NavigateToLiveTv(destination.channelId))
-                        StartupDestination.Home -> _events.emit(LoginEvent.NavigateToHome)
-                    }
+                    syncThenNavigate()
                 }
                 is LoginResult.InvalidCredentials -> setError("Incorrect username or password.")
                 is LoginResult.SubscriptionInactive -> setError(result.message)
@@ -107,6 +112,29 @@ class LoginViewModel @Inject constructor(
                 is LoginResult.ServerError -> setError(result.message)
                 is LoginResult.NetworkError -> setError("Can't reach the server. Check your connection and try again.")
             }
+        }
+    }
+
+    /**
+     * Live TV categories/channels are the only thing Home truly needs to be
+     * useful, so only that sync is awaited here — movies and series are
+     * launched on the process-lifetime [appScope] (not [viewModelScope],
+     * which would be cancelled the instant this screen's back-stack entry is
+     * popped on navigation) so they keep running in the background exactly
+     * as before once the user lands on Home, without blocking getting there.
+     */
+    private suspend fun syncThenNavigate() {
+        _uiState.update {
+            it.copy(isLoading = false, isReconnecting = false, isSyncing = true, syncStatus = "Loading your channels…")
+        }
+        appScope.launch { runCatching { syncMoviesUseCase() } }
+        appScope.launch { runCatching { syncSeriesUseCase() } }
+        runCatching { syncChannelsUseCase() }
+        _uiState.update { it.copy(syncStatus = "Almost ready…") }
+        _uiState.update { it.copy(isSyncing = false) }
+        when (val destination = resolveStartupDestinationUseCase()) {
+            is StartupDestination.LiveTv -> _events.emit(LoginEvent.NavigateToLiveTv(destination.channelId))
+            StartupDestination.Home -> _events.emit(LoginEvent.NavigateToHome)
         }
     }
 

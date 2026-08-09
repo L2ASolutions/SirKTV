@@ -111,7 +111,11 @@ fun LiveTvBrowseScreen(
     val channelListFocusRequester = remember { FocusRequester() }
     val watchFullScreenFocusRequester = remember { FocusRequester() }
 
+    // Preview ExoPlayer construction is deliberately triggered from here, not
+    // from the ViewModel's init/constructor — this guarantees it only ever
+    // happens once this screen is actually composed and alive.
     LaunchedEffect(Unit) {
+        viewModel.initPreviewPlayer()
         delay(300)
         sidebarFocusRequester.requestFocus()
     }
@@ -354,7 +358,7 @@ private fun LiveTvChannelRow(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .tvChannelRowFocusStyle(cornerRadius = 12.dp)
+                .tvChannelRowFocusStyle(cornerRadius = Dimens.CardCornerRadius)
                 // "Preview on focus" — no OK press required, matching every
                 // other player screen in this app where D-pad navigation
                 // alone drives what's on screen.
@@ -363,7 +367,7 @@ private fun LiveTvChannelRow(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(if (isSelected) SirKTVCardBackground else Color.Transparent, RoundedCornerShape(12.dp)),
+                    .background(if (isSelected) SirKTVCardBackground else Color.Transparent, RoundedCornerShape(Dimens.CardCornerRadius)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(Modifier.width(4.dp).height(40.dp).background(accentBarColor, RoundedCornerShape(2.dp)))
