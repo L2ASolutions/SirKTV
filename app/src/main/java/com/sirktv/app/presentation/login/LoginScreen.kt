@@ -31,10 +31,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -58,9 +62,27 @@ import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Switch
 import androidx.tv.material3.Text as TvText
+import kotlinx.coroutines.delay
 
-/** Minimum distance the login card is kept from the screen edges on TV. */
-private val LoginSafeZone = 48.dp
+/**
+ * Explicit D-pad Up/Down wiring for a focus target, applied via
+ * [androidx.compose.ui.input.key.onPreviewKeyEvent] rather than
+ * `Modifier.focusProperties { up/down = ... }`. focusProperties hints are only
+ * consulted when the focus system's own `moveFocus()` runs for an unconsumed
+ * directional key — but BasicTextField (which OutlinedTextField wraps) can
+ * swallow DirectionUp/Down itself first, so those hints silently never fire
+ * on the physical remote. Intercepting in the preview (capture) phase runs
+ * before that inner consumption ever gets a chance.
+ */
+private fun Modifier.tvDpadNav(up: FocusRequester? = null, down: FocusRequester? = null): Modifier =
+    onPreviewKeyEvent { event ->
+        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+        when (event.key) {
+            Key.DirectionUp -> up?.let { it.requestFocus(); true } ?: false
+            Key.DirectionDown -> down?.let { it.requestFocus(); true } ?: false
+            else -> false
+        }
+    }
 
 @Composable
 fun LoginScreen(
@@ -133,27 +155,36 @@ private fun LoginContent(
 ) {
     // One FocusRequester per stop so D-pad Up/Down and IME Next/Done can be
     // pinned to an exact chain (serverUrl -> username -> password ->
-    // displayName -> rememberMe -> signIn) instead of relying on default 2D
-    // focus search, which the password field's trailing SHOW/HIDE button
-    // could otherwise throw off.
+    // displayName -> rememberMe -> signIn -> disclaimer) instead of relying
+    // on default 2D focus search, which the password field's trailing
+    // SHOW/HIDE button could otherwise throw off.
     val serverUrlFocusRequester = remember { FocusRequester() }
     val usernameFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
     val displayNameFocusRequester = remember { FocusRequester() }
     val rememberMeFocusRequester = remember { FocusRequester() }
     val signInFocusRequester = remember { FocusRequester() }
+    val disclaimerFocusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
     val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(Unit) {
+        delay(300) // wait for composition before the first requestFocus()
         serverUrlFocusRequester.requestFocus()
+        keyboardController?.show()
     }
 
-    Box(
+    // Top-aligned and scrollable at the screen level (not just inside the
+    // card) — a Box that centers its content vertically would clip the
+    // bottom of the card (Sign In, the error message, the disclaimer) any
+    // time the card's natural height exceeds the viewport, since centering
+    // pushes the overflow equally off both the top and bottom edges.
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = LoginSafeZone, vertical = LoginSafeZone),
-        contentAlignment = Alignment.Center
+            .verticalScroll(scrollState)
+            .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(
             modifier = Modifier.width(440.dp),
@@ -161,14 +192,8 @@ private fun LoginContent(
             color = SirKTVSurface,
             tonalElevation = 4.dp
         ) {
-            // verticalScroll is a safety net only — on-target spacing below is
-            // sized to already fit a 10-foot TV viewport with no scrolling, but
-            // this keeps every field (especially Sign In) D-pad reachable even
-            // on a smaller/denser screen than tested against.
             Column(
-                modifier = Modifier
-                    .verticalScroll(scrollState)
-                    .padding(Dimens.SpaceXl),
+                modifier = Modifier.padding(Dimens.SpaceXl),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
             ) {
@@ -215,7 +240,7 @@ private fun LoginContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(serverUrlFocusRequester)
-                        .focusProperties { down = usernameFocusRequester }
+                        .tvDpadNav(down = usernameFocusRequester)
                         // D-pad focus alone doesn't pop the Fire TV system
                         // keyboard the way a touch tap would — show it
                         // explicitly the moment this field gains focus.
@@ -235,10 +260,7 @@ private fun LoginContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(usernameFocusRequester)
-                        .focusProperties {
-                            up = serverUrlFocusRequester
-                            down = passwordFocusRequester
-                        }
+                        .tvDpadNav(up = serverUrlFocusRequester, down = passwordFocusRequester)
                         .onFocusChanged { if (it.isFocused) keyboardController?.show() }
                         .tvFocusStyle()
                 )
@@ -265,10 +287,7 @@ private fun LoginContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(passwordFocusRequester)
-                        .focusProperties {
-                            up = usernameFocusRequester
-                            down = displayNameFocusRequester
-                        }
+                        .tvDpadNav(up = usernameFocusRequester, down = displayNameFocusRequester)
                         .onFocusChanged { if (it.isFocused) keyboardController?.show() }
                         .tvFocusStyle()
                 )
@@ -281,16 +300,13 @@ private fun LoginContent(
                     supportingText = { Text("Leave blank to use your username instead.", fontSize = 11.sp) },
                     singleLine = true,
                     enabled = !uiState.isLoading,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { rememberMeFocusRequester.requestFocus() }),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { rememberMeFocusRequester.requestFocus() }),
                     colors = loginFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(displayNameFocusRequester)
-                        .focusProperties {
-                            up = passwordFocusRequester
-                            down = rememberMeFocusRequester
-                        }
+                        .tvDpadNav(up = passwordFocusRequester, down = rememberMeFocusRequester)
                         .onFocusChanged { if (it.isFocused) keyboardController?.show() }
                         .tvFocusStyle()
                 )
@@ -305,10 +321,7 @@ private fun LoginContent(
                         onCheckedChange = { onToggleRememberMe() },
                         modifier = Modifier
                             .focusRequester(rememberMeFocusRequester)
-                            .focusProperties {
-                                up = displayNameFocusRequester
-                                down = signInFocusRequester
-                            }
+                            .tvDpadNav(up = displayNameFocusRequester, down = signInFocusRequester)
                             .tvFocusStyle(cornerRadius = 24.dp)
                     )
                     Text("Remember me on this device", fontSize = 13.sp, color = SirKTVOnSurfaceMuted)
@@ -325,7 +338,7 @@ private fun LoginContent(
                         .fillMaxWidth()
                         .height(56.dp)
                         .focusRequester(signInFocusRequester)
-                        .focusProperties { up = rememberMeFocusRequester }
+                        .tvDpadNav(up = rememberMeFocusRequester, down = disclaimerFocusRequester)
                         .tvFocusStyle(accent = TvFocusAccent.BORDER)
                 ) {
                     if (uiState.isLoading) {
@@ -349,16 +362,33 @@ private fun LoginContent(
                     )
                 }
 
-                DisclaimerSection(expanded = uiState.isDisclaimerExpanded, onToggle = onToggleDisclaimer)
+                DisclaimerSection(
+                    expanded = uiState.isDisclaimerExpanded,
+                    onToggle = onToggleDisclaimer,
+                    focusRequester = disclaimerFocusRequester,
+                    upFocusRequester = signInFocusRequester
+                )
             }
         }
     }
 }
 
 @Composable
-private fun DisclaimerSection(expanded: Boolean, onToggle: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(top = Dimens.SpaceXs)) {
-        TextButton(onClick = onToggle, modifier = Modifier.tvFocusStyle(cornerRadius = 6.dp)) {
+private fun DisclaimerSection(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    focusRequester: FocusRequester,
+    upFocusRequester: FocusRequester
+) {
+    // 16dp top spacing below Sign In, matching the card's own internal rhythm.
+    Column(modifier = Modifier.fillMaxWidth().padding(top = Dimens.SpaceMd)) {
+        TextButton(
+            onClick = onToggle,
+            modifier = Modifier
+                .focusRequester(focusRequester)
+                .tvDpadNav(up = upFocusRequester)
+                .tvFocusStyle(cornerRadius = 6.dp)
+        ) {
             Text(
                 text = if (expanded) "Disclaimer ▾" else "Disclaimer ▸",
                 color = SirKTVOnSurfaceMuted,
