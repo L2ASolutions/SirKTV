@@ -1,6 +1,7 @@
 package com.sirktv.app.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -31,16 +32,50 @@ private fun NavHostController.navigateToNavItem(item: SirKTVNavItem) {
         SirKTVNavItem.MOVIES -> SirKTVDestinations.MOVIES
         SirKTVNavItem.SERIES -> SirKTVDestinations.SERIES
         SirKTVNavItem.SPORTS -> SirKTVDestinations.SPORTS
-        SirKTVNavItem.SEARCH -> SirKTVDestinations.SEARCH
+        SirKTVNavItem.SEARCH -> SirKTVDestinations.search()
         SirKTVNavItem.SETTINGS -> SirKTVDestinations.SETTINGS
     }
     navigate(route) { launchSingleTop = true }
 }
 
+private val PLAYER_ROUTES = setOf(SirKTVDestinations.LIVE_TV, SirKTVDestinations.MOVIE_PLAYER, SirKTVDestinations.EPISODE_PLAYER)
+
+/**
+ * Leaving a player screen for Search/Settings via a hardware button (not the
+ * player's own Back handling) must still tear the player down properly —
+ * popping its back-stack entry here is what makes that happen, since it's
+ * the ViewModel's onCleared() that actually stops ExoPlayer.
+ */
+private fun NavHostController.popIfOnPlayerRoute() {
+    if (currentBackStackEntry?.destination?.route in PLAYER_ROUTES) popBackStack()
+}
+
 @Composable
-fun SirKTVNavHost() {
+fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
     val navController = rememberNavController()
     val onNavigate: (SirKTVNavItem) -> Unit = { item -> navController.navigateToNavItem(item) }
+
+    // MainActivity.onKeyDown/onNewIntent have no NavHostController of their
+    // own — this is where their posted commands actually become navigation.
+    LaunchedEffect(navigationCommandBus) {
+        navigationCommandBus.commands.collect { command ->
+            when (command) {
+                is NavigationCommand.OpenSearch -> {
+                    navController.popIfOnPlayerRoute()
+                    navController.navigate(SirKTVDestinations.search(command.query)) { launchSingleTop = true }
+                }
+                NavigationCommand.MenuPressed -> {
+                    val currentRoute = navController.currentBackStackEntry?.destination?.route
+                    if (currentRoute == SirKTVDestinations.SETTINGS) {
+                        navController.popBackStack()
+                    } else {
+                        navController.popIfOnPlayerRoute()
+                        navController.navigate(SirKTVDestinations.SETTINGS) { launchSingleTop = true }
+                    }
+                }
+            }
+        }
+    }
 
     NavHost(navController = navController, startDestination = SirKTVDestinations.LOGIN) {
         composable(SirKTVDestinations.LOGIN) {
@@ -90,7 +125,7 @@ fun SirKTVNavHost() {
             route = SirKTVDestinations.LIVE_TV,
             arguments = listOf(navArgument("channelId") { type = NavType.StringType })
         ) {
-            LiveTvPlayerScreen()
+            LiveTvPlayerScreen(onBack = { navController.popBackStack() })
         }
 
         composable(SirKTVDestinations.SPORTS) {
@@ -136,7 +171,10 @@ fun SirKTVNavHost() {
             )
         }
 
-        composable(SirKTVDestinations.SEARCH) {
+        composable(
+            route = SirKTVDestinations.SEARCH,
+            arguments = listOf(navArgument("query") { type = NavType.StringType; defaultValue = "" })
+        ) {
             SearchScreen(
                 onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
                 onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },

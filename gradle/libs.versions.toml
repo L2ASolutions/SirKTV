@@ -20,6 +20,7 @@ ksp = "2.0.20-1.0.24"
 room = "2.6.1"
 datastore = "1.1.1"
 media3 = "1.4.1"
+media = "1.7.0"
 coil = "2.6.0"
 
 [libraries]
@@ -62,6 +63,7 @@ androidx-media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exop
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 androidx-media3-common = { group = "androidx.media3", name = "media3-common", version.ref = "media3" }
 androidx-media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3" }
+androidx-media = { group = "androidx.media", name = "media", version.ref = "media" }
 
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 

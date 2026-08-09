@@ -29,14 +29,22 @@ import com.sirktv.app.domain.usecase.ToggleSeriesFavoriteUseCase
 import com.sirktv.app.network.XtreamStreamUrlBuilder
 import com.sirktv.app.player.PlaybackState
 import com.sirktv.app.player.SirKTVPlayerEngine
+import com.sirktv.app.presentation.player.ActivePlayerHandle
+import com.sirktv.app.presentation.player.ActivePlayerState
+import com.sirktv.app.presentation.player.MediaSessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -56,7 +64,8 @@ data class VodPlayerUiState(
     val hasNextEpisode: Boolean = false,
     val preferredQuality: StreamQuality = StreamQuality.AUTO,
     val captionsEnabled: Boolean = false,
-    val captionLanguageLabel: String = "English"
+    val captionLanguageLabel: String = "English",
+    val seekIndicator: String? = null
 )
 
 /**
@@ -81,11 +90,18 @@ class VodPlayerViewModel @Inject constructor(
     private val currentSession: CurrentSession,
     private val playerEngine: SirKTVPlayerEngine,
     @ApplicationScope private val appScope: CoroutineScope,
-    private val playerPresence: PlayerPresence
-) : ViewModel() {
+    private val playerPresence: PlayerPresence,
+    private val activePlayerState: ActivePlayerState,
+    private val mediaSessionManager: MediaSessionManager
+) : ViewModel(), ActivePlayerHandle {
+
+    private val _exitEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val exitEvent: SharedFlow<Unit> = _exitEvent.asSharedFlow()
 
     init {
         playerPresence.setActive(true)
+        activePlayerState.register(this)
+        mediaSessionManager.enterPlayerScreen(title = "")
     }
 
     private val movieIdArg: String? = savedStateHandle["movieId"]
@@ -103,6 +119,7 @@ class VodPlayerViewModel @Inject constructor(
     private var hasStartedPlayback = false
     private var progressPollJob: Job? = null
     private var overlayHideJob: Job? = null
+    private var seekIndicatorJob: Job? = null
     private var tickCount = 0
 
     // Captions default ON for VOD (English, or the stream's only text track if
@@ -132,6 +149,12 @@ class VodPlayerViewModel @Inject constructor(
         }
         viewModelScope.launch {
             tracks.collect { current -> maybeAutoEnableCaptions(current) }
+        }
+        viewModelScope.launch {
+            uiState.map { it.title to it.subtitle }.distinctUntilChanged().collect { (title, subtitle) ->
+                val label = if (subtitle != null) "$title — $subtitle" else title
+                if (label.isNotBlank()) mediaSessionManager.updateMetadata(label)
+            }
         }
         if (isEpisode) loadEpisode() else loadMovie()
     }
@@ -234,6 +257,7 @@ class VodPlayerViewModel @Inject constructor(
     /** First Back press while controls are hidden: reveal them instead of leaving the screen. */
     fun onShowControls() = setMode(VodPlayerMode.OVERLAY)
 
+    /** D-pad Left/Right scrubbing — a smaller, symmetric increment than the hardware FF/REW buttons below. */
     fun onSeekBack() = seekBy(-10_000)
     fun onSeekForward() = seekBy(10_000)
 
@@ -299,7 +323,17 @@ class VodPlayerViewModel @Inject constructor(
     private fun seekBy(deltaMs: Long) {
         val target = (_uiState.value.positionMs + deltaMs).coerceAtLeast(0L)
         playerEngine.seekTo(target)
-        _uiState.update { it.copy(positionMs = target) }
+        _uiState.update { it.copy(positionMs = target, seekIndicator = formatSeekIndicator(deltaMs)) }
+        seekIndicatorJob?.cancel()
+        seekIndicatorJob = viewModelScope.launch {
+            delay(1_500)
+            _uiState.update { it.copy(seekIndicator = null) }
+        }
+    }
+
+    private fun formatSeekIndicator(deltaMs: Long): String {
+        val seconds = deltaMs / 1000
+        return if (seconds >= 0) "+${seconds}s" else "${seconds}s"
     }
 
     private fun setMode(mode: VodPlayerMode) {
@@ -352,16 +386,35 @@ class VodPlayerViewModel @Inject constructor(
         )
     }
 
-    // Unlike Live TV, VOD/episode playback must NOT survive navigating away —
-    // leaving this screen (Back, or any other nav away from the player) has
-    // to pause immediately and fully release the ExoPlayer instance so audio
-    // doesn't keep running in the background. viewModelScope is already
-    // cancelled by the time onCleared() runs, so the final progress save and
-    // release are dispatched on the process-lifetime appScope instead.
-    override fun onCleared() {
-        playerPresence.setActive(false)
-        progressPollJob?.cancel()
-        overlayHideJob?.cancel()
+    // --- ActivePlayerHandle — routes MainActivity's onKeyDown and the
+    // MediaSessionCompat callback to this screen while it's the one on top. ---
+
+    override fun togglePlayPause() = playerEngine.togglePlayPause()
+    override fun play() = playerEngine.resume()
+    override fun pause() = playerEngine.pause()
+    override fun fastForward() = seekBy(30_000)
+    override fun rewind() = seekBy(-10_000)
+    override fun skipToNext() { if (_uiState.value.hasNextEpisode) onNextEpisode() }
+    override fun skipToPrevious() = Unit
+
+    override fun stopAndExit() {
+        releasePlayer()
+        _exitEvent.tryEmit(Unit)
+    }
+
+    override fun showQuickActions() = setMode(VodPlayerMode.OVERLAY)
+
+    /**
+     * Full teardown, shared by explicit exits ([stopAndExit]), the screen's
+     * [androidx.compose.runtime.DisposableEffect] safety net, and [onCleared].
+     * Unlike Live TV, VOD/episode playback must NOT survive navigating away —
+     * leaving this screen has to pause immediately and fully release the
+     * ExoPlayer instance so audio doesn't keep running in the background.
+     * viewModelScope may already be cancelled by the time this runs from
+     * onCleared(), so the final progress save and release are dispatched on
+     * the process-lifetime appScope instead.
+     */
+    fun releasePlayer() {
         playerEngine.pause()
         val (position, duration) = playerEngine.snapshotPosition()
         val contentId = activeContentId
@@ -371,5 +424,14 @@ class VodPlayerViewModel @Inject constructor(
             }
             playerEngine.release()
         }
+        mediaSessionManager.exitPlayerScreen()
+    }
+
+    override fun onCleared() {
+        playerPresence.setActive(false)
+        progressPollJob?.cancel()
+        overlayHideJob?.cancel()
+        activePlayerState.clear(this)
+        releasePlayer()
     }
 }

@@ -11,7 +11,7 @@ object SirKTVDestinations {
     const val SERIES = "series"
     const val SERIES_DETAIL = "series_detail/{seriesId}"
     const val FAVORITES = "favorites"
-    const val SEARCH = "search"
+    const val SEARCH = "search?query={query}"
     const val MOVIE_PLAYER = "movie_player/{movieId}"
     const val EPISODE_PLAYER = "episode_player/{seriesId}/{season}/{episode}"
 
@@ -19,4 +19,5 @@ object SirKTVDestinations {
     fun seriesDetail(seriesId: String) = "series_detail/$seriesId"
     fun moviePlayer(movieId: String) = "movie_player/$movieId"
     fun episodePlayer(seriesId: String, season: Int, episode: Int) = "episode_player/$seriesId/$season/$episode"
+    fun search(query: String = "") = "search?query=${java.net.URLEncoder.encode(query, "UTF-8")}"
 }

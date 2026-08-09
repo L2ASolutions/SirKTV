@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -80,6 +81,15 @@ fun VodPlayerScreen(
         }
     }
 
+    LaunchedEffect(Unit) { viewModel.exitEvent.collect { onBack() } }
+
+    // Belt-and-suspenders alongside onCleared(): guarantees playback stops the
+    // instant this screen leaves composition even in the rare case it leaves
+    // without its nav back-stack entry being destroyed (onCleared wouldn't fire then).
+    DisposableEffect(Unit) {
+        onDispose { viewModel.releasePlayer() }
+    }
+
     KeepScreenOnWhilePlaying(uiState.playbackState)
 
     val rootFocusRequester = remember { FocusRequester() }
@@ -109,6 +119,12 @@ fun VodPlayerScreen(
                             mode == VodPlayerMode.WATCHING || mode == VodPlayerMode.OVERLAY
                         }
                     }
+                    // Redundant with MainActivity.onKeyDown/MediaSessionManager — Compose can
+                    // still see these directly when this Box holds focus, so handling them
+                    // here too costs nothing and covers the case where it does.
+                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { viewModel.togglePlayPause(); true }
+                    KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { viewModel.fastForward(); true }
+                    KeyEvent.KEYCODE_MEDIA_REWIND -> { viewModel.rewind(); true }
                     else -> false
                 }
             }
@@ -143,6 +159,21 @@ fun VodPlayerScreen(
                 onSelectQuality = viewModel::selectQuality
             )
         }
+
+        uiState.seekIndicator?.let { indicator ->
+            SeekIndicatorBadge(text = indicator, modifier = Modifier.align(Alignment.Center))
+        }
+    }
+}
+
+@Composable
+private fun SeekIndicatorBadge(text: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 20.dp, vertical = 12.dp)
+    ) {
+        Text(text, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
     }
 }
 

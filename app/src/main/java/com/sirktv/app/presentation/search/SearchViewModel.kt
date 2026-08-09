@@ -1,5 +1,6 @@
 package com.sirktv.app.presentation.search
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sirktv.app.domain.model.SearchResults
@@ -31,6 +32,7 @@ data class SearchUiState(
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     observeRecentSearchesUseCase: ObserveRecentSearchesUseCase,
     private val searchContentUseCase: SearchContentUseCase,
     private val recordSearchQueryUseCase: RecordSearchQueryUseCase,
@@ -51,6 +53,10 @@ class SearchViewModel @Inject constructor(
                 _uiState.update { it.copy(recentSearches = recent) }
             }
         }
+        // Pre-filled by the Fire TV remote's mic button (ACTION_SEARCH) or the
+        // hardware SEARCH key reopening this screen with a query already typed.
+        val initialQuery = savedStateHandle.get<String>("query").orEmpty()
+        if (initialQuery.isNotBlank()) onSearchSubmitted(initialQuery)
     }
 
     /** Live-filters as the user types; does not touch search history — only [onSearchSubmitted] does. */

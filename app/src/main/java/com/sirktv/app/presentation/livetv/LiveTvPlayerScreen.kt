@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,14 +58,27 @@ private const val LONG_PRESS_THRESHOLD_MS = 500L
 
 @Composable
 fun LiveTvPlayerScreen(
+    onBack: () -> Unit,
     viewModel: LiveTvPlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Only intercepts Back while inside a sub-mode (overlay/panels/quick actions).
-    // At WATCHING it's disabled so Back falls through to normal navigation.
-    BackHandler(enabled = uiState.mode != LiveTvMode.WATCHING) {
-        viewModel.onBackPressed()
+    // Two-stage Back, same contract as the VOD player: WATCHING (overlay
+    // hidden) reveals the overlay and stays on screen; any deeper mode steps
+    // back toward it. Only pressing Back with the overlay already visible
+    // actually leaves — that pops the nav back stack, which destroys this
+    // screen's ViewModel and releases the player from onCleared().
+    BackHandler(enabled = true) {
+        if (uiState.mode == LiveTvMode.OVERLAY) onBack() else viewModel.onBackPressed()
+    }
+
+    LaunchedEffect(Unit) { viewModel.exitEvent.collect { onBack() } }
+
+    // Belt-and-suspenders alongside onCleared(): guarantees playback stops the
+    // instant this screen leaves composition even in the rare case it leaves
+    // without its nav back-stack entry being destroyed (onCleared wouldn't fire then).
+    DisposableEffect(Unit) {
+        onDispose { viewModel.releasePlayer() }
     }
 
     KeepScreenOnWhilePlaying(uiState.playbackState)
@@ -131,6 +145,21 @@ fun LiveTvPlayerScreen(
                             }
                             true
                         } else false
+                    }
+                    // Redundant with MainActivity.onKeyDown/MediaSessionManager — Compose can
+                    // still see these directly when this Box holds focus, so handling them
+                    // here too costs nothing and covers the case where it does.
+                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                        if (keyEvent.type == KeyEventType.KeyDown) viewModel.togglePlayPause()
+                        true
+                    }
+                    KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                        if (keyEvent.type == KeyEventType.KeyDown) viewModel.fastForward()
+                        true
+                    }
+                    KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                        if (keyEvent.type == KeyEventType.KeyDown) viewModel.rewind()
+                        true
                     }
                     else -> false
                 }

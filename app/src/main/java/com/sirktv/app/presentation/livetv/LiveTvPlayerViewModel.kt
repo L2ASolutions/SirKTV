@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
+import com.sirktv.app.di.ApplicationScope
 import com.sirktv.app.domain.model.Channel
 import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.domain.model.EpgProgram
@@ -25,11 +26,18 @@ import com.sirktv.app.player.NetworkMonitor
 import com.sirktv.app.player.NetworkTransport
 import com.sirktv.app.player.PlaybackState
 import com.sirktv.app.player.SirKTVPlayerEngine
+import com.sirktv.app.presentation.player.ActivePlayerHandle
+import com.sirktv.app.presentation.player.ActivePlayerState
+import com.sirktv.app.presentation.player.MediaSessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -63,13 +71,21 @@ class LiveTvPlayerViewModel @Inject constructor(
     private val currentSession: CurrentSession,
     private val playerEngine: SirKTVPlayerEngine,
     private val networkMonitor: NetworkMonitor,
-    private val playerPresence: PlayerPresence
-) : ViewModel() {
+    private val playerPresence: PlayerPresence,
+    private val activePlayerState: ActivePlayerState,
+    private val mediaSessionManager: MediaSessionManager,
+    @ApplicationScope private val appScope: CoroutineScope
+) : ViewModel(), ActivePlayerHandle {
 
     private val initialChannelId: String? = savedStateHandle.get<String>("channelId")
 
+    private val _exitEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val exitEvent: SharedFlow<Unit> = _exitEvent.asSharedFlow()
+
     init {
         playerPresence.setActive(true)
+        activePlayerState.register(this)
+        mediaSessionManager.enterPlayerScreen(title = "Live TV")
     }
 
     private val _uiState = MutableStateFlow(LiveTvUiState())
@@ -182,6 +198,7 @@ class LiveTvPlayerViewModel @Inject constructor(
         val backup = XtreamStreamUrlBuilder.buildBackupUrl(credentials.serverUrl, credentials.username, credentials.password, channel.id)
         playerEngine.play(channel.id, primary, backup)
         _uiState.update { it.copy(currentChannelId = channel.id, nowNext = EpgNowNext(now = null, next = null)) }
+        mediaSessionManager.updateMetadata(channel.name)
         viewModelScope.launch { setLastWatchedChannelUseCase(channel.id) }
         fetchEpg(channel.id)
     }
@@ -225,16 +242,18 @@ class LiveTvPlayerViewModel @Inject constructor(
     }
 
     /**
-     * Steps one level back through the mode stack. The screen only wires this
-     * up via a [androidx.activity.compose.BackHandler] that's disabled while
-     * WATCHING, so Back at the top level is never routed here — it falls
-     * through to normal navigation instead.
+     * First Back press: reveal the overlay instead of leaving the screen —
+     * mirrors the OK button's "show overlay" behavior and matches the VOD
+     * player's two-stage Back. A second press lands here with the overlay
+     * already visible: [LiveTvPlayerScreen]'s BackHandler intercepts that
+     * case itself and calls the nav `onBack` callback directly (which pops
+     * the back stack and triggers [onCleared]), so OVERLAY never reaches
+     * this function.
      */
     fun onBackPressed() {
         when (_uiState.value.mode) {
-            LiveTvMode.OVERLAY, LiveTvMode.QUICK_ACTIONS -> setMode(LiveTvMode.WATCHING)
-            LiveTvMode.CHANNEL_LIST, LiveTvMode.PROGRAM_GUIDE -> setMode(LiveTvMode.OVERLAY)
-            LiveTvMode.WATCHING -> Unit
+            LiveTvMode.WATCHING, LiveTvMode.QUICK_ACTIONS, LiveTvMode.CHANNEL_LIST, LiveTvMode.PROGRAM_GUIDE -> setMode(LiveTvMode.OVERLAY)
+            LiveTvMode.OVERLAY -> Unit
         }
     }
 
@@ -266,13 +285,51 @@ class LiveTvPlayerViewModel @Inject constructor(
         }
     }
 
-    // Deliberately does not release playerEngine here: it's an app-wide singleton
-    // so audio/video keep running when this screen leaves composition (e.g.
-    // navigating to Settings), matching "always preserve playback when browsing."
-    // MainActivity releases it when the whole app backgrounds outside of PiP.
+    // --- ActivePlayerHandle — routes MainActivity's onKeyDown and the
+    // MediaSessionCompat callback to this screen while it's the one on top. ---
+
+    override fun togglePlayPause() = playerEngine.togglePlayPause()
+    override fun play() = playerEngine.resume()
+    override fun pause() = playerEngine.pause()
+
+    /** No per-content distinction for Live TV: FF and skip-next both mean "next channel." */
+    override fun fastForward() = onChannelDown()
+    override fun rewind() = onChannelUp()
+    override fun skipToNext() = onChannelDown()
+    override fun skipToPrevious() = onChannelUp()
+
+    override fun stopAndExit() {
+        releasePlayer()
+        _exitEvent.tryEmit(Unit)
+    }
+
+    // Routes to OVERLAY rather than the (narrower) long-press QUICK_ACTIONS
+    // sheet: OVERLAY is the surface that actually has audio track, subtitle,
+    // quality, PiP, and channel-info controls together, matching what a
+    // MENU-button quick-actions surface is supposed to offer.
+    override fun showQuickActions() {
+        if (_uiState.value.mode == LiveTvMode.WATCHING) setMode(LiveTvMode.OVERLAY)
+    }
+
+    /**
+     * Full teardown used both by explicit exits ([stopAndExit]) and by
+     * [onCleared] — stops audio/video immediately rather than leaving the
+     * app-wide [SirKTVPlayerEngine] instance running with no attached view.
+     * The last-watched channel is already persisted continuously from
+     * [tuneTo], so there's no resume position to save here (live content has
+     * no meaningful seek position).
+     */
+    fun releasePlayer() {
+        playerEngine.pause()
+        appScope.launch { playerEngine.release() }
+        mediaSessionManager.exitPlayerScreen()
+    }
+
     override fun onCleared() {
         overlayHideJob?.cancel()
         epgFetchJob?.cancel()
         playerPresence.setActive(false)
+        activePlayerState.clear(this)
+        releasePlayer()
     }
 }
