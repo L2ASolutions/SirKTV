@@ -32,6 +32,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sirktv.app.domain.model.Movie
 import com.sirktv.app.domain.model.WatchProgress
 import com.sirktv.app.domain.util.RecentlyAdded
+import com.sirktv.app.presentation.common.SectionErrorState
+import com.sirktv.app.presentation.common.SectionLoadingState
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.TvSearchField
@@ -59,36 +61,40 @@ fun MoviesScreen(
             .background(SirKTVBackground)
             .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
     ) {
-        SirKTVChrome(activeItem = SirKTVNavItem.MOVIES, onNavigate = onNavigate, onRefresh = {})
+        SirKTVChrome(activeItem = SirKTVNavItem.MOVIES, onNavigate = onNavigate, onRefresh = viewModel::refresh)
 
-        Row(
-            modifier = Modifier.padding(top = Dimens.SpaceLg),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
-        ) {
-            Column {
-                Text("Movies", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(
-                    text = "${uiState.allMovies.size} movie(s) on this account",
-                    color = SirKTVOnSurfaceMuted,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+        if (!uiState.isLoading && (uiState.loadError == null || uiState.allMovies.isNotEmpty())) {
+            Row(
+                modifier = Modifier.padding(top = Dimens.SpaceLg),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
+            ) {
+                Column {
+                    Text("Movies", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(
+                        text = "${uiState.allMovies.size} movie(s) on this account",
+                        color = SirKTVOnSurfaceMuted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
-        }
 
-        TvSearchField(
-            query = uiState.searchQuery,
-            onQueryChange = viewModel::onSearchQueryChanged,
-            placeholder = "Search movies",
-            firstResultFocusRequester = firstResultFocusRequester.takeIf { uiState.isSearching && uiState.searchResults.isNotEmpty() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = Dimens.SpaceMd)
-        )
+            TvSearchField(
+                query = uiState.searchQuery,
+                onQueryChange = viewModel::onSearchQueryChanged,
+                placeholder = "Search movies",
+                firstResultFocusRequester = firstResultFocusRequester.takeIf { uiState.isSearching && uiState.searchResults.isNotEmpty() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = Dimens.SpaceMd)
+            )
+        }
 
         Box(Modifier.padding(top = Dimens.SpaceMd).fillMaxSize()) {
             when {
+                uiState.isLoading -> SectionLoadingState("Loading movies…")
+                uiState.loadError != null -> SectionErrorState(error = uiState.loadError!!, onRetry = viewModel::refresh)
                 uiState.isSearching -> MoviesSearchResults(
                     results = uiState.searchResults,
                     categoryName = { categoryId -> uiState.categories.find { it.id == categoryId }?.name },
@@ -96,7 +102,6 @@ fun MoviesScreen(
                     onMovieSelected = onMovieSelected,
                     onToggleFavorite = viewModel::onToggleFavorite
                 )
-                uiState.allMovies.isEmpty() -> Text("No movies found on this account.", color = SirKTVOnSurfaceMuted, fontSize = 13.sp)
                 else -> MoviesRows(
                     continueWatching = uiState.continueWatching,
                     rows = uiState.rows,

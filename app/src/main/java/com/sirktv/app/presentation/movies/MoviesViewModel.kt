@@ -12,6 +12,8 @@ import com.sirktv.app.domain.usecase.ObserveMovieCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveMoviesUseCase
 import com.sirktv.app.domain.usecase.SyncMoviesUseCase
 import com.sirktv.app.domain.usecase.ToggleMovieFavoriteUseCase
+import com.sirktv.app.presentation.common.SECTION_SYNC_TIMEOUT_MS
+import com.sirktv.app.presentation.common.SectionLoadError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 private const val ROW_LIMIT = 20
@@ -27,6 +30,8 @@ private const val ROW_LIMIT = 20
 data class MovieRow(val title: String, val movies: List<Movie>)
 
 data class MoviesUiState(
+    val isLoading: Boolean = true,
+    val loadError: SectionLoadError? = null,
     val categories: List<Category> = emptyList(),
     val allMovies: List<Movie> = emptyList(),
     val continueWatching: List<WatchProgress> = emptyList(),
@@ -66,6 +71,13 @@ data class MoviesUiState(
         )
 }
 
+/**
+ * Movies never syncs on app startup or from Home — this is the on-demand
+ * sync for the section, triggered the first time the screen is opened (and
+ * again from the top bar's refresh icon or the error screen's Retry button).
+ * Room is the source of truth: [observeMoviesUseCase] drives the UI
+ * reactively, [refresh] only decides whether to show a spinner or an error.
+ */
 @HiltViewModel
 class MoviesViewModel @Inject constructor(
     observeMovieCategoriesUseCase: ObserveMovieCategoriesUseCase,
@@ -79,7 +91,7 @@ class MoviesViewModel @Inject constructor(
     val uiState: StateFlow<MoviesUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch { syncMoviesUseCase() }
+        refresh()
 
         viewModelScope.launch {
             combine(
@@ -89,8 +101,31 @@ class MoviesViewModel @Inject constructor(
             ) { categories, movies, continueWatching ->
                 Triple(categories, movies, continueWatching.filter { it.contentType == ContentType.MOVIE })
             }.collect { (categories, movies, continueWatching) ->
-                _uiState.update { it.copy(categories = categories, allMovies = movies, continueWatching = continueWatching) }
+                _uiState.update {
+                    it.copy(
+                        categories = categories,
+                        allMovies = movies,
+                        continueWatching = continueWatching,
+                        // Self-heals any stale error the moment real data actually lands,
+                        // regardless of what triggered it to arrive.
+                        loadError = if (movies.isNotEmpty()) null else it.loadError
+                    )
+                }
             }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = it.allMovies.isEmpty(), loadError = null) }
+            val result = withTimeoutOrNull(SECTION_SYNC_TIMEOUT_MS) { syncMoviesUseCase() }
+            val error = when {
+                result == null -> SectionLoadError.TIMEOUT
+                result.isFailure -> SectionLoadError.NETWORK
+                _uiState.value.allMovies.isEmpty() -> SectionLoadError.EMPTY
+                else -> null
+            }
+            _uiState.update { it.copy(isLoading = false, loadError = error) }
         }
     }
 

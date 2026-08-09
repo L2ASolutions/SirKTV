@@ -12,6 +12,6 @@ interface SeriesRepository {
 
     suspend fun getCachedSeries(): List<Series>
     suspend fun toggleFavorite(seriesId: String)
-    suspend fun sync()
+    suspend fun sync(): Result<Unit>
     suspend fun getSeriesInfo(seriesId: String): SeriesInfo?
 }

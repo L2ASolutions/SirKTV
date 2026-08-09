@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Surface
+import com.sirktv.app.presentation.common.SectionErrorState
+import com.sirktv.app.presentation.common.SectionLoadingState
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.tvFocusStyle
@@ -48,31 +50,35 @@ fun SportsScreen(
 
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
         Box(Modifier.padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)) {
-            SirKTVChrome(activeItem = SirKTVNavItem.SPORTS, onNavigate = onNavigate, onRefresh = {})
+            SirKTVChrome(activeItem = SirKTVNavItem.SPORTS, onNavigate = onNavigate, onRefresh = viewModel::refresh)
         }
 
-        Row(Modifier.fillMaxSize()) {
-            FilterSidebar(selectedFilter = uiState.selectedFilter, onFilterSelected = viewModel::onFilterSelected)
-            ChannelListColumn(
-                channels = uiState.visibleChannels,
-                categoryName = { id -> uiState.categories.find { it.id == id }?.name },
-                countryLabel = { null },
-                selectedChannelId = uiState.selectedChannel?.id,
-                epgCache = uiState.epgCache,
-                onVisible = viewModel::requestEpgFor,
-                onHighlight = viewModel::onChannelHighlighted,
-                onToggleFavorite = viewModel::onToggleFavorite,
-                accentColor = SirKTVSportsAccent
-            )
-            PreviewPanel(
-                channel = uiState.selectedChannel,
-                nowNext = uiState.selectedChannel?.let { uiState.epgCache[it.id] },
-                listings = uiState.selectedChannel?.let { uiState.epgListingsCache[it.id] }.orEmpty(),
-                onRequestListings = viewModel::requestEpgListingsFor,
-                onWatchFullScreen = { channel -> onChannelSelected(channel.id) },
-                modifier = Modifier.weight(1f),
-                accentColor = SirKTVSportsAccent
-            )
+        when {
+            uiState.isLoading -> SectionLoadingState("Loading channels…")
+            uiState.loadError != null -> SectionErrorState(error = uiState.loadError!!, onRetry = viewModel::refresh)
+            else -> Row(Modifier.fillMaxSize()) {
+                FilterSidebar(selectedFilter = uiState.selectedFilter, onFilterSelected = viewModel::onFilterSelected)
+                ChannelListColumn(
+                    channels = uiState.visibleChannels,
+                    categoryName = { id -> uiState.categories.find { it.id == id }?.name },
+                    countryLabel = { null },
+                    selectedChannelId = uiState.selectedChannel?.id,
+                    epgCache = uiState.epgCache,
+                    onVisible = viewModel::requestEpgFor,
+                    onHighlight = viewModel::onChannelHighlighted,
+                    onToggleFavorite = viewModel::onToggleFavorite,
+                    accentColor = SirKTVSportsAccent
+                )
+                PreviewPanel(
+                    channel = uiState.selectedChannel,
+                    nowNext = uiState.selectedChannel?.let { uiState.epgCache[it.id] },
+                    listings = uiState.selectedChannel?.let { uiState.epgListingsCache[it.id] }.orEmpty(),
+                    onRequestListings = viewModel::requestEpgListingsFor,
+                    onWatchFullScreen = { channel -> onChannelSelected(channel.id) },
+                    modifier = Modifier.weight(1f),
+                    accentColor = SirKTVSportsAccent
+                )
+            }
         }
     }
 }

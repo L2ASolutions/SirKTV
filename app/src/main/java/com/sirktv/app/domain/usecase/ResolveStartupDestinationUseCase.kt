@@ -8,9 +8,11 @@ import javax.inject.Inject
 /**
  * Decides where the app lands after authentication: the last-watched or
  * configured startup channel (auto-start on), or Home (auto-start off, or
- * the account has no live channels at all). Cached channels are used when
- * available so a returning session resolves instantly; a completely empty
- * cache (first-ever login) forces one blocking sync.
+ * nothing cached yet). Reads only already-cached Room data — never triggers
+ * a network sync — so this always resolves in well under a second. A
+ * completely empty cache (first-ever login, or auto-start on but Live TV was
+ * never opened last session) simply falls back to Home; Live TV syncs itself
+ * on demand exactly like every other section the moment it's opened.
  */
 class ResolveStartupDestinationUseCase @Inject constructor(
     private val channelRepository: ChannelRepository,
@@ -20,11 +22,7 @@ class ResolveStartupDestinationUseCase @Inject constructor(
         val prefs = startupPreferenceRepository.get()
         if (!prefs.autoStartLiveTv) return StartupDestination.Home
 
-        var channels = channelRepository.getCachedChannels()
-        if (channels.isEmpty()) {
-            channelRepository.sync()
-            channels = channelRepository.getCachedChannels()
-        }
+        val channels = channelRepository.getCachedChannels()
         if (channels.isEmpty()) return StartupDestination.Home
 
         val channelIds = channels.map { it.id }.toSet()

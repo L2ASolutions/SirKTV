@@ -26,6 +26,8 @@ import com.sirktv.app.domain.usecase.SyncChannelsUseCase
 import com.sirktv.app.domain.usecase.ToggleFavoriteUseCase
 import com.sirktv.app.network.XtreamStreamUrlBuilder
 import com.sirktv.app.player.PlaybackState
+import com.sirktv.app.presentation.common.SECTION_SYNC_TIMEOUT_MS
+import com.sirktv.app.presentation.common.SectionLoadError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -36,6 +38,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import javax.inject.Inject
 
@@ -49,7 +52,7 @@ data class LiveTvBrowseUiState(
     val nowPlayingChannelId: String? = null,
     val epgCache: Map<String, EpgNowNext> = emptyMap(),
     val epgListingsCache: Map<String, List<EpgProgram>> = emptyMap(),
-    val loadError: String? = null
+    val loadError: SectionLoadError? = null
 ) {
     val selectedChannel: Channel? get() = allChannels.find { it.id == selectedChannelId } ?: visibleChannels.firstOrNull()
 }
@@ -143,18 +146,25 @@ class LiveTvBrowseViewModel @Inject constructor(
         refresh()
     }
 
-    /** Re-fetches categories/channels from the Xtream API; also drives the initial loading screen. */
+    /**
+     * On-demand sync — called once when this screen is first entered, and
+     * again by the top bar's refresh icon or the error screen's Retry
+     * button. Room is the source of truth throughout: the [combine]
+     * collector above updates [LiveTvBrowseUiState] reactively the moment
+     * new data lands, this function only decides whether to show a spinner
+     * or an error alongside whatever Room already has cached.
+     */
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = it.allChannels.isEmpty(), loadError = null) }
-            syncChannelsUseCase()
-            if (_uiState.value.allChannels.isEmpty()) {
-                _uiState.update {
-                    it.copy(isLoading = false, loadError = "Couldn't load channels. Check your connection and try again.")
-                }
-            } else {
-                _uiState.update { it.copy(isLoading = false) }
+            val result = withTimeoutOrNull(SECTION_SYNC_TIMEOUT_MS) { syncChannelsUseCase() }
+            val error = when {
+                result == null -> SectionLoadError.TIMEOUT
+                result.isFailure -> SectionLoadError.NETWORK
+                _uiState.value.allChannels.isEmpty() -> SectionLoadError.EMPTY
+                else -> null
             }
+            _uiState.update { it.copy(isLoading = false, loadError = error) }
         }
     }
 

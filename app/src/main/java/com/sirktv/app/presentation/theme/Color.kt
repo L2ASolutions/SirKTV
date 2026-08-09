@@ -50,3 +50,6 @@ val SirKTVLiveIndicator = Color(0xFFFF4757)
 // language so entering Sports reads as a distinct, live-scores experience.
 val SirKTVSportsAccent = Color(0xFF00C853)
 val SirKTVSportsAccentBright = Color(0xFF00E676)
+
+// Series section accent — used for the Home launcher tile only.
+val SirKTVSeriesAccent = Color(0xFF00BCD4)

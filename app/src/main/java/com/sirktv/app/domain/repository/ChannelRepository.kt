@@ -16,7 +16,7 @@ interface ChannelRepository {
     suspend fun toggleFavorite(channelId: String)
 
     /** Fetches categories + live streams from Xtream and refreshes the local cache. */
-    suspend fun sync()
+    suspend fun sync(): Result<Unit>
 
     /** Now/next for one channel, fetched on demand and short-lived — never persisted. */
     suspend fun getEpgNowNext(channelId: String): EpgNowNext

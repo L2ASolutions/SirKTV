@@ -73,9 +73,10 @@ class SeriesRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun sync() {
-        val credentials = currentSession.credentials.value ?: return
-        runCatching {
+    override suspend fun sync(): Result<Unit> {
+        val credentials = currentSession.credentials.value
+            ?: return Result.failure(IllegalStateException("Not signed in"))
+        return runCatching {
             val playerApiUrl = XtreamUrlBuilder.buildPlayerApiUrl(credentials.serverUrl)
             coroutineScope {
                 val categoriesDto = async { apiService.getSeriesCategories(playerApiUrl, credentials.username, credentials.password) }

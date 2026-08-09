@@ -37,8 +37,8 @@ fun StartupPreferencesScreen(viewModel: StartupPreferencesViewModel = hiltViewMo
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)) {
             SettingsSectionCard {
                 SettingsToggleRow(
-                    label = "Launch Live TV automatically",
-                    subtitle = "Skip the app's landing screen and tune straight in",
+                    label = "Launch directly into Live TV",
+                    subtitle = "Skip the Home tile grid and go straight to Live TV on login",
                     checked = preference.autoStartLiveTv,
                     onCheckedChange = viewModel::setAutoStart
                 )

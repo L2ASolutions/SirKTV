@@ -9,8 +9,6 @@ data class LoginUiState(
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
     val isReconnecting: Boolean = false,
-    val isSyncing: Boolean = false,
-    val syncStatus: String = "",
     val isDisclaimerExpanded: Boolean = false,
     val errorMessage: String? = null
 )

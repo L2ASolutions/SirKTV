@@ -32,6 +32,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sirktv.app.domain.model.Series
 import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.presentation.common.CategoryPill
+import com.sirktv.app.presentation.common.SectionErrorState
+import com.sirktv.app.presentation.common.SectionLoadingState
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.TvSearchField
@@ -59,7 +61,16 @@ fun SeriesScreen(
             .background(SirKTVBackground)
             .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
     ) {
-        SirKTVChrome(activeItem = SirKTVNavItem.SERIES, onNavigate = onNavigate, onRefresh = {})
+        SirKTVChrome(activeItem = SirKTVNavItem.SERIES, onNavigate = onNavigate, onRefresh = viewModel::refresh)
+
+        if (uiState.isLoading) {
+            SectionLoadingState("Loading series…", modifier = Modifier.padding(top = Dimens.SpaceMd))
+            return@Column
+        }
+        if (uiState.loadError != null) {
+            SectionErrorState(error = uiState.loadError!!, onRetry = viewModel::refresh, modifier = Modifier.padding(top = Dimens.SpaceMd))
+            return@Column
+        }
 
         Row(
             modifier = Modifier.padding(top = Dimens.SpaceLg),

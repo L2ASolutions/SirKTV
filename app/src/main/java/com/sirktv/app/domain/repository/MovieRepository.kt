@@ -12,6 +12,6 @@ interface MovieRepository {
 
     suspend fun getCachedMovies(): List<Movie>
     suspend fun toggleFavorite(movieId: String)
-    suspend fun sync()
+    suspend fun sync(): Result<Unit>
     suspend fun getMovieDetail(movieId: String): MovieDetail?
 }

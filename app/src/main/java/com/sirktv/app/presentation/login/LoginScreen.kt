@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -111,8 +110,6 @@ fun LoginScreen(
     // to a TV turning on than an app booting up.
     if (uiState.isReconnecting) {
         BrandedSplash()
-    } else if (uiState.isSyncing) {
-        SyncLoadingScreen(status = uiState.syncStatus)
     } else {
         LoginContent(
             uiState = uiState,
@@ -144,29 +141,6 @@ private fun BrandedSplash() {
                 color = SirKTVTextTertiary
             )
             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = SirKTVPrimary)
-        }
-    }
-}
-
-/**
- * Shown right after a successful sign-in while Live TV categories/channels
- * sync — the only content Home actually needs to be useful. Movies/Series
- * keep syncing in the background once we navigate away from here.
- */
-@Composable
-private fun SyncLoadingScreen(status: String) {
-    Box(
-        modifier = Modifier.fillMaxSize().background(SirKTVBackground),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)) {
-            SirKTVLogoMark()
-            LinearProgressIndicator(
-                color = SirKTVPrimary,
-                trackColor = SirKTVSurfaceElevated,
-                modifier = Modifier.width(220.dp).height(3.dp).clip(RoundedCornerShape(999.dp))
-            )
-            Text(text = status, color = SirKTVTextSecondary, fontSize = 13.sp)
         }
     }
 }

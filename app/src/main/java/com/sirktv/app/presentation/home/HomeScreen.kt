@@ -8,12 +8,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -34,23 +36,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Button
+import androidx.tv.material3.Surface
 import androidx.tv.material3.Text as TvText
-import com.sirktv.app.domain.model.Channel
-import com.sirktv.app.domain.model.ContentType
-import com.sirktv.app.domain.model.EpgNowNext
-import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvFocusStyle
-import com.sirktv.app.presentation.livetv.ChannelCard
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
+import com.sirktv.app.presentation.theme.SirKTVCardBackground
+import com.sirktv.app.presentation.theme.SirKTVPrimary
+import com.sirktv.app.presentation.theme.SirKTVPrimaryVariant
+import com.sirktv.app.presentation.theme.SirKTVSeriesAccent
+import com.sirktv.app.presentation.theme.SirKTVSportsAccent
 import com.sirktv.app.presentation.theme.SirKTVSurface
+import com.sirktv.app.presentation.theme.SirKTVTextPrimary
+import com.sirktv.app.presentation.theme.SirKTVTextSecondary
 
 private val LiveTvCardWidth = 300.dp
 private val PosterCardWidth = 140.dp
+private val TileHeight = 200.dp
 
+/**
+ * Home is a clean launcher, not a browse screen: four large tiles reach the
+ * same four sections the nav pills do (no content loads here), plus two Room
+ * -only rows that appear silently once local watch-history data exists. Real
+ * content sync only ever happens once the user opens a section.
+ */
 @Composable
 fun HomeScreen(
     onOpenContent: (HomeNavTarget) -> Unit,
@@ -59,9 +71,6 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val channelEpgCache by viewModel.channelEpgCache.collectAsState()
-    val movieSynopsisCache by viewModel.movieSynopsisCache.collectAsState()
-    var previewItem by remember { mutableStateOf<HeroItem?>(null) }
     var showExitDialog by remember { mutableStateOf(false) }
     val activity = LocalContext.current as? Activity
 
@@ -88,19 +97,11 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
         ) {
             item {
-                SirKTVChrome(activeItem = SirKTVNavItem.HOME, onNavigate = onNavigate, onRefresh = viewModel::refresh)
+                SirKTVChrome(activeItem = SirKTVNavItem.HOME, onNavigate = onNavigate, onRefresh = {})
             }
 
             item {
-                // Negative horizontal padding bleeds the hero out past the
-                // LazyColumn's own safe-area content padding — the one
-                // deliberately full-bleed, edge-to-edge element on the page.
-                HeroCarousel(
-                    items = state.heroItems,
-                    onPlay = { item -> onOpenContent(item.navTarget) },
-                    onMoreInfo = { item -> previewItem = item },
-                    modifier = Modifier.padding(horizontal = -Dimens.SafeAreaHorizontal)
-                )
+                HomeTileGrid(onNavigate = onNavigate)
             }
 
             if (state.continueWatching.isNotEmpty()) {
@@ -113,23 +114,6 @@ fun HomeScreen(
                             progressFraction = progress.progressFraction,
                             onClick = { viewModel.watchProgressTarget(progress)?.let(onOpenContent) },
                             modifier = Modifier.width(LiveTvCardWidth)
-                        )
-                    }
-                }
-            }
-
-            if (state.recentlyAdded.isNotEmpty()) {
-                item {
-                    MediaRow(title = "Recently Added", rowItems = state.recentlyAdded) { added ->
-                        MediaCard(
-                            title = added.title,
-                            imageUrl = added.imageUrl,
-                            aspectRatio = 2f / 3f,
-                            rating = added.rating,
-                            badge = if (RecentlyAdded.isWithinNewWindow(added.addedAtEpochMillis)) "NEW" else null,
-                            isFavorite = added.isFavorite,
-                            onClick = { onOpenContent(added.navTarget) },
-                            modifier = Modifier.width(PosterCardWidth)
                         )
                     }
                 }
@@ -148,37 +132,6 @@ fun HomeScreen(
                     }
                 }
             }
-
-            if (state.liveChannels.isNotEmpty()) {
-                item {
-                    LiveTvRow(
-                        channels = state.liveChannels,
-                        epgCache = channelEpgCache,
-                        onRequestEpg = viewModel::requestEpgFor,
-                        onChannelClick = { channelId -> onOpenContent(HomeNavTarget.LiveTv(channelId)) }
-                    )
-                }
-            }
-        }
-
-        previewItem?.let { item ->
-            LaunchedEffect(item.contentId) {
-                if (item.contentType == ContentType.MOVIE) viewModel.requestMovieSynopsis(item.contentId)
-            }
-            val synopsis = if (item.contentType == ContentType.MOVIE) movieSynopsisCache[item.contentId] else item.synopsis
-            HeroPreviewModal(
-                item = item,
-                synopsis = synopsis,
-                onPlay = { onOpenContent(item.navTarget); previewItem = null },
-                onToggleFavorite = {
-                    when (item.contentType) {
-                        ContentType.MOVIE -> viewModel.onToggleMovieFavorite(item.contentId)
-                        ContentType.SERIES -> viewModel.onToggleSeriesFavorite(item.contentId)
-                        else -> Unit
-                    }
-                },
-                onDismiss = { previewItem = null }
-            )
         }
 
         if (showExitDialog) {
@@ -186,6 +139,104 @@ fun HomeScreen(
                 onConfirm = { activity?.finish() },
                 onDismiss = { showExitDialog = false }
             )
+        }
+    }
+}
+
+@Composable
+private fun HomeTileGrid(onNavigate: (SirKTVNavItem) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+            HomeTile(
+                title = "Live TV",
+                subtitle = "Browse live channels",
+                icon = "📡",
+                accentColor = SirKTVPrimary,
+                onClick = { onNavigate(SirKTVNavItem.LIVE_TV) },
+                modifier = Modifier.weight(1f)
+            )
+            HomeTile(
+                title = "Movies",
+                subtitle = "Browse movies",
+                icon = "🎬",
+                accentColor = SirKTVPrimaryVariant,
+                onClick = { onNavigate(SirKTVNavItem.MOVIES) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+            HomeTile(
+                title = "Series",
+                subtitle = "Browse TV series",
+                icon = "📺",
+                accentColor = SirKTVSeriesAccent,
+                onClick = { onNavigate(SirKTVNavItem.SERIES) },
+                modifier = Modifier.weight(1f)
+            )
+            HomeTile(
+                title = "Sports",
+                subtitle = "Browse sports",
+                icon = "🏆",
+                accentColor = SirKTVSportsAccent,
+                onClick = { onNavigate(SirKTVNavItem.SPORTS) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeTile(
+    title: String,
+    subtitle: String,
+    icon: String,
+    accentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(TileHeight)
+            .tvFocusStyle(cornerRadius = Dimens.CardCornerRadius)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(listOf(SirKTVSurface, SirKTVCardBackground)),
+                    RoundedCornerShape(Dimens.CardCornerRadius)
+                )
+        ) {
+            Box(
+                Modifier
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(
+                        accentColor,
+                        RoundedCornerShape(topStart = Dimens.CardCornerRadius, bottomStart = Dimens.CardCornerRadius)
+                    )
+            )
+            Column(
+                modifier = Modifier.fillMaxSize().padding(Dimens.SpaceLg),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(icon, fontSize = 32.sp)
+                Text(
+                    text = title,
+                    color = SirKTVTextPrimary,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = Dimens.SpaceSm)
+                )
+                Text(
+                    text = subtitle,
+                    color = SirKTVTextSecondary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
     }
 }
@@ -212,29 +263,6 @@ private fun ExitConfirmationDialog(onConfirm: () -> Unit, onDismiss: () -> Unit)
                 Button(onClick = onConfirm, modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)) {
                     TvText("Yes")
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LiveTvRow(
-    channels: List<Channel>,
-    epgCache: Map<String, EpgNowNext>,
-    onRequestEpg: (String) -> Unit,
-    onChannelClick: (String) -> Unit
-) {
-    Column {
-        RowHeader(title = "Live TV", count = channels.size)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
-            items(channels, key = { it.id }) { channel ->
-                LaunchedEffect(channel.id) { onRequestEpg(channel.id) }
-                ChannelCard(
-                    channel = channel,
-                    nowNext = epgCache[channel.id],
-                    onClick = { onChannelClick(channel.id) },
-                    modifier = Modifier.width(LiveTvCardWidth)
-                )
             }
         }
     }

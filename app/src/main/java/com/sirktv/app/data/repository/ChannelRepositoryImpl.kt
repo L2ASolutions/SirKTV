@@ -64,12 +64,14 @@ class ChannelRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun sync() {
-        val credentials = currentSession.credentials.value ?: return
-        // Best-effort refresh: any failure here (network, malformed URL, unexpected
-        // payload shape) should leave the existing cache untouched, not surface as
-        // an error — a stale channel list beats a broken one.
-        runCatching {
+    override suspend fun sync(): Result<Unit> {
+        val credentials = currentSession.credentials.value
+            ?: return Result.failure(IllegalStateException("Not signed in"))
+        // On failure (network, malformed URL, unexpected payload shape) the
+        // existing cache is left untouched — a stale channel list beats a
+        // broken one — but the caller still needs to know sync failed so an
+        // on-demand loading screen can show an error instead of hanging.
+        return runCatching {
             val playerApiUrl = XtreamUrlBuilder.buildPlayerApiUrl(credentials.serverUrl)
             coroutineScope {
                 val categoriesDto = async { apiService.getLiveCategories(playerApiUrl, credentials.username, credentials.password) }

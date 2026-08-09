@@ -62,6 +62,8 @@ import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Channel
 import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.domain.model.EpgProgram
+import com.sirktv.app.presentation.common.SectionErrorState
+import com.sirktv.app.presentation.common.SectionLoadingState
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.SirKTVLogoMark
@@ -126,9 +128,9 @@ fun LiveTvBrowseScreen(
         }
 
         when {
-            uiState.isLoading -> LoadingChannelsState()
-            uiState.loadError != null && uiState.allChannels.isEmpty() -> LoadErrorState(
-                message = uiState.loadError!!,
+            uiState.isLoading -> SectionLoadingState("Loading channels…")
+            uiState.loadError != null && uiState.allChannels.isEmpty() -> SectionErrorState(
+                error = uiState.loadError!!,
                 onRetry = viewModel::refresh
             )
             // Full width, edge-to-edge — no horizontal safe-zone padding on the three columns themselves.
@@ -166,35 +168,6 @@ fun LiveTvBrowseScreen(
                     onWatchFullScreen = { channel -> onChannelSelected(channel.id) },
                     modifier = Modifier.weight(1f)
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LoadingChannelsState() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
-            SirKTVLogoMark()
-            CircularProgressIndicator(color = SirKTVPrimary)
-            Text("Loading channels…", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            Text(
-                "Fetching categories and channels from your provider",
-                color = SirKTVOnSurfaceMuted,
-                fontSize = 12.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun LoadErrorState(message: String, onRetry: () -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
-            Text("No channels available", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text(message, color = SirKTVOnSurfaceMuted, fontSize = 13.sp)
-            Button(onClick = onRetry, modifier = Modifier.padding(top = Dimens.SpaceSm).tvFocusStyle(accent = TvFocusAccent.BORDER)) {
-                TvText("Retry")
             }
         }
     }
