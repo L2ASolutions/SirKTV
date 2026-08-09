@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sirktv.app.presentation.theme.Dimens
+import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import androidx.tv.material3.Surface
 
@@ -44,7 +45,7 @@ fun CategoryPill(label: String, selected: Boolean, accent: Color = SirKTVPrimary
                 Modifier.glassCard(999.dp)
             }.padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
-            Text(text = label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(text = label, color = if (selected) Color.White else SirKTVOnSurfaceMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

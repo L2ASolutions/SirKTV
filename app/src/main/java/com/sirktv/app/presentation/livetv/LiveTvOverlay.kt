@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -51,39 +53,61 @@ fun LiveTvOverlay(
     val channel = uiState.currentChannel
     val context = LocalContext.current
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
-    ) {
-        Row(
-            modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            channel?.let { ChannelChip(name = it.name, number = it.channelNumber) }
-            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                LiveDotBadge()
-            }
-        }
+    Box(Modifier.fillMaxSize()) {
+        // The now/next title, progress bar, and action row sit directly on
+        // top of the live video frame (unlike the chips above, which already
+        // carry their own dark pill background) — without this scrim, a
+        // bright frame in the broadcast can make the white overlay text
+        // unreadable, so it always gets a dark gradient behind it regardless
+        // of what's currently playing.
+        Box(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .fillMaxHeight(0.4f)
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.3f to Color.Black.copy(alpha = 0.55f),
+                        1f to Color.Black.copy(alpha = 0.85f)
+                    )
+                )
+        )
 
-        Column(
-            modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
         ) {
-            NowNextRow(uiState.nowNext)
-            ProgressBar(uiState.nowNext)
-            ActionRow(
-                isFavorite = channel?.isFavorite == true,
-                onFavoriteClick = onFavoriteClick,
-                onAudioClick = { activeSheet = OverlaySheet.AUDIO },
-                onSubtitleClick = { activeSheet = OverlaySheet.SUBTITLE },
-                onQualityClick = { activeSheet = OverlaySheet.QUALITY },
-                onChannelListToggle = onChannelListToggle,
-                onChannelUp = onChannelUp,
-                onChannelDown = onChannelDown,
-                showPip = context.supportsPip(),
-                onPipClick = { (context as? Activity)?.enterSirKTVPip() }
-            )
+            Row(
+                modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                channel?.let { ChannelChip(name = it.name, number = it.channelNumber) }
+                Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    LiveDotBadge()
+                }
+            }
+
+            Column(
+                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
+            ) {
+                NowNextRow(uiState.nowNext)
+                ProgressBar(uiState.nowNext)
+                ActionRow(
+                    isFavorite = channel?.isFavorite == true,
+                    onFavoriteClick = onFavoriteClick,
+                    onAudioClick = { activeSheet = OverlaySheet.AUDIO },
+                    onSubtitleClick = { activeSheet = OverlaySheet.SUBTITLE },
+                    onQualityClick = { activeSheet = OverlaySheet.QUALITY },
+                    onChannelListToggle = onChannelListToggle,
+                    onChannelUp = onChannelUp,
+                    onChannelDown = onChannelDown,
+                    showPip = context.supportsPip(),
+                    onPipClick = { (context as? Activity)?.enterSirKTVPip() }
+                )
+            }
         }
     }
 

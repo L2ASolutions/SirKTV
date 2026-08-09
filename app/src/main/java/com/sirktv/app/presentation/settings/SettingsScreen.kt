@@ -42,7 +42,9 @@ import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVError
+import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
+import com.sirktv.app.presentation.theme.SirKTVSurface
 import androidx.tv.material3.Surface
 
 @Composable
@@ -127,7 +129,7 @@ private fun SettingsTileCard(tile: SettingsTile, selected: Boolean, onClick: () 
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    if (selected) SirKTVPrimary.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.05f),
+                    if (selected) SirKTVPrimary.copy(alpha = 0.22f) else SirKTVSurface,
                     RoundedCornerShape(Dimens.CornerRadius)
                 ),
             contentAlignment = Alignment.Center
@@ -142,7 +144,7 @@ private fun SettingsTileCard(tile: SettingsTile, selected: Boolean, onClick: () 
                         Text("⚙", fontSize = 14.sp, color = SirKTVPrimary)
                     }
                 }
-                Text(tile.label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(tile.label, color = SirKTVOnSurfaceStrong, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

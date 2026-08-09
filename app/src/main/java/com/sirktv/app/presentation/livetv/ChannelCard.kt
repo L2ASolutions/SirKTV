@@ -29,6 +29,7 @@ import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.common.tvPressLongPress
 import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
+import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import androidx.tv.material3.Surface
 
@@ -103,7 +104,7 @@ private fun ChannelCardRow(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         text = channel.name,
-                        color = Color.White,
+                        color = SirKTVOnSurfaceStrong,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,

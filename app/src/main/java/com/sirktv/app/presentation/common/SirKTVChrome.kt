@@ -31,6 +31,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Surface
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
+import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import kotlinx.coroutines.launch
 
 /**
@@ -52,7 +53,7 @@ fun SirKTVChrome(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
             SirKTVLogoMark()
             Column(modifier = Modifier.weight(1f)) {
-                Text("SirKTV", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("SirKTV", color = SirKTVOnSurfaceStrong, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 greetingName?.let {
                     Text("Welcome back, $it", color = SirKTVOnSurfaceMuted, fontSize = 12.sp)
                 }

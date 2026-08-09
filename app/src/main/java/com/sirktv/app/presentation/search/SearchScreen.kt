@@ -13,11 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +25,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,13 +33,13 @@ import com.sirktv.app.domain.model.SearchResults
 import com.sirktv.app.presentation.common.CategoryPill
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
+import com.sirktv.app.presentation.common.TvSearchField
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.RowHeader
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
-import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 
 @Composable
@@ -57,6 +52,7 @@ fun SearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val fieldFocusRequester = remember { FocusRequester() }
+    val firstResultFocusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { fieldFocusRequester.requestFocus() }
 
     Column(
@@ -68,27 +64,16 @@ fun SearchScreen(
         SirKTVChrome(activeItem = SirKTVNavItem.SEARCH, onNavigate = onNavigate, onRefresh = {})
         Text("Search", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = Dimens.SpaceLg))
 
-        OutlinedTextField(
-            value = uiState.query,
-            onValueChange = viewModel::onQueryChanged,
-            placeholder = { Text("Search live TV, movies, and series") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { viewModel.onSearchSubmitted() }),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = SirKTVBackground,
-                unfocusedContainerColor = SirKTVBackground,
-                focusedBorderColor = SirKTVPrimary,
-                unfocusedBorderColor = SirKTVOnSurfaceMuted,
-                cursorColor = SirKTVPrimary,
-                focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-            ),
+        TvSearchField(
+            query = uiState.query,
+            onQueryChange = viewModel::onQueryChanged,
+            placeholder = "Search live TV, movies, and series",
+            fieldFocusRequester = fieldFocusRequester,
+            firstResultFocusRequester = firstResultFocusRequester.takeIf { !uiState.results.isEmpty },
+            onSearchSubmitted = { viewModel.onSearchSubmitted() },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = Dimens.SpaceMd, bottom = Dimens.SpaceMd)
-                .focusRequester(fieldFocusRequester)
-                .tvFocusStyle()
         )
 
         if (uiState.query.trim().length < 2) {
@@ -100,6 +85,7 @@ fun SearchScreen(
         } else {
             SearchResultsList(
                 results = uiState.results,
+                firstResultFocusRequester = firstResultFocusRequester,
                 onChannelSelected = onChannelSelected,
                 onMovieSelected = onMovieSelected,
                 onSeriesSelected = onSeriesSelected,
@@ -142,6 +128,7 @@ private fun RecentSearches(recent: List<String>, onPick: (String) -> Unit, onCle
 @Composable
 private fun SearchResultsList(
     results: SearchResults,
+    firstResultFocusRequester: FocusRequester,
     onChannelSelected: (String) -> Unit,
     onMovieSelected: (String) -> Unit,
     onSeriesSelected: (String) -> Unit,
@@ -153,17 +140,28 @@ private fun SearchResultsList(
         Text("No matches found.", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)
         return
     }
+    // Whichever section renders first gets its first card wired to
+    // firstResultFocusRequester, so D-pad Down from the search field (or an
+    // explicit search submit) always has a real, deterministic landing spot.
+    val firstSectionKey = when {
+        results.channels.isNotEmpty() -> "channels"
+        results.movies.isNotEmpty() -> "movies"
+        else -> "series"
+    }
     LazyColumn(contentPadding = PaddingValues(bottom = Dimens.SpaceLg), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)) {
         if (results.channels.isNotEmpty()) {
             item {
                 ResultRow(title = "Live TV", count = results.channels.size) {
-                    items(results.channels, key = { "ch-${it.id}" }) { channel ->
+                    itemsIndexed(results.channels, key = { _, it -> "ch-${it.id}" }) { index, channel ->
                         Column(modifier = Modifier.width(220.dp)) {
                             MediaCard(
                                 title = channel.name,
                                 imageUrl = channel.logoUrl,
                                 isFavorite = channel.isFavorite,
-                                onClick = { onChannelSelected(channel.id) }
+                                onClick = { onChannelSelected(channel.id) },
+                                modifier = if (firstSectionKey == "channels" && index == 0) {
+                                    Modifier.focusRequester(firstResultFocusRequester)
+                                } else Modifier
                             )
                             FavoriteToggleChip(
                                 isFavorite = channel.isFavorite,
@@ -178,7 +176,7 @@ private fun SearchResultsList(
         if (results.movies.isNotEmpty()) {
             item {
                 ResultRow(title = "Movies", count = results.movies.size) {
-                    items(results.movies, key = { "mv-${it.id}" }) { movie ->
+                    itemsIndexed(results.movies, key = { _, it -> "mv-${it.id}" }) { index, movie ->
                         Column(modifier = Modifier.width(140.dp)) {
                             MediaCard(
                                 title = movie.title,
@@ -186,7 +184,10 @@ private fun SearchResultsList(
                                 aspectRatio = 2f / 3f,
                                 rating = movie.rating,
                                 isFavorite = movie.isFavorite,
-                                onClick = { onMovieSelected(movie.id) }
+                                onClick = { onMovieSelected(movie.id) },
+                                modifier = if (firstSectionKey == "movies" && index == 0) {
+                                    Modifier.focusRequester(firstResultFocusRequester)
+                                } else Modifier
                             )
                             FavoriteToggleChip(
                                 isFavorite = movie.isFavorite,
@@ -201,7 +202,7 @@ private fun SearchResultsList(
         if (results.series.isNotEmpty()) {
             item {
                 ResultRow(title = "Series", count = results.series.size) {
-                    items(results.series, key = { "sr-${it.id}" }) { series ->
+                    itemsIndexed(results.series, key = { _, it -> "sr-${it.id}" }) { index, series ->
                         Column(modifier = Modifier.width(140.dp)) {
                             MediaCard(
                                 title = series.title,
@@ -209,7 +210,10 @@ private fun SearchResultsList(
                                 aspectRatio = 2f / 3f,
                                 rating = series.rating,
                                 isFavorite = series.isFavorite,
-                                onClick = { onSeriesSelected(series.id) }
+                                onClick = { onSeriesSelected(series.id) },
+                                modifier = if (firstSectionKey == "series" && index == 0) {
+                                    Modifier.focusRequester(firstResultFocusRequester)
+                                } else Modifier
                             )
                             FavoriteToggleChip(
                                 isFavorite = series.isFavorite,

@@ -49,6 +49,7 @@ import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
+import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 
 private val SidebarWidth = 200.dp
@@ -288,7 +289,7 @@ private fun BrowseChannelRow(
             Column(modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
                 Text(
                     text = channel.name,
-                    color = Color.White,
+                    color = SirKTVOnSurfaceStrong,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -370,7 +371,7 @@ internal fun PreviewPanel(
                 }
             }
 
-            Text(channel.name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(channel.name, color = SirKTVOnSurfaceStrong, fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
             nowNext?.now?.let { now ->
                 Text(now.title, color = SirKTVOnSurfaceMuted, fontSize = 13.sp)
@@ -417,7 +418,7 @@ private fun ScheduleRow(program: EpgProgram, isNow: Boolean, isNext: Boolean, ac
         Text(formatEpochSeconds(program.startEpochSeconds), color = SirKTVOnSurfaceMuted, fontSize = 11.sp, modifier = Modifier.width(48.dp))
         Text(
             text = program.title,
-            color = Color.White,
+            color = SirKTVOnSurfaceStrong,
             fontSize = 12.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

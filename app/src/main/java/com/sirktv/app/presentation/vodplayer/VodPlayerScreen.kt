@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -159,44 +161,63 @@ private fun VodOverlay(
 ) {
     var activeSheet by remember { mutableStateOf<VodSheet?>(null) }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.35f))
-            .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
-    ) {
-        Column(modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().glassCard().padding(Dimens.SpaceMd)) {
-            Text(uiState.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            uiState.subtitle?.let {
-                Text(it, color = Color.White.copy(alpha = 0.65f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-
-        Column(
-            modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
-        ) {
-            SeekBar(positionMs = uiState.positionMs, durationMs = uiState.durationMs)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(formatDurationMs(uiState.positionMs), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
-                if (uiState.captionsEnabled) {
-                    Text("CC · ${uiState.captionLanguageLabel}", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
-                }
-                Text(formatDurationMs(uiState.durationMs), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
-                ActionIcon(label = "⏪", onClick = onSeekBack)
-                ActionIcon(
-                    label = if (uiState.playbackState is PlaybackState.Playing) "❚❚" else "▶",
-                    onClick = onPlayPause
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f))) {
+        // The seek bar, timestamps, and action row sit directly on the video
+        // frame — a bright scene underneath can wash out plain white text,
+        // so the bottom third always gets a dark gradient behind it on top
+        // of the overlay's base dim.
+        Box(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .fillMaxHeight(0.4f)
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.3f to Color.Black.copy(alpha = 0.5f),
+                        1f to Color.Black.copy(alpha = 0.85f)
+                    )
                 )
-                ActionIcon(label = "⏩", onClick = onSeekForward)
-                ActionIcon(label = if (uiState.isFavorite) "♥" else "♡", active = uiState.isFavorite, onClick = onFavoriteClick)
-                ActionIcon(label = "AUD", onClick = { activeSheet = VodSheet.AUDIO })
-                ActionIcon(label = "CC", active = uiState.captionsEnabled, onClick = onToggleCaptions)
-                ActionIcon(label = "HD", onClick = { activeSheet = VodSheet.QUALITY })
-                if (uiState.isEpisode && uiState.hasNextEpisode) {
-                    ActionIcon(label = "⏭", onClick = onNextEpisode)
+        )
+
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
+        ) {
+            Column(modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().glassCard().padding(Dimens.SpaceMd)) {
+                Text(uiState.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                uiState.subtitle?.let {
+                    Text(it, color = Color.White.copy(alpha = 0.65f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+
+            Column(
+                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
+            ) {
+                SeekBar(positionMs = uiState.positionMs, durationMs = uiState.durationMs)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(formatDurationMs(uiState.positionMs), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+                    if (uiState.captionsEnabled) {
+                        Text("CC · ${uiState.captionLanguageLabel}", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+                    }
+                    Text(formatDurationMs(uiState.durationMs), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+                    ActionIcon(label = "⏪", onClick = onSeekBack)
+                    ActionIcon(
+                        label = if (uiState.playbackState is PlaybackState.Playing) "❚❚" else "▶",
+                        onClick = onPlayPause
+                    )
+                    ActionIcon(label = "⏩", onClick = onSeekForward)
+                    ActionIcon(label = if (uiState.isFavorite) "♥" else "♡", active = uiState.isFavorite, onClick = onFavoriteClick)
+                    ActionIcon(label = "AUD", onClick = { activeSheet = VodSheet.AUDIO })
+                    ActionIcon(label = "CC", active = uiState.captionsEnabled, onClick = onToggleCaptions)
+                    ActionIcon(label = "HD", onClick = { activeSheet = VodSheet.QUALITY })
+                    if (uiState.isEpisode && uiState.hasNextEpisode) {
+                        ActionIcon(label = "⏭", onClick = onNextEpisode)
+                    }
                 }
             }
         }

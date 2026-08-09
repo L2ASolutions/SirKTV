@@ -13,22 +13,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -36,14 +33,13 @@ import com.sirktv.app.domain.model.Series
 import com.sirktv.app.presentation.common.CategoryPill
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
-import com.sirktv.app.presentation.common.tvFocusStyle
+import com.sirktv.app.presentation.common.TvSearchField
 import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.MediaRow
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
-import com.sirktv.app.presentation.theme.SirKTVPrimary
 
 private val PosterCardWidth = 150.dp
 
@@ -54,6 +50,7 @@ fun SeriesScreen(
     viewModel: SeriesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val firstResultFocusRequester = remember { FocusRequester() }
 
     Column(
         modifier = Modifier
@@ -79,26 +76,14 @@ fun SeriesScreen(
             }
         }
 
-        OutlinedTextField(
-            value = uiState.searchQuery,
-            onValueChange = viewModel::onSearchQueryChanged,
-            placeholder = { Text("Search series") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = {}),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = SirKTVBackground,
-                unfocusedContainerColor = SirKTVBackground,
-                focusedBorderColor = SirKTVPrimary,
-                unfocusedBorderColor = SirKTVOnSurfaceMuted,
-                cursorColor = SirKTVPrimary,
-                focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-            ),
+        TvSearchField(
+            query = uiState.searchQuery,
+            onQueryChange = viewModel::onSearchQueryChanged,
+            placeholder = "Search series",
+            firstResultFocusRequester = firstResultFocusRequester.takeIf { uiState.isSearching && uiState.searchResults.isNotEmpty() },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = Dimens.SpaceMd)
-                .tvFocusStyle()
         )
 
         if (uiState.isSearching) {
@@ -106,6 +91,7 @@ fun SeriesScreen(
                 SeriesResultsGrid(
                     series = uiState.searchResults,
                     categoryName = { categoryId -> uiState.categories.find { it.id == categoryId }?.name },
+                    firstResultFocusRequester = firstResultFocusRequester,
                     onSeriesSelected = onSeriesSelected,
                     onToggleFavorite = viewModel::onToggleFavorite,
                     emptyMessage = "No series match your search."
@@ -150,6 +136,7 @@ fun SeriesScreen(
             SeriesResultsGrid(
                 series = uiState.visibleSeries,
                 categoryName = { null },
+                firstResultFocusRequester = null,
                 onSeriesSelected = onSeriesSelected,
                 onToggleFavorite = viewModel::onToggleFavorite,
                 emptyMessage = "No series found in this category."
@@ -162,6 +149,7 @@ fun SeriesScreen(
 private fun SeriesResultsGrid(
     series: List<Series>,
     categoryName: (String) -> String?,
+    firstResultFocusRequester: FocusRequester?,
     onSeriesSelected: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
     emptyMessage: String
@@ -176,7 +164,7 @@ private fun SeriesResultsGrid(
         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
     ) {
-        items(series, key = { it.id }) { item ->
+        gridItemsIndexed(series, key = { _, it -> it.id }) { index, item ->
             Column {
                 MediaCard(
                     title = item.title,
@@ -185,7 +173,10 @@ private fun SeriesResultsGrid(
                     rating = item.rating,
                     subtitle = categoryName(item.categoryId),
                     isFavorite = item.isFavorite,
-                    onClick = { onSeriesSelected(item.id) }
+                    onClick = { onSeriesSelected(item.id) },
+                    modifier = if (index == 0 && firstResultFocusRequester != null) {
+                        Modifier.focusRequester(firstResultFocusRequester)
+                    } else Modifier
                 )
                 FavoriteToggleChip(
                     isFavorite = item.isFavorite,

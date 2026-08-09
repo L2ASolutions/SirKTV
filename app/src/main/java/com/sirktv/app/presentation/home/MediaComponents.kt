@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,7 +34,9 @@ import coil.compose.AsyncImage
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.common.tvPressLongPress
 import com.sirktv.app.presentation.theme.Dimens
+import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
+import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVPrimaryVariant
 import com.sirktv.app.presentation.theme.SirKTVSurfaceVariant
@@ -117,13 +120,15 @@ private fun MediaCardArt(
     rating: Float?,
     isFavorite: Boolean
 ) {
+    val hasImage = !imageUrl.isNullOrBlank()
+
     Box(
         Modifier
             .fillMaxWidth()
             .aspectRatio(aspectRatio)
             .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(Dimens.CornerRadius))
     ) {
-            if (!imageUrl.isNullOrBlank()) {
+            if (hasImage) {
                 AsyncImage(
                     model = imageUrl,
                     contentDescription = title,
@@ -131,40 +136,57 @@ private fun MediaCardArt(
                     modifier = Modifier.fillMaxSize().background(SirKTVSurfaceVariant, RoundedCornerShape(Dimens.CornerRadius))
                 )
             } else {
+                // No artwork: a flat dark card (never a bright/colorful fill
+                // sitting directly behind the title) so the monogram + text
+                // stay readable without needing a scrim on top of it.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            Brush.linearGradient(listOf(SirKTVPrimary, SirKTVPrimaryVariant)),
-                            RoundedCornerShape(Dimens.CornerRadius)
-                        ),
+                        .background(SirKTVCardBackground, RoundedCornerShape(Dimens.CornerRadius)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(title.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(
+                                Brush.linearGradient(listOf(SirKTVPrimary, SirKTVPrimaryVariant)),
+                                RoundedCornerShape(8.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(title.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
                 }
             }
 
             // Bottom scrim + overlaid title/subtitle/rating — always on top of
             // the artwork, transparent at the top so it never clips into a
-            // badge/favorite icon near the top of the card.
+            // badge/favorite icon near the top of the card. Cards without
+            // artwork already sit on the flat dark card background above, so
+            // they skip the scrim and use the standard on-dark text colors
+            // instead of white.
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to Color.Transparent,
-                            0.45f to Color.Black.copy(alpha = 0.55f),
-                            1f to Color.Black.copy(alpha = 0.8f)
-                        ),
-                        RoundedCornerShape(bottomStart = Dimens.CornerRadius, bottomEnd = Dimens.CornerRadius)
+                    .then(
+                        if (hasImage) {
+                            Modifier.background(
+                                Brush.verticalGradient(
+                                    0f to Color.Transparent,
+                                    0.45f to Color.Black.copy(alpha = 0.6f),
+                                    1f to Color.Black.copy(alpha = 0.85f)
+                                ),
+                                RoundedCornerShape(bottomStart = Dimens.CornerRadius, bottomEnd = Dimens.CornerRadius)
+                            )
+                        } else Modifier
                     )
                     .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
                 Column {
                     Text(
                         text = title,
-                        color = Color.White,
+                        color = if (hasImage) Color.White else SirKTVOnSurfaceStrong,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -174,7 +196,7 @@ private fun MediaCardArt(
                         subtitle?.let {
                             Text(
                                 text = it,
-                                color = Color.White.copy(alpha = 0.75f),
+                                color = if (hasImage) Color.White.copy(alpha = 0.75f) else SirKTVOnSurfaceMuted,
                                 fontSize = 10.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -182,7 +204,12 @@ private fun MediaCardArt(
                             )
                         }
                         rating?.let {
-                            Text("★ ${"%.1f".format(it)}", color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                "★ ${"%.1f".format(it)}",
+                                color = if (hasImage) Color.White.copy(alpha = 0.85f) else SirKTVOnSurfaceMuted,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
