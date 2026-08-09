@@ -1,6 +1,7 @@
 package com.sirktv.app.presentation.livetv
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -52,7 +54,12 @@ data class LiveTvBrowseUiState(
     val nowPlayingChannelId: String? = null,
     val epgCache: Map<String, EpgNowNext> = emptyMap(),
     val epgListingsCache: Map<String, List<EpgProgram>> = emptyMap(),
-    val loadError: SectionLoadError? = null
+    val loadError: SectionLoadError? = null,
+    // Distinct from loadError (a known, "expected" sync failure): set only
+    // when something in this screen's own init/collector logic throws
+    // unexpectedly, so the UI can fail into a full-screen error + Retry
+    // instead of taking the whole app down with it.
+    val isError: Boolean = false
 ) {
     val selectedChannel: Channel? get() = allChannels.find { it.id == selectedChannelId } ?: visibleChannels.firstOrNull()
 }
@@ -117,33 +124,55 @@ class LiveTvBrowseViewModel @Inject constructor(
     }
 
     init {
-        viewModelScope.launch {
-            combine(observeCategoriesUseCase(), observeChannelsUseCase()) { categories, channels ->
-                categories to channels
-            }.collect { (categories, channels) ->
-                _uiState.update {
-                    val visible = filterChannels(channels, it.selectedCategoryId)
-                    it.copy(
-                        categories = categories,
-                        allChannels = channels,
-                        visibleChannels = visible,
-                        selectedChannelId = it.selectedChannelId ?: visible.firstOrNull()?.id,
-                        isLoading = if (channels.isNotEmpty()) false else it.isLoading
-                    )
+        // The whole init block is defensive: any Room query, mapper, or
+        // combine/collect step in here throwing was the suspected root cause
+        // of the Live TV crash-on-entry — everything below fails into
+        // isError = true (a full-screen error + Retry) instead of an
+        // uncaught exception taking the whole app down.
+        try {
+            viewModelScope.launch {
+                try {
+                    combine(
+                        runCatching { observeCategoriesUseCase() }.getOrElse { flowOf(emptyList()) },
+                        runCatching { observeChannelsUseCase() }.getOrElse { flowOf(emptyList()) }
+                    ) { categories, channels ->
+                        categories to channels
+                    }.collect { (categories, channels) ->
+                        _uiState.update {
+                            val visible = filterChannels(channels, it.selectedCategoryId)
+                            it.copy(
+                                categories = categories,
+                                allChannels = channels,
+                                visibleChannels = visible,
+                                selectedChannelId = it.selectedChannelId ?: visible.firstOrNull()?.id,
+                                isLoading = if (channels.isNotEmpty()) false else it.isLoading
+                            )
+                        }
+                        // Deliberately does NOT auto-load a preview here: the preview
+                        // ExoPlayer is only ever built/used once a channel row actually
+                        // gains D-pad focus (see onChannelHighlighted) — never eagerly
+                        // on screen entry, so a slow/failing player build can't take
+                        // down the initial render of this screen.
+                    }
+                } catch (e: Exception) {
+                    Log.e("SirKTV_LiveTV", "CRASH in categories/channels collector: ${e.stackTraceToString()}")
+                    _uiState.update { it.copy(isLoading = false, isError = true) }
                 }
-                // Deliberately does NOT auto-load a preview here: the preview
-                // ExoPlayer is only ever built/used once a channel row actually
-                // gains D-pad focus (see onChannelHighlighted) — never eagerly
-                // on screen entry, so a slow/failing player build can't take
-                // down the initial render of this screen.
             }
-        }
-        viewModelScope.launch {
-            getStartupPreferenceUseCase().collect { preference ->
-                _uiState.update { it.copy(nowPlayingChannelId = preference.lastWatchedChannelId) }
+            viewModelScope.launch {
+                try {
+                    getStartupPreferenceUseCase().collect { preference ->
+                        _uiState.update { it.copy(nowPlayingChannelId = preference.lastWatchedChannelId) }
+                    }
+                } catch (e: Exception) {
+                    Log.e("SirKTV_LiveTV", "CRASH in startup preference collector: ${e.stackTraceToString()}")
+                }
             }
+            refresh()
+        } catch (e: Exception) {
+            Log.e("SirKTV_LiveTV", "CRASH on Live TV ViewModel init: ${e.stackTraceToString()}")
+            _uiState.update { it.copy(isLoading = false, isError = true) }
         }
-        refresh()
     }
 
     /**
@@ -156,16 +185,30 @@ class LiveTvBrowseViewModel @Inject constructor(
      */
     fun refresh() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = it.allChannels.isEmpty(), loadError = null) }
-            val result = withTimeoutOrNull(SECTION_SYNC_TIMEOUT_MS) { syncChannelsUseCase() }
-            val error = when {
-                result == null -> SectionLoadError.TIMEOUT
-                result.isFailure -> SectionLoadError.NETWORK
-                _uiState.value.allChannels.isEmpty() -> SectionLoadError.EMPTY
-                else -> null
+            _uiState.update { it.copy(isLoading = it.allChannels.isEmpty(), loadError = null, isError = false) }
+            try {
+                // withTimeoutOrNull already fails soft into null on the 15s
+                // budget below — no TimeoutCancellationException ever escapes
+                // this block for the caller to see.
+                val result = withTimeoutOrNull(SECTION_SYNC_TIMEOUT_MS) { syncChannelsUseCase() }
+                val error = when {
+                    result == null -> SectionLoadError.TIMEOUT
+                    result.isFailure -> SectionLoadError.NETWORK
+                    _uiState.value.allChannels.isEmpty() -> SectionLoadError.EMPTY
+                    else -> null
+                }
+                _uiState.update { it.copy(isLoading = false, loadError = error) }
+            } catch (e: Exception) {
+                Log.e("SirKTV_LiveTV", "CRASH during channel sync: ${e.stackTraceToString()}")
+                _uiState.update { it.copy(isLoading = false, isError = true) }
             }
-            _uiState.update { it.copy(isLoading = false, loadError = error) }
         }
+    }
+
+    /** Retry from the full-screen crash-guard error state — clears [LiveTvBrowseUiState.isError] and re-syncs. */
+    fun retryAfterError() {
+        _uiState.update { it.copy(isError = false) }
+        refresh()
     }
 
     /** null selects the pinned "All Channels" row. */

@@ -55,7 +55,7 @@ fun SectionErrorState(error: SectionLoadError, onRetry: () -> Unit, modifier: Mo
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = Dimens.SpaceXl)
             )
-            Button(
+            Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), 
                 onClick = onRetry,
                 colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = SirKTVPrimary, contentColor = androidx.compose.ui.graphics.Color.White),
                 modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER, cornerRadius = Dimens.ButtonCornerRadius)

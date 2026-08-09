@@ -19,11 +19,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,7 +33,6 @@ import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
-import com.sirktv.app.presentation.common.TvSearchField
 import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.MediaRow
@@ -53,7 +49,6 @@ fun SeriesScreen(
     viewModel: SeriesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val firstResultFocusRequester = remember { FocusRequester() }
 
     Column(
         modifier = Modifier
@@ -86,30 +81,6 @@ fun SeriesScreen(
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
-        }
-
-        TvSearchField(
-            query = uiState.searchQuery,
-            onQueryChange = viewModel::onSearchQueryChanged,
-            placeholder = "Search series",
-            firstResultFocusRequester = firstResultFocusRequester.takeIf { uiState.isSearching && uiState.searchResults.isNotEmpty() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = Dimens.SpaceMd)
-        )
-
-        if (uiState.isSearching) {
-            Box(Modifier.padding(top = Dimens.SpaceMd).fillMaxSize()) {
-                SeriesResultsGrid(
-                    series = uiState.searchResults,
-                    categoryName = { categoryId -> uiState.categories.find { it.id == categoryId }?.name },
-                    firstResultFocusRequester = firstResultFocusRequester,
-                    onSeriesSelected = onSeriesSelected,
-                    onToggleFavorite = viewModel::onToggleFavorite,
-                    emptyMessage = "No series match your search."
-                )
-            }
-            return@Column
         }
 
         if (uiState.recentlyAdded.isNotEmpty()) {
@@ -147,8 +118,6 @@ fun SeriesScreen(
         Box(Modifier.padding(top = Dimens.SpaceMd).fillMaxSize()) {
             SeriesResultsGrid(
                 series = uiState.visibleSeries,
-                categoryName = { null },
-                firstResultFocusRequester = null,
                 onSeriesSelected = onSeriesSelected,
                 onToggleFavorite = viewModel::onToggleFavorite,
                 emptyMessage = "No series found in this category."
@@ -160,8 +129,6 @@ fun SeriesScreen(
 @Composable
 private fun SeriesResultsGrid(
     series: List<Series>,
-    categoryName: (String) -> String?,
-    firstResultFocusRequester: FocusRequester?,
     onSeriesSelected: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
     emptyMessage: String
@@ -176,19 +143,15 @@ private fun SeriesResultsGrid(
         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
     ) {
-        gridItemsIndexed(series, key = { _, it -> it.id }) { index, item ->
+        gridItemsIndexed(series, key = { _, it -> it.id }) { _, item ->
             Column {
                 MediaCard(
                     title = item.title,
                     imageUrl = item.posterUrl,
                     aspectRatio = 2f / 3f,
                     rating = item.rating,
-                    subtitle = categoryName(item.categoryId),
                     isFavorite = item.isFavorite,
-                    onClick = { onSeriesSelected(item.id) },
-                    modifier = if (index == 0 && firstResultFocusRequester != null) {
-                        Modifier.focusRequester(firstResultFocusRequester)
-                    } else Modifier
+                    onClick = { onSeriesSelected(item.id) }
                 )
                 FavoriteToggleChip(
                     isFavorite = item.isFavorite,

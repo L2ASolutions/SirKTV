@@ -31,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -41,6 +40,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -86,6 +86,22 @@ private fun Modifier.tvDpadNav(up: FocusRequester? = null, down: FocusRequester?
             Key.DirectionDown -> down?.let { it.requestFocus(); true } ?: false
             else -> false
         }
+    }
+
+/**
+ * The keyboard must never pop just because D-pad focus passed over a field —
+ * only an explicit OK/Select press on a field the user actually wants to type
+ * into should open it. Chained after [tvDpadNav] on each field so Up/Down
+ * still moves focus first; only Enter/DPAD_CENTER falls through to this.
+ */
+private fun Modifier.tvShowKeyboardOnSelect(keyboardController: SoftwareKeyboardController?): Modifier =
+    onPreviewKeyEvent { event ->
+        if (event.type == KeyEventType.KeyDown &&
+            (event.key == Key.Enter || event.key == Key.DirectionCenter || event.key == Key.NumPadEnter)
+        ) {
+            keyboardController?.show()
+            true
+        } else false
     }
 
 @Composable
@@ -175,7 +191,9 @@ private fun LoginContent(
     LaunchedEffect(Unit) {
         delay(300) // wait for composition before the first requestFocus()
         serverUrlFocusRequester.requestFocus()
-        keyboardController?.show()
+        // Silent focus only — the keyboard must NOT open just because the
+        // screen appeared. It opens only when the user presses OK/Select on
+        // a field (see tvShowKeyboardOnSelect on each TextField below).
     }
 
     // Top-aligned and scrollable at the screen level (not just inside the
@@ -260,10 +278,7 @@ private fun LoginContent(
                             .fillMaxWidth()
                             .focusRequester(serverUrlFocusRequester)
                             .tvDpadNav(down = usernameFocusRequester)
-                            // D-pad focus alone doesn't pop the Fire TV system
-                            // keyboard the way a touch tap would — show it
-                            // explicitly the moment this field gains focus.
-                            .onFocusChanged { if (it.isFocused) keyboardController?.show() }
+                            .tvShowKeyboardOnSelect(keyboardController)
                             .tvFocusStyle()
                     )
 
@@ -281,7 +296,7 @@ private fun LoginContent(
                             .fillMaxWidth()
                             .focusRequester(usernameFocusRequester)
                             .tvDpadNav(up = serverUrlFocusRequester, down = passwordFocusRequester)
-                            .onFocusChanged { if (it.isFocused) keyboardController?.show() }
+                            .tvShowKeyboardOnSelect(keyboardController)
                             .tvFocusStyle()
                     )
 
@@ -313,7 +328,7 @@ private fun LoginContent(
                             .fillMaxWidth()
                             .focusRequester(passwordFocusRequester)
                             .tvDpadNav(up = usernameFocusRequester, down = displayNameFocusRequester)
-                            .onFocusChanged { if (it.isFocused) keyboardController?.show() }
+                            .tvShowKeyboardOnSelect(keyboardController)
                             .tvFocusStyle()
                     )
 
@@ -333,7 +348,7 @@ private fun LoginContent(
                             .fillMaxWidth()
                             .focusRequester(displayNameFocusRequester)
                             .tvDpadNav(up = passwordFocusRequester, down = rememberMeFocusRequester)
-                            .onFocusChanged { if (it.isFocused) keyboardController?.show() }
+                            .tvShowKeyboardOnSelect(keyboardController)
                             .tvFocusStyle()
                     )
 
@@ -353,7 +368,7 @@ private fun LoginContent(
                         Text("Remember me on this device", fontSize = 13.sp, color = SirKTVTextSecondary)
                     }
 
-                    Button(
+                    Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), 
                         onClick = onSignInClicked,
                         enabled = !uiState.isLoading,
                         colors = ButtonDefaults.colors(

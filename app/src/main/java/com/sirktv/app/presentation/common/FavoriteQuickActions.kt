@@ -82,7 +82,7 @@ fun FavoriteQuickActionsSheet(
 
 @Composable
 private fun QuickActionRow(label: String, onClick: () -> Unit) {
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
         Text(label, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
     }
 }
@@ -115,11 +115,11 @@ fun ConfirmDialog(
                 modifier = Modifier.fillMaxWidth()
             )
             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
-                Button(
+                Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), 
                     onClick = onCancel,
                     modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)
                 ) { TvText(cancelLabel) }
-                Button(
+                Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), 
                     onClick = onConfirm,
                     colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = SirKTVError, contentColor = Color.White),
                     modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)

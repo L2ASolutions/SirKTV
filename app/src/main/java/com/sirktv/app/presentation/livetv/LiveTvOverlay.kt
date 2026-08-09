@@ -252,7 +252,7 @@ private fun ActionRow(
 
 @Composable
 private fun ActionIcon(label: String, active: Boolean = false, onClick: () -> Unit) {
-    androidx.tv.material3.Surface(
+    androidx.tv.material3.Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
         onClick = onClick,
         modifier = Modifier.size(36.dp).tvFocusStyle(cornerRadius = 18.dp)
     ) {

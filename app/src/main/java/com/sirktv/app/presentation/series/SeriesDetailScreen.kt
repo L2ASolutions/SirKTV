@@ -74,7 +74,7 @@ fun SeriesDetailScreen(
     ) {
         SirKTVChrome(activeItem = SirKTVNavItem.SERIES, onNavigate = onNavigate, onRefresh = {})
 
-        androidx.tv.material3.Surface(
+        androidx.tv.material3.Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
             onClick = onBack,
             modifier = Modifier.padding(top = Dimens.SpaceLg, bottom = Dimens.SpaceSm).tvFocusStyle(cornerRadius = 6.dp)
         ) {
@@ -114,7 +114,7 @@ fun SeriesDetailScreen(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm), modifier = Modifier.padding(top = Dimens.SpaceXs)) {
                     if (firstEpisode != null) {
-                        Button(
+                        Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), 
                             onClick = { onEpisodeSelected(firstEpisode.seriesId, firstEpisode.seasonNumber, firstEpisode.episodeNumber) },
                             colors = ButtonDefaults.colors(containerColor = SirKTVPrimary, contentColor = Color.White),
                             modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)
@@ -122,7 +122,7 @@ fun SeriesDetailScreen(
                             TvText("▶ Play")
                         }
                     }
-                    Button(
+                    Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), 
                         onClick = viewModel::onToggleFavorite,
                         colors = if (series?.isFavorite == true) {
                             ButtonDefaults.colors(containerColor = SirKTVPrimary, contentColor = Color.White)
@@ -208,7 +208,7 @@ private fun SeasonTab(label: String, selected: Boolean, onClick: () -> Unit) {
         label = "seasonTabText"
     )
 
-    Surface(
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
         onClick = onClick,
         modifier = Modifier
             .tvFocusStyle(cornerRadius = 999.dp) { isFocused = it }
@@ -234,7 +234,7 @@ private fun SeasonTab(label: String, selected: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun EpisodeRow(episode: Episode, onSelect: () -> Unit) {
-    Surface(onClick = onSelect, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 12.dp)) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onSelect, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 12.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

@@ -67,7 +67,7 @@ fun CategoryPill(label: String, selected: Boolean, accent: Color = SirKTVPrimary
         },
         label = "categoryPillTextColor"
     )
-    Surface(onClick = onClick, modifier = Modifier.tvFocusStyle(cornerRadius = 999.dp) { isFocused = it }) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.tvFocusStyle(cornerRadius = 999.dp) { isFocused = it }) {
         Box(
             modifier = Modifier
                 .background(background, RoundedCornerShape(999.dp))

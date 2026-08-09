@@ -284,7 +284,7 @@ private fun SeekBar(positionMs: Long, durationMs: Long) {
 
 @Composable
 private fun ActionIcon(label: String, active: Boolean = false, onClick: () -> Unit) {
-    Surface(onClick = onClick, modifier = Modifier.size(40.dp).tvFocusStyle(cornerRadius = 20.dp)) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.size(40.dp).tvFocusStyle(cornerRadius = 20.dp)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()

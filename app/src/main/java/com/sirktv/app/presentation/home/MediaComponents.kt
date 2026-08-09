@@ -104,7 +104,7 @@ fun MediaCard(
             content()
         }
     } else {
-        Surface(onClick = onClick, modifier = modifier.tvFocusStyle()) {
+        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = modifier.tvFocusStyle()) {
             content()
         }
     }
@@ -271,7 +271,7 @@ fun FavoriteToggleChip(isFavorite: Boolean, onToggle: () -> Unit, modifier: Modi
         animationSpec = spring(dampingRatio = 0.4f),
         label = "favoriteFillScale"
     )
-    Surface(onClick = onToggle, modifier = modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onToggle, modifier = modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

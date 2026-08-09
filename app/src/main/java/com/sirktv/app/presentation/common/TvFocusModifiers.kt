@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +25,11 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Border
+import androidx.tv.material3.ButtonBorder
+import androidx.tv.material3.ButtonDefaults
+import androidx.tv.material3.ClickableSurfaceBorder
+import androidx.tv.material3.ClickableSurfaceDefaults
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVFocusBorder
 
@@ -166,3 +172,31 @@ fun Modifier.tvPressLongPress(
             }
         }
 }
+
+/**
+ * androidx.tv.material3.Surface draws its own default focus/press border on
+ * top of whatever [tvFocusStyle]/[tvChannelRowFocusStyle] already renders —
+ * on most TV boxes that shows up as a hard blue/white rectangle around the
+ * item, layered over our scale+glow, especially noticeable while scrolling a
+ * row. Passing this to every `Surface(border = tvNoBorder())` call switches
+ * every one of its border states off, leaving scale + Royal Blue glow as the
+ * only focus indicator anywhere in the app.
+ */
+@Composable
+fun tvNoBorder(): ClickableSurfaceBorder = ClickableSurfaceDefaults.border(
+    border = Border.None,
+    focusedBorder = Border.None,
+    pressedBorder = Border.None,
+    disabledBorder = Border.None,
+    focusedDisabledBorder = Border.None
+)
+
+/** Same as [tvNoBorder] but for androidx.tv.material3.Button, which has its own separate border token set. */
+@Composable
+fun tvNoButtonBorder(): ButtonBorder = ButtonDefaults.border(
+    border = Border.None,
+    focusedBorder = Border.None,
+    pressedBorder = Border.None,
+    disabledBorder = Border.None,
+    focusedDisabledBorder = Border.None
+)

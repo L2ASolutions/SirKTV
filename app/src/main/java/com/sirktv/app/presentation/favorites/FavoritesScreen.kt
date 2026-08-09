@@ -162,7 +162,7 @@ private fun AccordionSection(
     content: @Composable () -> Unit
 ) {
     Column {
-        Surface(onClick = onToggle, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
+        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onToggle, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

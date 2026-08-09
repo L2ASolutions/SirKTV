@@ -88,7 +88,7 @@ private fun ChromeIconButton(icon: String, contentDescription: String, onClick: 
         label = "chromeIconTint"
     )
     val scale by animateFloatAsState(targetValue = if (isFocused) 1.1f else 1f, label = "chromeIconScale")
-    Surface(
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
         onClick = onClick,
         modifier = Modifier.size(40.dp).onFocusChanged { isFocused = it.isFocused }.tvFocusStyle(cornerRadius = 20.dp)
     ) {

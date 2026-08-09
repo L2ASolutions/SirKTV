@@ -106,8 +106,8 @@ private fun PinSetupForm(onCancel: () -> Unit, onConfirm: (String) -> Unit) {
             Text("PINs don't match.", color = SirKTVError, fontSize = 12.sp)
         }
         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
-            Button(onClick = onCancel, modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)) { TvText("Cancel") }
-            Button(
+            Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), onClick = onCancel, modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)) { TvText("Cancel") }
+            Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), 
                 onClick = { onConfirm(pin) },
                 enabled = valid,
                 colors = ButtonDefaults.colors(containerColor = SirKTVPrimary, contentColor = Color.White),

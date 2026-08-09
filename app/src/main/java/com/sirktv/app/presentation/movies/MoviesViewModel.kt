@@ -35,16 +35,13 @@ data class MoviesUiState(
     val categories: List<Category> = emptyList(),
     val allMovies: List<Movie> = emptyList(),
     val continueWatching: List<WatchProgress> = emptyList(),
-    val searchQuery: String = ""
+    // null = the "All" genre pill — shows the full Netflix-style row browse
+    // below. Any other value narrows to a single-category poster grid, same
+    // pattern as Series.
+    val selectedCategoryId: String? = null
 ) {
-    val isSearching: Boolean get() = searchQuery.trim().length >= 2
-
-    val searchResults: List<Movie>
-        get() {
-            val normalized = searchQuery.trim().lowercase()
-            if (normalized.length < 2) return emptyList()
-            return allMovies.filter { it.title.lowercase().contains(normalized) }
-        }
+    val visibleMovies: List<Movie>
+        get() = selectedCategoryId?.let { id -> allMovies.filter { it.categoryId == id } } ?: allMovies
 
     /** Recently Added + genre rows — pulled dynamically from whatever categories the Xtream account has. */
     val rows: List<MovieRow>
@@ -129,8 +126,8 @@ class MoviesViewModel @Inject constructor(
         }
     }
 
-    fun onSearchQueryChanged(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
+    fun onCategorySelected(categoryId: String?) {
+        _uiState.update { it.copy(selectedCategoryId = categoryId) }
     }
 
     fun onToggleFavorite(movieId: String) {

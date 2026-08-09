@@ -112,7 +112,7 @@ fun SettingsScreen(
             }
 
             item {
-                Button(
+                Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), 
                     onClick = viewModel::onLogoutClicked,
                     colors = ButtonDefaults.colors(containerColor = SirKTVError, contentColor = Color.White),
                     modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER)
@@ -135,7 +135,7 @@ private fun SettingsTileCard(tile: SettingsTile, selected: Boolean, onClick: () 
         },
         label = "settingsTileBackground"
     )
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).tvFocusStyle(cornerRadius = Dimens.CardCornerRadius) { isFocused = it }) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).tvFocusStyle(cornerRadius = Dimens.CardCornerRadius) { isFocused = it }) {
         Box(
             modifier = Modifier
                 .fillMaxSize()

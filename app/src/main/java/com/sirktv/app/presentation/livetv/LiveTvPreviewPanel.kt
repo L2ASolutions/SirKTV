@@ -21,7 +21,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -150,7 +153,7 @@ fun LiveTvPreviewPanel(
                 )
             }
 
-            Button(
+            Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), 
                 onClick = { onWatchFullScreen(channel) },
                 colors = ButtonDefaults.colors(containerColor = SirKTVPrimary, contentColor = Color.White),
                 modifier = Modifier
@@ -208,7 +211,14 @@ private fun LiveTvPreviewVideo(
         // Gated behind a null check — the preview player is built lazily and
         // defensively (see LiveTvBrowseViewModel.initPreviewPlayer), so it may
         // genuinely be null (not yet built, or failed to build) at any point.
-        if (previewPlayer != null && previewState !is PlaybackState.Error) {
+        // androidViewFailed additionally guards the PlayerView/AndroidView
+        // interop itself — if the native view ever fails to construct or bind
+        // (device without the right codec, ExoPlayer internals throwing,
+        // etc.) this flips permanently for this composition and the
+        // placeholder takes over instead of retrying a broken view.
+        var androidViewFailed by remember(channel.id) { mutableStateOf(false) }
+
+        if (previewPlayer != null && previewState !is PlaybackState.Error && !androidViewFailed) {
             AndroidView(
                 factory = { context ->
                     runCatching {
@@ -216,16 +226,22 @@ private fun LiveTvPreviewVideo(
                             useController = false
                             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                         }
-                    }.getOrElse { PlayerView(context) }
+                    }.getOrElse {
+                        androidViewFailed = true
+                        PlayerView(context)
+                    }
                 },
-                update = { view -> runCatching { view.player = previewPlayer } },
+                update = { view ->
+                    runCatching { view.player = previewPlayer }
+                        .onFailure { androidViewFailed = true }
+                },
                 modifier = Modifier.fillMaxSize()
             )
         }
 
-        when (previewState) {
-            is PlaybackState.Error -> PreviewUnavailablePlaceholder(channel)
-            is PlaybackState.Buffering, is PlaybackState.Idle -> {
+        when {
+            androidViewFailed || previewState is PlaybackState.Error -> PreviewUnavailablePlaceholder(channel)
+            previewState is PlaybackState.Buffering || previewState is PlaybackState.Idle -> {
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = SirKTVPrimary)
                 }

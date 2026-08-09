@@ -1,5 +1,6 @@
 package com.sirktv.app.presentation.livetv
 
+import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
@@ -49,6 +50,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -96,6 +98,7 @@ fun LiveTvBrowseScreen(
     onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: LiveTvBrowseViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val previewPlayer by viewModel.previewPlayer.collectAsState()
     val previewState by viewModel.previewState.collectAsState()
@@ -115,11 +118,18 @@ fun LiveTvBrowseScreen(
 
     // Preview ExoPlayer construction is deliberately triggered from here, not
     // from the ViewModel's init/constructor — this guarantees it only ever
-    // happens once this screen is actually composed and alive.
+    // happens once this screen is actually composed and alive. Wrapped so
+    // that a crash anywhere in this entry sequence (player build, initial
+    // focus request, etc.) lands as a logged diagnostic instead of taking the
+    // whole app down — see "SirKTV_LiveTV" in logcat.
     LaunchedEffect(Unit) {
-        viewModel.initPreviewPlayer()
-        delay(300)
-        sidebarFocusRequester.requestFocus()
+        try {
+            viewModel.initPreviewPlayer()
+            delay(300)
+            sidebarFocusRequester.requestFocus()
+        } catch (e: Exception) {
+            Log.e("SirKTV_LiveTV", "CRASH on Live TV entry: ${e.stackTraceToString()}")
+        }
     }
 
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
@@ -128,11 +138,13 @@ fun LiveTvBrowseScreen(
         }
 
         when {
+            uiState.isError -> LiveTvCrashErrorState(onRetry = viewModel::retryAfterError)
             uiState.isLoading -> SectionLoadingState("Loading channels…")
             uiState.loadError != null && uiState.allChannels.isEmpty() -> SectionErrorState(
                 error = uiState.loadError!!,
                 onRetry = viewModel::refresh
             )
+            uiState.allChannels.isEmpty() -> SectionLoadingState("Loading channels…")
             // Full width, edge-to-edge — no horizontal safe-zone padding on the three columns themselves.
             else -> Row(Modifier.fillMaxSize()) {
                 LiveTvCategorySidebar(
@@ -168,6 +180,41 @@ fun LiveTvBrowseScreen(
                     onWatchFullScreen = { channel -> onChannelSelected(channel.id) },
                     modifier = Modifier.weight(1f)
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Full-screen crash guard: shown instead of the three-column browse layout
+ * whenever [LiveTvBrowseUiState.isError] is set — i.e. something in this
+ * screen's own init/collector logic threw, as opposed to an ordinary sync
+ * failure (which uses [SectionErrorState] instead). Retry resets the error
+ * flag and re-runs the ViewModel's init sync from scratch.
+ */
+@Composable
+private fun LiveTvCrashErrorState(onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+            Text(
+                text = "Live TV couldn't load",
+                color = SirKTVOnSurfaceStrong,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Something went wrong opening Live TV. Try again.",
+                color = SirKTVOnSurfaceMuted,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = Dimens.SpaceXl)
+            )
+            Button(
+                onClick = onRetry,
+                border = com.sirktv.app.presentation.common.tvNoButtonBorder(),
+                colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = SirKTVPrimary, contentColor = Color.White),
+                modifier = Modifier.tvFocusStyle(accent = TvFocusAccent.BORDER, cornerRadius = Dimens.ButtonCornerRadius)
+            ) {
+                TvText("Retry")
             }
         }
     }
@@ -222,7 +269,7 @@ private fun LiveTvCategorySidebar(
 private fun CategorySidebarRow(label: String, selected: Boolean, onClick: () -> Unit) {
     val accentBarColor by animateColorAsState(targetValue = if (selected) SirKTVPrimary else Color.Transparent, label = "categoryAccent")
 
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 8.dp)) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 8.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -326,7 +373,7 @@ private fun LiveTvChannelRow(
     val accentBarColor by animateColorAsState(targetValue = if (showAccent) SirKTVPrimary else Color.Transparent, label = "rowAccent")
 
     Row(modifier = Modifier.fillMaxWidth().height(ChannelRowHeight), verticalAlignment = Alignment.CenterVertically) {
-        Surface(
+        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
             onClick = onFocusSelected,
             modifier = Modifier
                 .weight(1f)
@@ -460,7 +507,7 @@ internal fun LiveTvFavoriteHeart(
         }
     }
 
-    Surface(
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
         onClick = onToggle,
         modifier = modifier
             .size(40.dp)
@@ -544,7 +591,7 @@ private fun BrowseChannelRow(
         label = "channelRowAccentBarColor"
     )
 
-    Surface(
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 12.dp) { isFocused = it }
     ) {
@@ -662,7 +709,7 @@ internal fun PreviewPanel(
                 ScheduleProgressBar(now, accentColor)
             }
 
-            Button(
+            Button(border = com.sirktv.app.presentation.common.tvNoButtonBorder(), 
                 onClick = { onWatchFullScreen(channel) },
                 colors = androidx.tv.material3.ButtonDefaults.colors(containerColor = accentColor),
                 modifier = Modifier.fillMaxWidth().tvFocusStyle(accent = TvFocusAccent.BORDER)

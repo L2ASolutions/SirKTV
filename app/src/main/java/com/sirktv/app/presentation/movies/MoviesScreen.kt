@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -19,11 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,11 +30,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sirktv.app.domain.model.Movie
 import com.sirktv.app.domain.model.WatchProgress
 import com.sirktv.app.domain.util.RecentlyAdded
+import com.sirktv.app.presentation.common.CategoryPill
 import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
 import com.sirktv.app.presentation.common.SirKTVChrome
 import com.sirktv.app.presentation.common.SirKTVNavItem
-import com.sirktv.app.presentation.common.TvSearchField
 import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.MediaRow
@@ -53,7 +51,6 @@ fun MoviesScreen(
     viewModel: MoviesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val firstResultFocusRequester = remember { FocusRequester() }
 
     Column(
         modifier = Modifier
@@ -80,25 +77,31 @@ fun MoviesScreen(
                 }
             }
 
-            TvSearchField(
-                query = uiState.searchQuery,
-                onQueryChange = viewModel::onSearchQueryChanged,
-                placeholder = "Search movies",
-                firstResultFocusRequester = firstResultFocusRequester.takeIf { uiState.isSearching && uiState.searchResults.isNotEmpty() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = Dimens.SpaceMd)
-            )
+            // Global search lives behind the Search nav pill — this row is a
+            // genre filter only, the correct TV pattern (no on-screen typing).
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = Dimens.SpaceMd)
+            ) {
+                item {
+                    CategoryPill(label = "All", selected = uiState.selectedCategoryId == null) {
+                        viewModel.onCategorySelected(null)
+                    }
+                }
+                items(uiState.categories, key = { it.id }) { category ->
+                    CategoryPill(label = category.name, selected = uiState.selectedCategoryId == category.id) {
+                        viewModel.onCategorySelected(category.id)
+                    }
+                }
+            }
         }
 
         Box(Modifier.padding(top = Dimens.SpaceMd).fillMaxSize()) {
             when {
                 uiState.isLoading -> SectionLoadingState("Loading movies…")
                 uiState.loadError != null -> SectionErrorState(error = uiState.loadError!!, onRetry = viewModel::refresh)
-                uiState.isSearching -> MoviesSearchResults(
-                    results = uiState.searchResults,
-                    categoryName = { categoryId -> uiState.categories.find { it.id == categoryId }?.name },
-                    firstResultFocusRequester = firstResultFocusRequester,
+                uiState.selectedCategoryId != null -> MoviesCategoryGrid(
+                    movies = uiState.visibleMovies,
                     onMovieSelected = onMovieSelected,
                     onToggleFavorite = viewModel::onToggleFavorite
                 )
@@ -155,15 +158,13 @@ private fun MoviesRows(
 }
 
 @Composable
-private fun MoviesSearchResults(
-    results: List<Movie>,
-    categoryName: (String) -> String?,
-    firstResultFocusRequester: FocusRequester,
+private fun MoviesCategoryGrid(
+    movies: List<Movie>,
     onMovieSelected: (String) -> Unit,
     onToggleFavorite: (String) -> Unit
 ) {
-    if (results.isEmpty()) {
-        Text("No movies match your search.", color = SirKTVOnSurfaceMuted, fontSize = 13.sp)
+    if (movies.isEmpty()) {
+        Text("No movies found in this category.", color = SirKTVOnSurfaceMuted, fontSize = 13.sp)
         return
     }
     LazyVerticalGrid(
@@ -172,17 +173,15 @@ private fun MoviesSearchResults(
         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
     ) {
-        gridItemsIndexed(results, key = { _, it -> it.id }) { index, movie ->
+        gridItemsIndexed(movies, key = { _, it -> it.id }) { _, movie ->
             Column {
                 MediaCard(
                     title = movie.title,
                     imageUrl = movie.posterUrl,
                     aspectRatio = 2f / 3f,
                     rating = movie.rating,
-                    subtitle = categoryName(movie.categoryId),
                     isFavorite = movie.isFavorite,
-                    onClick = { onMovieSelected(movie.id) },
-                    modifier = if (index == 0) Modifier.focusRequester(firstResultFocusRequester) else Modifier
+                    onClick = { onMovieSelected(movie.id) }
                 )
                 FavoriteToggleChip(
                     isFavorite = movie.isFavorite,
