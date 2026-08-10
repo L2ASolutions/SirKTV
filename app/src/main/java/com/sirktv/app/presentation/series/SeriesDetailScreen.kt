@@ -186,7 +186,7 @@ fun SeriesDetailScreen(
                 )
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = Dimens.SpaceMd)
+                    modifier = Modifier.background(SirKTVBackground).padding(bottom = Dimens.SpaceMd)
                 ) {
                     items(uiState.seasons, key = { it.seasonNumber }) { season ->
                         SeasonTab(
@@ -209,7 +209,7 @@ fun SeriesDetailScreen(
                 // scrolls internally — every episode stays reachable no
                 // matter how long the list or how much info sits on the left.
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().background(SirKTVBackground),
                     contentPadding = PaddingValues(bottom = Dimens.SpaceLg),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {

@@ -1,6 +1,7 @@
 package com.sirktv.app.presentation.series
 
 import com.sirktv.app.domain.model.Series
+import com.sirktv.app.domain.usecase.GetCachedSeriesUseCase
 import com.sirktv.app.domain.usecase.ObserveSeriesCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveSeriesUseCase
 import com.sirktv.app.domain.usecase.SyncSeriesUseCase
@@ -35,6 +36,7 @@ class SeriesViewModelTest {
         observeSeriesCategoriesUseCase = ObserveSeriesCategoriesUseCase(repo),
         observeSeriesUseCase = ObserveSeriesUseCase(repo),
         syncSeriesUseCase = SyncSeriesUseCase(repo),
+        getCachedSeriesUseCase = GetCachedSeriesUseCase(repo),
         toggleSeriesFavoriteUseCase = ToggleSeriesFavoriteUseCase(repo)
     )
 

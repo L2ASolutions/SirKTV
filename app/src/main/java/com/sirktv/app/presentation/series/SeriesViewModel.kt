@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Series
 import com.sirktv.app.domain.util.RecentlyAdded
+import com.sirktv.app.domain.usecase.GetCachedSeriesUseCase
 import com.sirktv.app.domain.usecase.ObserveSeriesCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveSeriesUseCase
 import com.sirktv.app.domain.usecase.SyncSeriesUseCase
@@ -54,6 +55,7 @@ class SeriesViewModel @Inject constructor(
     observeSeriesCategoriesUseCase: ObserveSeriesCategoriesUseCase,
     observeSeriesUseCase: ObserveSeriesUseCase,
     private val syncSeriesUseCase: SyncSeriesUseCase,
+    private val getCachedSeriesUseCase: GetCachedSeriesUseCase,
     private val toggleSeriesFavoriteUseCase: ToggleSeriesFavoriteUseCase
 ) : ViewModel() {
 
@@ -94,7 +96,13 @@ class SeriesViewModel @Inject constructor(
             val error = when {
                 result == null -> SectionLoadError.TIMEOUT
                 result.isFailure -> SectionLoadError.NETWORK
-                _uiState.value.allSeries.isEmpty() -> SectionLoadError.EMPTY
+                // Query Room directly instead of reading _uiState.value here —
+                // the reactive observeSeriesUseCase collector below updates
+                // state asynchronously off Room's invalidation tracker, so
+                // right after sync() returns that snapshot can still be the
+                // pre-sync empty list, which flashed a false "No content
+                // found" before the Flow caught up.
+                getCachedSeriesUseCase().isEmpty() -> SectionLoadError.EMPTY
                 else -> null
             }
             _uiState.update { it.copy(isLoading = false, loadError = error) }

@@ -23,11 +23,11 @@ object Dimens {
 
     // Premium D-pad focus language, Netflix/Apple-TV style: focus is ALWAYS a
     // soft Royal Blue glow + scale-up — never a border, on cards or buttons.
-    // Cards scale a touch more (they're the primary browsing unit); buttons
-    // scale less since a 56dp-tall filled button scaling 1.08x would feel
-    // heavy. tvFocusStyle picks between these by [TvFocusAccent].
-    const val FocusScale = 1.08f
-    const val ButtonFocusScale = 1.03f
+    // Capped at 1.02x app-wide: anything higher grew a focused card enough to
+    // expand into neighbouring layout space and clip its own subtitle text on
+    // real Fire Stick hardware. tvFocusStyle picks between these by [TvFocusAccent].
+    const val FocusScale = 1.02f
+    const val ButtonFocusScale = 1.02f
     val FocusGlowElevation = 20.dp
     val RowFocusAccentBarWidth = 4.dp
 }

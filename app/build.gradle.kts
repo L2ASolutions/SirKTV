@@ -50,6 +50,17 @@ android {
     packaging {
         resources.excludes.add("/META-INF/{AL2.0,LGPL2.1}")
     }
+
+    testOptions {
+        unitTests {
+            // Plain JVM unit tests run against the unmocked Android SDK jar,
+            // where every method throws by default (e.g. android.util.Log.d)
+            // — this makes them return their default value instead of
+            // throwing, since ViewModels/repositories log diagnostics
+            // directly without a test-friendly wrapper.
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {

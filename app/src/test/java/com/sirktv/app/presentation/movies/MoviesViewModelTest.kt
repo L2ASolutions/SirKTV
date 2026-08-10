@@ -2,6 +2,7 @@ package com.sirktv.app.presentation.movies
 
 import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Movie
+import com.sirktv.app.domain.usecase.GetCachedMoviesUseCase
 import com.sirktv.app.domain.usecase.ObserveContinueWatchingUseCase
 import com.sirktv.app.domain.usecase.ObserveMovieCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveMoviesUseCase
@@ -41,6 +42,7 @@ class MoviesViewModelTest {
         observeMoviesUseCase = ObserveMoviesUseCase(repo),
         observeContinueWatchingUseCase = ObserveContinueWatchingUseCase(FakeWatchProgressRepository()),
         syncMoviesUseCase = SyncMoviesUseCase(repo),
+        getCachedMoviesUseCase = GetCachedMoviesUseCase(repo),
         toggleMovieFavoriteUseCase = ToggleMovieFavoriteUseCase(repo)
     )
 

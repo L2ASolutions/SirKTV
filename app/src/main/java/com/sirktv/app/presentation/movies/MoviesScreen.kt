@@ -56,7 +56,6 @@ import com.sirktv.app.presentation.theme.AppSidebar
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
-import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVPrimaryContainer
 import com.sirktv.app.presentation.theme.SirKTVTextSecondary
@@ -175,6 +174,13 @@ private fun MoviesCategoryRow(name: String, count: Int, selected: Boolean, onCli
         targetValue = if (selected) CategoryRowSelectedBg else Color.Transparent,
         label = "movieCategoryRowBg"
     )
+    // Category names read Royal Blue when idle, white once selected — blue
+    // stays legible even on the rare frame a light background flashes behind
+    // it while white marks the active category unambiguously.
+    val nameColor by animateColorAsState(
+        targetValue = if (selected) Color.White else SirKTVPrimary,
+        label = "movieCategoryRowName"
+    )
     androidx.tv.material3.Surface(
         border = tvNoBorder(),
         onClick = onClick,
@@ -191,7 +197,7 @@ private fun MoviesCategoryRow(name: String, count: Int, selected: Boolean, onCli
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            Text(name, color = SirKTVOnSurfaceStrong, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(name, color = nameColor, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("Total: $count", color = SirKTVTextSecondary, fontSize = 11.sp)
         }
     }

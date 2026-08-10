@@ -1,5 +1,6 @@
 package com.sirktv.app.presentation.movies
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sirktv.app.domain.model.Category
@@ -7,6 +8,7 @@ import com.sirktv.app.domain.model.ContentType
 import com.sirktv.app.domain.model.Movie
 import com.sirktv.app.domain.model.WatchProgress
 import com.sirktv.app.domain.util.RecentlyAdded
+import com.sirktv.app.domain.usecase.GetCachedMoviesUseCase
 import com.sirktv.app.domain.usecase.ObserveContinueWatchingUseCase
 import com.sirktv.app.domain.usecase.ObserveMovieCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveMoviesUseCase
@@ -81,6 +83,7 @@ class MoviesViewModel @Inject constructor(
     observeMoviesUseCase: ObserveMoviesUseCase,
     observeContinueWatchingUseCase: ObserveContinueWatchingUseCase,
     private val syncMoviesUseCase: SyncMoviesUseCase,
+    private val getCachedMoviesUseCase: GetCachedMoviesUseCase,
     private val toggleMovieFavoriteUseCase: ToggleMovieFavoriteUseCase
 ) : ViewModel() {
 
@@ -88,6 +91,7 @@ class MoviesViewModel @Inject constructor(
     val uiState: StateFlow<MoviesUiState> = _uiState.asStateFlow()
 
     init {
+        Log.d("SirKTV_Movies", "=== MoviesViewModel init start ===")
         refresh()
 
         viewModelScope.launch {
@@ -99,6 +103,7 @@ class MoviesViewModel @Inject constructor(
                 ) { categories, movies, continueWatching ->
                     Triple(categories, movies, continueWatching.filter { it.contentType == ContentType.MOVIE })
                 }.collect { (categories, movies, continueWatching) ->
+                    Log.d("SirKTV_Movies", "Room emitted ${categories.size} categories, ${movies.size} movies")
                     _uiState.update {
                         it.copy(
                             categories = categories,
@@ -121,7 +126,12 @@ class MoviesViewModel @Inject constructor(
             val error = when {
                 result == null -> SectionLoadError.TIMEOUT
                 result.isFailure -> SectionLoadError.NETWORK
-                _uiState.value.allMovies.isEmpty() -> SectionLoadError.EMPTY
+                // Query Room directly instead of reading _uiState.value here —
+                // the reactive combine() below updates state asynchronously off
+                // Room's invalidation tracker, so right after sync() returns
+                // that snapshot can still be the pre-sync empty list, which
+                // flashed a false "No content found" before the Flow caught up.
+                getCachedMoviesUseCase().isEmpty() -> SectionLoadError.EMPTY
                 else -> null
             }
             _uiState.update { it.copy(isLoading = false, loadError = error) }

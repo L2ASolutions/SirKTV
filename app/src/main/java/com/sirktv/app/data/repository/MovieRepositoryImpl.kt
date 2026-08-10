@@ -1,5 +1,6 @@
 package com.sirktv.app.data.repository
 
+import android.util.Log
 import com.sirktv.app.data.mapper.MovieMapper
 import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.ContentType
@@ -77,11 +78,15 @@ class MovieRepositoryImpl @Inject constructor(
         return runCatching {
             val playerApiUrl = XtreamUrlBuilder.buildPlayerApiUrl(credentials.serverUrl)
             coroutineScope {
+                Log.d("SirKTV_Movies", "Calling get_vod_categories API")
                 val categoriesDto = async { apiService.getVodCategories(playerApiUrl, credentials.username, credentials.password) }
                 val streamsDto = async { apiService.getVodStreams(playerApiUrl, credentials.username, credentials.password) }
-                val categories = categoriesDto.await().mapNotNull(MovieMapper::toCategoryEntity)
+                val categoriesResponse = categoriesDto.await()
+                Log.d("SirKTV_Movies", "API returned ${categoriesResponse.size} VOD categories")
+                val categories = categoriesResponse.mapNotNull(MovieMapper::toCategoryEntity)
                 val movies = streamsDto.await().mapNotNull(MovieMapper::toMovieEntity)
                 movieDao.replaceAll(categories, movies)
+                Log.d("SirKTV_Movies", "Inserted ${categories.size} categories, ${movies.size} movies into Room")
             }
         }
     }

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,6 +52,7 @@ import com.sirktv.app.presentation.navigation.SirKTVIcons
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVCardBackground
+import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVSurface
 import com.sirktv.app.presentation.theme.SirKTVSurfaceElevated
 import com.sirktv.app.presentation.theme.SirKTVTextPrimary
@@ -65,6 +65,9 @@ private val SeriesTileAccent = Color(0xFF0891B2)
 private val FavoritesTileAccent = Color(0xFFE5534B)
 private val SettingsTileAccent = Color(0xFF57606A)
 private val TileBorderIdle = Color(0xFF21262D)
+
+/** Every Home tile — Live TV included — is exactly this tall; only width is ever distributed with weight(). */
+private val TILE_HEIGHT = 160.dp
 
 /**
  * Home is a pure full-screen launcher now that there's no persistent sidebar
@@ -107,63 +110,74 @@ fun HomeScreen(
             Text("${timeOfDayGreeting()}, ${displayName ?: "there"}", color = SirKTVTextSecondary, fontSize = 14.sp)
         }
 
-        Spacer(Modifier.height(8.dp))
-
-        // ROW 1 — Live TV dominant: full width, tallest tile. It's the
-        // primary feature so it gets the most screen real estate.
-        HomeTile(
-            modifier = Modifier.fillMaxWidth().weight(2.2f),
-            icon = { tint, mod -> SirKTVIcons.LiveTv(tint, mod) },
-            label = "Live TV",
-            subtitle = "Browse all live channels",
-            accentColor = LiveTvTileAccent,
-            onClick = onNavigateToLiveTv
-        )
-
-        // ROW 2 — Movies + Series share a row.
-        Row(
-            modifier = Modifier.fillMaxWidth().weight(1.5f),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        // Remaining space centers the fixed-height tile stack — every tile
+        // (Live TV included) is exactly TILE_HEIGHT tall; weight() below is
+        // only ever used to distribute width within a row, never height.
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.Center
         ) {
+            // ROW 1 — Live TV dominant: full width, same height as every
+            // other tile. It's the primary feature so it gets full width,
+            // not extra height.
             HomeTile(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                icon = { tint, mod -> SirKTVIcons.Movies(tint, mod) },
-                label = "Movies",
-                subtitle = "Browse movies",
-                accentColor = MoviesTileAccent,
-                onClick = onNavigateToMovies
+                modifier = Modifier.fillMaxWidth().height(TILE_HEIGHT),
+                icon = { tint, mod -> SirKTVIcons.LiveTv(tint, mod) },
+                label = "Live TV",
+                subtitle = "Browse all live channels",
+                accentColor = LiveTvTileAccent,
+                onClick = onNavigateToLiveTv
             )
-            HomeTile(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                icon = { tint, mod -> SirKTVIcons.Series(tint, mod) },
-                label = "Series",
-                subtitle = "Browse TV series",
-                accentColor = SeriesTileAccent,
-                onClick = onNavigateToSeries
-            )
-        }
 
-        // ROW 3 — Favorites + Settings fill the bottom, shorter than the rows above.
-        Row(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            HomeTile(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                icon = { tint, mod -> SirKTVIcons.Favorites(tint = tint, filled = true, modifier = mod) },
-                label = "Favorites",
-                subtitle = "Your saved content",
-                accentColor = FavoritesTileAccent,
-                onClick = onNavigateToFavorites
-            )
-            HomeTile(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                icon = { tint, mod -> SirKTVIcons.Settings(tint, mod) },
-                label = "Settings",
-                subtitle = "Player, subtitles, preferences",
-                accentColor = SettingsTileAccent,
-                onClick = onNavigateToSettings
-            )
+            Spacer(Modifier.height(16.dp))
+
+            // ROW 2 — Movies + Series share a row.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                HomeTile(
+                    modifier = Modifier.weight(1f).height(TILE_HEIGHT),
+                    icon = { tint, mod -> SirKTVIcons.Movies(tint, mod) },
+                    label = "Movies",
+                    subtitle = "Browse movies",
+                    accentColor = MoviesTileAccent,
+                    onClick = onNavigateToMovies
+                )
+                HomeTile(
+                    modifier = Modifier.weight(1f).height(TILE_HEIGHT),
+                    icon = { tint, mod -> SirKTVIcons.Series(tint, mod) },
+                    label = "Series",
+                    subtitle = "Browse TV series",
+                    accentColor = SeriesTileAccent,
+                    onClick = onNavigateToSeries
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // ROW 3 — Favorites + Settings, same fixed height as every other tile.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                HomeTile(
+                    modifier = Modifier.weight(1f).height(TILE_HEIGHT),
+                    icon = { tint, mod -> SirKTVIcons.Favorites(tint = tint, filled = true, modifier = mod) },
+                    label = "Favorites",
+                    subtitle = "Your saved content",
+                    accentColor = FavoritesTileAccent,
+                    onClick = onNavigateToFavorites
+                )
+                HomeTile(
+                    modifier = Modifier.weight(1f).height(TILE_HEIGHT),
+                    icon = { tint, mod -> SirKTVIcons.Settings(tint, mod) },
+                    label = "Settings",
+                    subtitle = "Player, subtitles, preferences",
+                    accentColor = SettingsTileAccent,
+                    onClick = onNavigateToSettings
+                )
+            }
         }
     }
 
@@ -191,7 +205,7 @@ private fun HomeTile(
     modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(targetValue = if (isFocused) 1.03f else 1f, label = "homeTileScale")
+    val scale by animateFloatAsState(targetValue = if (isFocused) 1.02f else 1f, label = "homeTileScale")
     val bgColor by animateColorAsState(
         targetValue = if (isFocused) SirKTVSurfaceElevated else SirKTVCardBackground,
         label = "homeTileBg"
@@ -226,7 +240,7 @@ private fun HomeTile(
                     icon(iconTint, Modifier.size(32.dp))
                 }
                 Spacer(Modifier.height(16.dp))
-                Text(label, color = SirKTVTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(label, color = SirKTVPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
                 Text(subtitle, color = SirKTVTextSecondary, fontSize = 13.sp)
             }

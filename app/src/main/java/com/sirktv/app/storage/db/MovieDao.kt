@@ -21,7 +21,7 @@ data class MovieWithFavorite(
 @Dao
 interface MovieDao {
 
-    @Query("SELECT * FROM categories WHERE contentType = 'VOD' ORDER BY name")
+    @Query("SELECT * FROM categories WHERE contentType = 'MOVIE' ORDER BY name")
     fun observeCategories(): Flow<List<CategoryEntity>>
 
     @Query(
@@ -59,7 +59,7 @@ interface MovieDao {
     @Query("DELETE FROM movies")
     suspend fun clearMovies()
 
-    @Query("DELETE FROM categories WHERE contentType = 'VOD'")
+    @Query("DELETE FROM categories WHERE contentType = 'MOVIE'")
     suspend fun clearCategories()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
