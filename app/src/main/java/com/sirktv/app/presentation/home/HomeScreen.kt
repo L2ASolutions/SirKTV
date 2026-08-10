@@ -65,14 +65,14 @@ private val SeriesTileAccent = Color(0xFF0891B2)
 private val FavoritesTileAccent = Color(0xFFE5534B)
 private val SettingsTileAccent = Color(0xFF57606A)
 private val TileBorderIdle = Color(0xFF21262D)
-private val SettingsTileHeight = 80.dp
 
 /**
  * Home is a pure full-screen launcher now that there's no persistent sidebar
  * anywhere in the app — exactly 5 tiles (Live TV, Movies, Series, Favorites,
- * Settings) in a 2x2 grid plus a wide Settings bar, nothing else. It never
- * reads Room or calls the Xtream API; [HomeViewModel] only carries the
- * greeting name.
+ * Settings), nothing else. Live TV is the primary feature so it gets a
+ * dominant full-width tile up top; Movies/Series share a row below it, and
+ * Favorites/Settings fill the bottom row. It never reads Room or calls the
+ * Xtream API; [HomeViewModel] only carries the greeting name.
  */
 @Composable
 fun HomeScreen(
@@ -109,18 +109,22 @@ fun HomeScreen(
 
         Spacer(Modifier.height(8.dp))
 
+        // ROW 1 — Live TV dominant: full width, tallest tile. It's the
+        // primary feature so it gets the most screen real estate.
+        HomeTile(
+            modifier = Modifier.fillMaxWidth().weight(2.2f),
+            icon = { tint, mod -> SirKTVIcons.LiveTv(tint, mod) },
+            label = "Live TV",
+            subtitle = "Browse all live channels",
+            accentColor = LiveTvTileAccent,
+            onClick = onNavigateToLiveTv
+        )
+
+        // ROW 2 — Movies + Series share a row.
         Row(
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = Modifier.fillMaxWidth().weight(1.5f),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            HomeTile(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                icon = { tint, mod -> SirKTVIcons.LiveTv(tint, mod) },
-                label = "Live TV",
-                subtitle = "Browse live channels",
-                accentColor = LiveTvTileAccent,
-                onClick = onNavigateToLiveTv
-            )
             HomeTile(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 icon = { tint, mod -> SirKTVIcons.Movies(tint, mod) },
@@ -129,12 +133,6 @@ fun HomeScreen(
                 accentColor = MoviesTileAccent,
                 onClick = onNavigateToMovies
             )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
             HomeTile(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 icon = { tint, mod -> SirKTVIcons.Series(tint, mod) },
@@ -143,6 +141,13 @@ fun HomeScreen(
                 accentColor = SeriesTileAccent,
                 onClick = onNavigateToSeries
             )
+        }
+
+        // ROW 3 — Favorites + Settings fill the bottom, shorter than the rows above.
+        Row(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             HomeTile(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 icon = { tint, mod -> SirKTVIcons.Favorites(tint = tint, filled = true, modifier = mod) },
@@ -151,17 +156,15 @@ fun HomeScreen(
                 accentColor = FavoritesTileAccent,
                 onClick = onNavigateToFavorites
             )
+            HomeTile(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                icon = { tint, mod -> SirKTVIcons.Settings(tint, mod) },
+                label = "Settings",
+                subtitle = "Player, subtitles, preferences",
+                accentColor = SettingsTileAccent,
+                onClick = onNavigateToSettings
+            )
         }
-
-        HomeTile(
-            modifier = Modifier.fillMaxWidth().height(SettingsTileHeight),
-            icon = { tint, mod -> SirKTVIcons.Settings(tint, mod) },
-            label = "Settings",
-            subtitle = "Player, subtitles, preferences",
-            accentColor = SettingsTileAccent,
-            onClick = onNavigateToSettings,
-            isWide = true
-        )
     }
 
     if (showExitDialog) {
@@ -185,8 +188,7 @@ private fun HomeTile(
     subtitle: String,
     accentColor: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isWide: Boolean = false
+    modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(targetValue = if (isFocused) 1.03f else 1f, label = "homeTileScale")
@@ -211,36 +213,22 @@ private fun HomeTile(
                 .clip(RoundedCornerShape(12.dp))
                 .background(bgColor)
                 .border(borderWidth, borderColor, RoundedCornerShape(12.dp)),
-            contentAlignment = if (isWide) Alignment.CenterStart else Alignment.Center
+            contentAlignment = Alignment.Center
         ) {
-            if (isWide) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 32.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(accentColor.copy(alpha = if (isFocused) 0.25f else 0.12f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    icon(iconTint, Modifier.size(24.dp))
-                    Column {
-                        Text(label, color = SirKTVTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        Text(subtitle, color = SirKTVTextSecondary, fontSize = 12.sp)
-                    }
+                    icon(iconTint, Modifier.size(32.dp))
                 }
-            } else {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(accentColor.copy(alpha = if (isFocused) 0.25f else 0.12f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        icon(iconTint, Modifier.size(32.dp))
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Text(label, color = SirKTVTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
-                    Text(subtitle, color = SirKTVTextSecondary, fontSize = 13.sp)
-                }
+                Spacer(Modifier.height(16.dp))
+                Text(label, color = SirKTVTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(4.dp))
+                Text(subtitle, color = SirKTVTextSecondary, fontSize = 13.sp)
             }
         }
     }
