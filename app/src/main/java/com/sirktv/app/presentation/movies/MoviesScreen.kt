@@ -65,24 +65,26 @@ import com.sirktv.app.presentation.theme.SirKTVTextSecondary
 import com.sirktv.app.presentation.theme.SirKTVTextTertiary
 
 private val PosterCardWidth = 150.dp
-private val CategoryListWidth = 220.dp
+private val CategoryListWidth = 260.dp
 private val CategoryRowHeight = 56.dp
 private val CategoryRowSelectedBg = SirKTVPrimaryContainer
 
 @Composable
 fun MoviesScreen(
     onMovieSelected: (movieId: String) -> Unit,
+    onBack: () -> Unit,
     viewModel: MoviesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // The sidebar is always visible and is how the user leaves this screen —
-    // hardware Back intentionally does nothing here, matching TiviMate.
-    BackHandler(enabled = true) {}
+    // This screen has no sidebar (full-width panels instead) — hardware Back
+    // is the only way to leave, so it jumps to Home.
+    BackHandler(enabled = true) { onBack() }
 
     val categoryFocusRequester = remember { FocusRequester() }
     val contentFocusRequester = remember { FocusRequester() }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
         when {
             uiState.isLoading -> SectionLoadingState("Loading movies…", modifier = Modifier.padding(Dimens.SafeAreaHorizontal))
@@ -122,6 +124,8 @@ fun MoviesScreen(
                 }
             }
         }
+    }
+        com.sirktv.app.presentation.common.BackHomeHint(modifier = Modifier.align(Alignment.TopStart))
     }
 }
 

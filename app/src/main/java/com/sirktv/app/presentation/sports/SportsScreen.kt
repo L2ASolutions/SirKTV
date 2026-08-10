@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -43,14 +44,16 @@ private val SidebarWidth = 200.dp
 @Composable
 fun SportsScreen(
     onChannelSelected: (channelId: String) -> Unit,
+    onBack: () -> Unit,
     viewModel: SportsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // The sidebar is always visible and is how the user leaves this screen —
-    // hardware Back intentionally does nothing here, matching TiviMate.
-    BackHandler(enabled = true) {}
+    // This screen has no sidebar (full-width panels instead) — hardware Back
+    // is the only way to leave, so it jumps to Home.
+    BackHandler(enabled = true) { onBack() }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
         when {
             uiState.isLoading -> SectionLoadingState("Loading channels…")
@@ -79,6 +82,8 @@ fun SportsScreen(
                 )
             }
         }
+    }
+        com.sirktv.app.presentation.common.BackHomeHint(modifier = Modifier.align(Alignment.TopStart))
     }
 }
 

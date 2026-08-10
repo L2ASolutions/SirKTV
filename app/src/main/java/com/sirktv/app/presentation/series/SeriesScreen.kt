@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -62,24 +63,26 @@ import com.sirktv.app.presentation.theme.SirKTVPrimaryContainer
 import com.sirktv.app.presentation.theme.SirKTVTextSecondary
 
 private val PosterCardWidth = 150.dp
-private val CategoryListWidth = 220.dp
+private val CategoryListWidth = 260.dp
 private val CategoryRowHeight = 56.dp
 private val CategoryRowSelectedBg = SirKTVPrimaryContainer
 
 @Composable
 fun SeriesScreen(
     onSeriesSelected: (seriesId: String) -> Unit,
+    onBack: () -> Unit,
     viewModel: SeriesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // The sidebar is always visible and is how the user leaves this screen —
-    // hardware Back intentionally does nothing here, matching TiviMate.
-    BackHandler(enabled = true) {}
+    // This screen has no sidebar (full-width panels instead) — hardware Back
+    // is the only way to leave, so it jumps to Home.
+    BackHandler(enabled = true) { onBack() }
 
     val categoryFocusRequester = remember { FocusRequester() }
     val contentFocusRequester = remember { FocusRequester() }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
         when {
             uiState.isLoading -> SectionLoadingState("Loading series…", modifier = Modifier.padding(Dimens.SafeAreaHorizontal))
@@ -112,6 +115,8 @@ fun SeriesScreen(
                 }
             }
         }
+    }
+        com.sirktv.app.presentation.common.BackHomeHint(modifier = Modifier.align(Alignment.TopStart))
     }
 }
 

@@ -56,9 +56,16 @@ private fun NavHostController.navigateToNavItem(item: SirKTVNavItem) {
 
 internal val PLAYER_ROUTES = setOf(SirKTVDestinations.LIVE_TV, SirKTVDestinations.MOVIE_PLAYER, SirKTVDestinations.EPISODE_PLAYER)
 
+// Sidebar is an allowlist, not a denylist: only these routes show it. Every
+// full-panel content browser (Live TV, Movies, Series, Sports, Series
+// Detail) hides it so those panels get the entire screen width — those
+// screens instead repurpose hardware Back to jump to Home (see backToHome()
+// below) since there's no sidebar left to navigate away with.
+private val SIDEBAR_ROUTES = setOf(SirKTVDestinations.HOME, SirKTVDestinations.FAVORITES, SirKTVDestinations.SETTINGS)
+
 /** Pure route-classification logic, pulled out of the composable so it's unit-testable without a Compose/Navigation test rule. */
 internal fun shouldShowSidebar(route: String?): Boolean =
-    route != null && route != SirKTVDestinations.LOGIN && route !in PLAYER_ROUTES
+    route != null && (route in SIDEBAR_ROUTES || route.startsWith("search"))
 
 /**
  * Leaving a player screen for Search/Settings via a hardware button (not the
@@ -68,6 +75,20 @@ internal fun shouldShowSidebar(route: String?): Boolean =
  */
 private fun NavHostController.popIfOnPlayerRoute() {
     if (currentBackStackEntry?.destination?.route in PLAYER_ROUTES) popBackStack()
+}
+
+/**
+ * Hardware Back on a sidebar-less content browser (Live TV/Movies/Series/
+ * Sports) jumps to Home rather than doing nothing — Home is always already
+ * on the back stack underneath these (they're only ever reached via the
+ * sidebar's own popUpTo(HOME){saveState=true} navigation), so popping back
+ * to it is preferred over a fresh navigate(); the navigate() fallback only
+ * matters for an edge case like a direct deep link.
+ */
+private fun NavHostController.backToHome() {
+    if (!popBackStack(SirKTVDestinations.HOME, false)) {
+        navigate(SirKTVDestinations.HOME)
+    }
 }
 
 /**
@@ -167,7 +188,8 @@ fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
 
                 composable(SirKTVDestinations.LIVE_TV_BROWSE) {
                     LiveTvBrowseScreen(
-                        onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) }
+                        onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
+                        onBack = { navController.backToHome() }
                     )
                 }
 
@@ -180,19 +202,22 @@ fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
 
                 composable(SirKTVDestinations.SPORTS) {
                     SportsScreen(
-                        onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) }
+                        onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
+                        onBack = { navController.backToHome() }
                     )
                 }
 
                 composable(SirKTVDestinations.MOVIES) {
                     MoviesScreen(
-                        onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) }
+                        onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
+                        onBack = { navController.backToHome() }
                     )
                 }
 
                 composable(SirKTVDestinations.SERIES) {
                     SeriesScreen(
-                        onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) }
+                        onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) },
+                        onBack = { navController.backToHome() }
                     )
                 }
 

@@ -36,14 +36,20 @@ class NavigationTest {
     }
 
     @Test
-    fun `browse screens show the sidebar`() {
+    fun `only Home, Favorites, Search, and Settings show the sidebar`() {
         assertTrue(shouldShowSidebar(SirKTVDestinations.HOME))
-        assertTrue(shouldShowSidebar(SirKTVDestinations.LIVE_TV_BROWSE))
-        assertTrue(shouldShowSidebar(SirKTVDestinations.MOVIES))
-        assertTrue(shouldShowSidebar(SirKTVDestinations.SERIES))
-        assertTrue(shouldShowSidebar(SirKTVDestinations.SPORTS))
         assertTrue(shouldShowSidebar(SirKTVDestinations.FAVORITES))
         assertTrue(shouldShowSidebar(SirKTVDestinations.SETTINGS))
+        assertTrue(shouldShowSidebar(SirKTVDestinations.search("batman")))
+    }
+
+    @Test
+    fun `full-panel content browsers hide the sidebar for full screen width`() {
+        assertFalse(shouldShowSidebar(SirKTVDestinations.LIVE_TV_BROWSE))
+        assertFalse(shouldShowSidebar(SirKTVDestinations.MOVIES))
+        assertFalse(shouldShowSidebar(SirKTVDestinations.SERIES))
+        assertFalse(shouldShowSidebar(SirKTVDestinations.SPORTS))
+        assertFalse(shouldShowSidebar(SirKTVDestinations.SERIES_DETAIL))
     }
 
     @Test

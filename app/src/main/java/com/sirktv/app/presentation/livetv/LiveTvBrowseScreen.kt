@@ -102,19 +102,20 @@ internal val LiveTvActiveRowBackground = SirKTVPrimaryContainer
 @Composable
 fun LiveTvBrowseScreen(
     onChannelSelected: (channelId: String) -> Unit,
+    onBack: () -> Unit,
     viewModel: LiveTvBrowseViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val miniPlayer by viewModel.miniPlayer.collectAsState()
     val miniPlayerState by viewModel.miniPlayerState.collectAsState()
 
-    // The sidebar is always visible and is how the user leaves this screen —
-    // hardware Back intentionally does nothing here, matching TiviMate. The
-    // one exception is an open mini player: Back dismisses it (and only it)
-    // before falling back to the no-op, so a stray Back press can't silently
-    // swallow "close the mini player" as if it did nothing at all.
+    // This screen has no sidebar (full-width panels instead) — hardware Back
+    // is the only way to leave, so it jumps to Home. The one exception is an
+    // open mini player: Back dismisses it (and only it) first, so a stray
+    // Back press can't silently skip past "close the mini player" straight
+    // to Home.
     BackHandler(enabled = true) {
-        if (uiState.activeChannelId != null) viewModel.dismissMiniPlayer()
+        if (uiState.activeChannelId != null) viewModel.dismissMiniPlayer() else onBack()
     }
 
     // The mini player ExoPlayer is a screen-scoped resource, independent of
@@ -144,6 +145,7 @@ fun LiveTvBrowseScreen(
         }
     }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
         when {
             uiState.isError -> LiveTvCrashErrorState(onRetry = viewModel::retryAfterError)
@@ -201,6 +203,8 @@ fun LiveTvBrowseScreen(
                 }
             }
         }
+    }
+        com.sirktv.app.presentation.common.BackHomeHint(modifier = Modifier.align(Alignment.TopStart))
     }
 }
 

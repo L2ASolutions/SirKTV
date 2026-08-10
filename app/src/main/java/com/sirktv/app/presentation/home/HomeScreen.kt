@@ -6,12 +6,13 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -59,7 +59,6 @@ import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import com.sirktv.app.presentation.theme.SirKTVSurface
-import com.sirktv.app.presentation.theme.SirKTVSurfaceElevated
 import com.sirktv.app.presentation.theme.SirKTVTextPrimary
 import com.sirktv.app.presentation.theme.SirKTVTextSecondary
 import com.sirktv.app.presentation.theme.SirKTVTextTertiary
@@ -193,11 +192,17 @@ private fun timeOfDayGreeting(): String = when (Calendar.getInstance().get(Calen
     else -> "Good evening"
 }
 
-/** One-tap shortcuts to the sidebar's top three destinations — stacked full-width, 80dp tall each. */
+private val TileBorderIdle = Color(0xFF21262D)
+
+/** One-tap shortcuts to the sidebar's top three destinations — equal-width square tiles in a row, Hot-Player style. */
 @Composable
 private fun HomeSectionTiles(onNavigate: (SirKTVNavItem) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
         HomeSectionTile(
+            modifier = Modifier.weight(1f),
             title = "Live TV",
             subtitle = "Browse live channels",
             accentColor = LiveTvTileAccent,
@@ -205,6 +210,7 @@ private fun HomeSectionTiles(onNavigate: (SirKTVNavItem) -> Unit) {
             onClick = { onNavigate(SirKTVNavItem.LIVE_TV) }
         )
         HomeSectionTile(
+            modifier = Modifier.weight(1f),
             title = "Movies",
             subtitle = "Browse the movie library",
             accentColor = MoviesTileAccent,
@@ -212,6 +218,7 @@ private fun HomeSectionTiles(onNavigate: (SirKTVNavItem) -> Unit) {
             onClick = { onNavigate(SirKTVNavItem.MOVIES) }
         )
         HomeSectionTile(
+            modifier = Modifier.weight(1f),
             title = "Series",
             subtitle = "Browse TV series",
             accentColor = SeriesTileAccent,
@@ -227,61 +234,37 @@ private fun HomeSectionTile(
     subtitle: String,
     accentColor: Color,
     icon: @Composable (Color, Modifier) -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(targetValue = if (isFocused) 1.03f else 1f, label = "homeTileScale")
-    val rowBackground by animateColorAsState(
-        targetValue = if (isFocused) SirKTVSurfaceElevated else SirKTVCardBackground,
-        label = "homeTileBackground"
-    )
-    val glowElevation by animateDpAsState(targetValue = if (isFocused) Dimens.FocusGlowElevation else 0.dp, label = "homeTileGlow")
-    val chevronColor by animateColorAsState(targetValue = if (isFocused) accentColor else SirKTVTextTertiary, label = "homeTileChevron")
+    val scale by animateFloatAsState(targetValue = if (isFocused) 1.04f else 1f, label = "homeTileScale")
+    val borderColor by animateColorAsState(targetValue = if (isFocused) accentColor else TileBorderIdle, label = "homeTileBorder")
+    val borderWidth by animateDpAsState(targetValue = if (isFocused) 2.dp else 1.dp, label = "homeTileBorderWidth")
+    val iconColor by animateColorAsState(targetValue = if (isFocused) accentColor else SirKTVTextPrimary, label = "homeTileIcon")
 
     Surface(
         border = tvNoBorder(),
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(80.dp)
+        modifier = modifier
+            .height(180.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow(
-                elevation = glowElevation,
-                shape = RoundedCornerShape(8.dp),
-                clip = false,
-                ambientColor = accentColor,
-                spotColor = accentColor
-            )
             .onFocusChanged { isFocused = it.isFocused }
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(8.dp))
-                .background(rowBackground),
-            verticalAlignment = Alignment.CenterVertically
+                .clip(RoundedCornerShape(12.dp))
+                .background(SirKTVCardBackground)
+                .border(borderWidth, borderColor, RoundedCornerShape(12.dp)),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Box(Modifier.width(3.dp).fillMaxHeight().background(accentColor))
-            Box(
-                modifier = Modifier
-                    .padding(start = Dimens.SpaceMd)
-                    .size(48.dp)
-                    .background(accentColor.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                icon(accentColor, Modifier.size(24.dp))
-            }
-            Column(modifier = Modifier.weight(1f).padding(horizontal = Dimens.SpaceMd)) {
-                Text(title, color = SirKTVTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-                Text(subtitle, color = SirKTVTextSecondary, fontSize = 12.sp)
-            }
-            Text(
-                "❯",
-                color = chevronColor,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(end = Dimens.SpaceMd)
-            )
+            icon(iconColor, Modifier.size(56.dp))
+            Spacer(Modifier.height(Dimens.SpaceSm))
+            Text(title, color = SirKTVTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text(subtitle, color = SirKTVTextTertiary, fontSize = 11.sp)
         }
     }
 }
