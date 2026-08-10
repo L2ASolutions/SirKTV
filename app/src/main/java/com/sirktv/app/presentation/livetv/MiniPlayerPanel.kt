@@ -58,6 +58,7 @@ import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.common.tvNoBorder
 import com.sirktv.app.presentation.common.tvNoButtonBorder
 import com.sirktv.app.presentation.theme.Dimens
+import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
@@ -111,7 +112,7 @@ fun MiniPlayerPanel(
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 if (event.key == Key.DirectionLeft) {
-                    leftFocusRequester.requestFocus()
+                    runCatching { leftFocusRequester.requestFocus() }
                     true
                 } else false
             },
@@ -168,7 +169,7 @@ fun MiniPlayerPanel(
         if (upcoming.isEmpty()) {
             Text("No schedule available", color = SirKTVOnSurfaceMuted, fontSize = 12.sp)
         } else {
-            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            LazyColumn(modifier = Modifier.weight(1f).background(SirKTVBackground), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(upcoming, key = { it.startEpochSeconds }) { program ->
                     LiveTvScheduleRow(
                         program = program,

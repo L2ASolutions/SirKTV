@@ -70,18 +70,20 @@ class SportsViewModel @Inject constructor(
         refresh()
 
         viewModelScope.launch {
-            observeSportsChannelsUseCase().collect { catalog ->
-                _uiState.update {
-                    val visible = filterChannels(catalog.channels, catalog.categories, it.selectedFilter)
-                    it.copy(
-                        categories = catalog.categories,
-                        allChannels = catalog.channels,
-                        visibleChannels = visible,
-                        selectedChannelId = it.selectedChannelId ?: visible.firstOrNull()?.id,
-                        // Self-heals any stale error the moment real data actually
-                        // lands, regardless of what triggered it to arrive.
-                        loadError = if (catalog.channels.isNotEmpty()) null else it.loadError
-                    )
+            runCatching {
+                observeSportsChannelsUseCase().collect { catalog ->
+                    _uiState.update {
+                        val visible = filterChannels(catalog.channels, catalog.categories, it.selectedFilter)
+                        it.copy(
+                            categories = catalog.categories,
+                            allChannels = catalog.channels,
+                            visibleChannels = visible,
+                            selectedChannelId = it.selectedChannelId ?: visible.firstOrNull()?.id,
+                            // Self-heals any stale error the moment real data actually
+                            // lands, regardless of what triggered it to arrive.
+                            loadError = if (catalog.channels.isNotEmpty()) null else it.loadError
+                        )
+                    }
                 }
             }
         }

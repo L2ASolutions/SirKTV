@@ -58,7 +58,7 @@ fun RowHeader(title: String, count: Int? = null, modifier: Modifier = Modifier) 
 fun <T> MediaRow(title: String, rowItems: List<T>, modifier: Modifier = Modifier, content: @Composable (T) -> Unit) {
     Column(modifier = modifier) {
         RowHeader(title = title, count = rowItems.size)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+        LazyRow(modifier = Modifier.background(SirKTVBackground), horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
             items(rowItems) { item -> content(item) }
         }
     }

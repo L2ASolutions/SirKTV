@@ -70,7 +70,6 @@ import com.sirktv.app.presentation.common.SectionLoadingState
 import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvChannelRowFocusStyle
 import com.sirktv.app.presentation.common.tvFocusStyle
-import com.sirktv.app.presentation.common.tvSidebarEscapeLeft
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVCardBackground
@@ -102,20 +101,20 @@ internal val LiveTvActiveRowBackground = SirKTVPrimaryContainer
 @Composable
 fun LiveTvBrowseScreen(
     onChannelSelected: (channelId: String) -> Unit,
-    onBack: () -> Unit,
     viewModel: LiveTvBrowseViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val miniPlayer by viewModel.miniPlayer.collectAsState()
     val miniPlayerState by viewModel.miniPlayerState.collectAsState()
 
-    // This screen has no sidebar (full-width panels instead) — hardware Back
-    // is the only way to leave, so it jumps to Home. The one exception is an
-    // open mini player: Back dismisses it (and only it) first, so a stray
-    // Back press can't silently skip past "close the mini player" straight
-    // to Home.
-    BackHandler(enabled = true) {
-        if (uiState.activeChannelId != null) viewModel.dismissMiniPlayer() else onBack()
+    // Local override only for the one case the central NavHost-level Back
+    // handler (SirKTVBackHandler) can't know about: an open mini player must
+    // be dismissed by the first Back press rather than immediately leaving
+    // the screen. Disabled (and so a no-op) the instant no mini player is
+    // active, at which point the central handler's "no sidebar, so Back goes
+    // to Home" behavior takes over untouched.
+    BackHandler(enabled = uiState.activeChannelId != null) {
+        viewModel.dismissMiniPlayer()
     }
 
     // The mini player ExoPlayer is a screen-scoped resource, independent of
@@ -273,13 +272,13 @@ private fun LiveTvCategorySidebar(
             modifier = Modifier
                 .fillMaxHeight()
                 .fillMaxWidth()
+                .background(com.sirktv.app.presentation.theme.AppSidebar)
                 .focusRequester(focusRequester)
                 .focusRestorer()
-                .tvSidebarEscapeLeft()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     if (event.key == Key.DirectionRight) {
-                        rightFocusRequester.requestFocus()
+                        runCatching { rightFocusRequester.requestFocus() }
                         true
                     } else false
                 }
@@ -368,6 +367,7 @@ private fun LiveTvChannelListColumn(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(SirKTVBackground)
                     .focusRequester(focusRequester)
                     .focusRestorer()
                     .onPreviewKeyEvent { event ->
@@ -378,12 +378,12 @@ private fun LiveTvChannelListColumn(
                             // rightFocusRequester isn't attached to anything
                             // and requestFocus() would throw.
                             Key.DirectionRight -> if (heartFocused && hasActiveChannel) {
-                                rightFocusRequester.requestFocus(); true
+                                runCatching { rightFocusRequester.requestFocus() }; true
                             } else false
                             Key.DirectionLeft -> if (heartFocused) {
                                 false
                             } else {
-                                leftFocusRequester.requestFocus(); true
+                                runCatching { leftFocusRequester.requestFocus() }; true
                             }
                             else -> false
                         }
@@ -593,7 +593,7 @@ internal fun ChannelListColumn(
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = Dimens.SpaceMd, vertical = Dimens.SpaceMd),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize().background(SirKTVBackground)
             ) {
                 items(channels, key = { it.id }) { channel ->
                     LaunchedEffect(channel.id) { onVisible(channel.id) }
@@ -761,7 +761,7 @@ internal fun PreviewPanel(
             }
 
             Text("Schedule", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = Dimens.SpaceSm))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            LazyColumn(modifier = Modifier.background(SirKTVBackground), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(listings.take(6), key = { it.startEpochSeconds }) { program ->
                     ScheduleRow(program = program, isNow = program == nowNext?.now, isNext = program == nowNext?.next, accentColor = accentColor)
                 }

@@ -86,7 +86,7 @@ fun LiveTvPlayerScreen(
     var okDownAt by remember { mutableStateOf(0L) }
     var longPressTriggered by remember { mutableStateOf(false) }
     val rootFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { rootFocusRequester.requestFocus() }
+    LaunchedEffect(Unit) { runCatching { rootFocusRequester.requestFocus() } }
 
     Box(
         modifier = Modifier
@@ -198,6 +198,7 @@ fun LiveTvPlayerScreen(
                 onChannelListToggle = viewModel::onLeftPressed,
                 onChannelUp = viewModel::onChannelUp,
                 onChannelDown = viewModel::onChannelDown,
+                onClose = onBack,
                 tracks = tracks
             )
         }

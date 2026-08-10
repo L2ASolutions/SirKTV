@@ -1,6 +1,5 @@
 package com.sirktv.app.presentation.settings
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
@@ -55,9 +54,8 @@ fun SettingsScreen(
 ) {
     var expandedTile by remember { mutableStateOf<SettingsTile?>(null) }
 
-    // The sidebar is always visible and is how the user leaves this screen —
-    // hardware Back intentionally does nothing here, matching TiviMate.
-    BackHandler(enabled = true) {}
+    // Hardware Back is handled centrally by SirKTVBackHandler (no sidebar to
+    // navigate away with, so it goes to Home) — nothing screen-local needed here.
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -69,14 +67,14 @@ fun SettingsScreen(
 
     Box(Modifier.fillMaxSize().background(SirKTVBackground)) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().background(SirKTVBackground),
             contentPadding = PaddingValues(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical),
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
         ) {
             item {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(5),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().background(SirKTVBackground),
                     horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
                     verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
                 ) {

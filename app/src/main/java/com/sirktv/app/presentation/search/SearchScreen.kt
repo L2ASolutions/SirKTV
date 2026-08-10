@@ -1,6 +1,5 @@
 package com.sirktv.app.presentation.search
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,11 +49,10 @@ fun SearchScreen(
     val uiState by viewModel.uiState.collectAsState()
     val fieldFocusRequester = remember { FocusRequester() }
     val firstResultFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { fieldFocusRequester.requestFocus() }
+    LaunchedEffect(Unit) { runCatching { fieldFocusRequester.requestFocus() } }
 
-    // The sidebar is always visible and is how the user leaves this screen —
-    // hardware Back intentionally does nothing here, matching TiviMate.
-    BackHandler(enabled = true) {}
+    // Hardware Back is handled centrally by SirKTVBackHandler (no sidebar to
+    // navigate away with, so it goes to Home) — nothing screen-local needed here.
 
     Column(
         modifier = Modifier
@@ -117,7 +115,7 @@ private fun RecentSearches(recent: List<String>, onPick: (String) -> Unit, onCle
             )
         }
     }
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyRow(modifier = Modifier.background(SirKTVBackground), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(recent, key = { it }) { query ->
             CategoryPill(label = query, selected = false, onClick = { onPick(query) })
         }
@@ -147,7 +145,11 @@ private fun SearchResultsList(
         results.movies.isNotEmpty() -> "movies"
         else -> "series"
     }
-    LazyColumn(contentPadding = PaddingValues(bottom = Dimens.SpaceLg), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)) {
+    LazyColumn(
+        modifier = Modifier.background(SirKTVBackground),
+        contentPadding = PaddingValues(bottom = Dimens.SpaceLg),
+        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
+    ) {
         if (results.channels.isNotEmpty()) {
             item {
                 ResultRow(title = "Live TV", count = results.channels.size) {
@@ -219,6 +221,6 @@ private fun SearchResultsList(
 private fun ResultRow(title: String, count: Int, content: LazyListScope.() -> Unit) {
     Column {
         RowHeader(title = title, count = count)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd), content = content)
+        LazyRow(modifier = Modifier.background(SirKTVBackground), horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd), content = content)
     }
 }

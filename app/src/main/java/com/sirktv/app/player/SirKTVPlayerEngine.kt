@@ -111,7 +111,8 @@ class SirKTVPlayerEngine @Inject constructor(
     }
 
     fun attachTo(playerView: PlayerView) {
-        playerView.player = ensurePlayer()
+        val player = ensurePlayer()
+        runCatching { playerView.player = player }
         attachedPlayerView = playerView
         applySubtitleAppearance(playerView)
     }
@@ -176,8 +177,10 @@ class SirKTVPlayerEngine @Inject constructor(
 
     fun togglePlayPause() {
         val player = exoPlayer ?: return
-        player.playWhenReady = !player.playWhenReady
-        _state.value = if (player.playWhenReady) PlaybackState.Playing else PlaybackState.Paused
+        runCatching {
+            player.playWhenReady = !player.playWhenReady
+            _state.value = if (player.playWhenReady) PlaybackState.Playing else PlaybackState.Paused
+        }
     }
 
     /** Manual "Retry" after all automatic attempts were exhausted — starts fresh from the primary URL. */
@@ -209,33 +212,39 @@ class SirKTVPlayerEngine @Inject constructor(
 
     fun applyPreferredQuality(quality: StreamQuality) {
         val player = exoPlayer ?: return
-        val builder = player.trackSelectionParameters.buildUpon()
-        when (quality) {
-            StreamQuality.AUTO -> builder.setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
-            StreamQuality.P1080 -> builder.setMaxVideoSize(1920, 1080)
-            StreamQuality.P720 -> builder.setMaxVideoSize(1280, 720)
-            StreamQuality.P480 -> builder.setMaxVideoSize(854, 480)
+        runCatching {
+            val builder = player.trackSelectionParameters.buildUpon()
+            when (quality) {
+                StreamQuality.AUTO -> builder.setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
+                StreamQuality.P1080 -> builder.setMaxVideoSize(1920, 1080)
+                StreamQuality.P720 -> builder.setMaxVideoSize(1280, 720)
+                StreamQuality.P480 -> builder.setMaxVideoSize(854, 480)
+            }
+            player.trackSelectionParameters = builder.build()
         }
-        player.trackSelectionParameters = builder.build()
     }
 
     fun setTrackOverride(override: TrackSelectionOverride) {
         val player = exoPlayer ?: return
-        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon().addOverride(override).build()
+        runCatching {
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon().addOverride(override).build()
+        }
     }
 
     fun clearTrackTypeOverride(trackType: Int) {
         val player = exoPlayer ?: return
-        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon().clearOverridesOfType(trackType).build()
+        runCatching {
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon().clearOverridesOfType(trackType).build()
+        }
     }
 
     /** Lightweight pause used when the app backgrounds but PiP keeps the player alive. */
     fun pause() {
-        exoPlayer?.playWhenReady = false
+        runCatching { exoPlayer?.playWhenReady = false }
     }
 
     fun resume() {
-        exoPlayer?.playWhenReady = true
+        runCatching { exoPlayer?.playWhenReady = true }
     }
 
     /** Full teardown — used when the app backgrounds outside of PiP, per the Fire Stick memory budget. */
@@ -243,9 +252,11 @@ class SirKTVPlayerEngine @Inject constructor(
         retryJob?.cancel()
         loadTimeoutJob?.cancel()
         bufferHealthPollJob?.cancel()
-        exoPlayer?.let {
-            it.removeListener(playerListener)
-            it.release()
+        runCatching {
+            exoPlayer?.let {
+                it.removeListener(playerListener)
+                it.release()
+            }
         }
         exoPlayer = null
         _state.value = PlaybackState.Idle
@@ -316,32 +327,38 @@ class SirKTVPlayerEngine @Inject constructor(
 
     private fun retryTune(url: String) {
         val player = ensurePlayer()
-        player.setMediaItem(MediaItem.fromUri(url))
-        if (!isLiveContent && resumePositionMs > 0) {
-            player.seekTo(resumePositionMs)
+        runCatching {
+            player.setMediaItem(MediaItem.fromUri(url))
+            if (!isLiveContent && resumePositionMs > 0) {
+                player.seekTo(resumePositionMs)
+            }
+            player.prepare()
+            player.playWhenReady = true
         }
-        player.prepare()
-        player.playWhenReady = true
         applyPreferredQuality(settings.preferredQuality)
     }
 
     /** Main-thread only, same constraint as the buffer-health poll. Returns (positionMs, durationMs), (0, 0) if idle. */
     fun snapshotPosition(): Pair<Long, Long> {
         val player = exoPlayer ?: return 0L to 0L
-        val duration = player.duration
-        return player.currentPosition to (if (duration == androidx.media3.common.C.TIME_UNSET) 0L else duration)
+        return runCatching {
+            val duration = player.duration
+            player.currentPosition to (if (duration == androidx.media3.common.C.TIME_UNSET) 0L else duration)
+        }.getOrDefault(0L to 0L)
     }
 
     /** VOD/episode scrubbing — no-op for live content, which has no seekable timeline. Main-thread only. */
     fun seekTo(positionMs: Long) {
         val player = exoPlayer ?: return
-        val duration = player.duration
-        val clamped = if (duration == androidx.media3.common.C.TIME_UNSET) {
-            positionMs.coerceAtLeast(0L)
-        } else {
-            positionMs.coerceIn(0L, duration)
+        runCatching {
+            val duration = player.duration
+            val clamped = if (duration == androidx.media3.common.C.TIME_UNSET) {
+                positionMs.coerceAtLeast(0L)
+            } else {
+                positionMs.coerceIn(0L, duration)
+            }
+            player.seekTo(clamped)
         }
-        player.seekTo(clamped)
     }
 
     private fun ensurePlayer(): ExoPlayer {
@@ -389,11 +406,13 @@ class SirKTVPlayerEngine @Inject constructor(
         bufferHealthPollJob?.cancel()
         bufferHealthPollJob = appScope.launch(Dispatchers.Main) {
             while (true) {
-                _bufferedAheadMs.value = (player.bufferedPosition - player.currentPosition).coerceAtLeast(0L)
-                // Keep the resume point fresh for VOD/episodes, so a mid-stream
-                // reconnect (see scheduleReconnect) lands close to the drop point
-                // instead of wherever play() was originally called with.
-                if (!isLiveContent) resumePositionMs = player.currentPosition
+                runCatching {
+                    _bufferedAheadMs.value = (player.bufferedPosition - player.currentPosition).coerceAtLeast(0L)
+                    // Keep the resume point fresh for VOD/episodes, so a mid-stream
+                    // reconnect (see scheduleReconnect) lands close to the drop point
+                    // instead of wherever play() was originally called with.
+                    if (!isLiveContent) resumePositionMs = player.currentPosition
+                }
                 delay(1_000)
             }
         }

@@ -49,8 +49,10 @@ class SearchViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            observeRecentSearchesUseCase().collect { recent ->
-                _uiState.update { it.copy(recentSearches = recent) }
+            runCatching {
+                observeRecentSearchesUseCase().collect { recent ->
+                    _uiState.update { it.copy(recentSearches = recent) }
+                }
             }
         }
         // Pre-filled by the Fire TV remote's mic button (ACTION_SEARCH) or the

@@ -132,12 +132,14 @@ class LiveTvPlayerViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            observeChannelsUseCase().collect { channels ->
-                _uiState.update { it.copy(channels = channels) }
-                if (!hasTunedInitialChannel && channels.isNotEmpty()) {
-                    val target = channels.find { it.id == initialChannelId } ?: channels.first()
-                    hasTunedInitialChannel = true
-                    tuneTo(target)
+            runCatching {
+                observeChannelsUseCase().collect { channels ->
+                    _uiState.update { it.copy(channels = channels) }
+                    if (!hasTunedInitialChannel && channels.isNotEmpty()) {
+                        val target = channels.find { it.id == initialChannelId } ?: channels.first()
+                        hasTunedInitialChannel = true
+                        tuneTo(target)
+                    }
                 }
             }
         }

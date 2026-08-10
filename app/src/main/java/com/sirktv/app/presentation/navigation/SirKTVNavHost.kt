@@ -1,16 +1,13 @@
 package com.sirktv.app.presentation.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -18,10 +15,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.sirktv.app.presentation.common.LocalSidebarFocusRequester
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.favorites.FavoritesScreen
-import com.sirktv.app.presentation.home.HomeNavTarget
 import com.sirktv.app.presentation.home.HomeScreen
 import com.sirktv.app.presentation.livetv.LiveTvBrowseScreen
 import com.sirktv.app.presentation.livetv.LiveTvPlayerScreen
@@ -35,7 +30,7 @@ import com.sirktv.app.presentation.sports.SportsScreen
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.vodplayer.VodPlayerScreen
 
-/** Maps a sidebar destination to its route and navigates there, preserving each top-level section's own scroll/state across switches. */
+/** Maps a Home tile destination to its route, preserving each top-level section's own scroll/state across visits. */
 private fun NavHostController.navigateToNavItem(item: SirKTVNavItem) {
     val route = when (item) {
         SirKTVNavItem.HOME -> SirKTVDestinations.HOME
@@ -56,17 +51,6 @@ private fun NavHostController.navigateToNavItem(item: SirKTVNavItem) {
 
 internal val PLAYER_ROUTES = setOf(SirKTVDestinations.LIVE_TV, SirKTVDestinations.MOVIE_PLAYER, SirKTVDestinations.EPISODE_PLAYER)
 
-// Sidebar is an allowlist, not a denylist: only these routes show it. Every
-// full-panel content browser (Live TV, Movies, Series, Sports, Series
-// Detail) hides it so those panels get the entire screen width — those
-// screens instead repurpose hardware Back to jump to Home (see backToHome()
-// below) since there's no sidebar left to navigate away with.
-private val SIDEBAR_ROUTES = setOf(SirKTVDestinations.HOME, SirKTVDestinations.FAVORITES, SirKTVDestinations.SETTINGS)
-
-/** Pure route-classification logic, pulled out of the composable so it's unit-testable without a Compose/Navigation test rule. */
-internal fun shouldShowSidebar(route: String?): Boolean =
-    route != null && (route in SIDEBAR_ROUTES || route.startsWith("search"))
-
 /**
  * Leaving a player screen for Search/Settings via a hardware button (not the
  * player's own Back handling) must still tear the player down properly —
@@ -78,32 +62,52 @@ private fun NavHostController.popIfOnPlayerRoute() {
 }
 
 /**
- * Hardware Back on a sidebar-less content browser (Live TV/Movies/Series/
- * Sports) jumps to Home rather than doing nothing — Home is always already
- * on the back stack underneath these (they're only ever reached via the
- * sidebar's own popUpTo(HOME){saveState=true} navigation), so popping back
- * to it is preferred over a fresh navigate(); the navigate() fallback only
- * matters for an edge case like a direct deep link.
+ * Pure route-classification logic for [SirKTVBackHandler], pulled out of the
+ * composable so it's unit-testable without a Compose/Navigation test rule.
+ * True for every screen that has no local reason to intercept Back: Home
+ * (root-of-stack exit confirmation) and every player route (two-stage
+ * "reveal controls, then leave", which stops playback via its own
+ * onCleared()) keep their own local BackHandler instead, so the two never
+ * race for the same press. Login is excluded too — navigating to Home from
+ * there would skip authentication entirely, so Back on Login falls through
+ * to the platform default instead (there's nothing below it on the stack,
+ * so that's normally "do nothing"/exit).
  */
-private fun NavHostController.backToHome() {
-    if (!popBackStack(SirKTVDestinations.HOME, false)) {
-        navigate(SirKTVDestinations.HOME)
+internal fun centralBackHandlerEnabled(route: String?): Boolean =
+    route != null &&
+        route != SirKTVDestinations.HOME &&
+        route != SirKTVDestinations.LOGIN &&
+        route !in PLAYER_ROUTES
+
+/**
+ * The one and only hardware-Back handler for every screen that has no local
+ * reason to intercept it (see [centralBackHandlerEnabled]) — Live TV/Movies/
+ * Series/Sports browse, Series Detail, Favorites, Settings, Search all have
+ * no sidebar left to navigate away with now that the app shell has none, so
+ * Back always returns to a clean Home.
+ */
+@Composable
+private fun SirKTVBackHandler(navController: NavHostController) {
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentEntry?.destination?.route
+    BackHandler(enabled = centralBackHandlerEnabled(currentRoute)) {
+        navController.navigate(SirKTVDestinations.HOME) {
+            popUpTo(0) { inclusive = true }
+        }
     }
 }
 
 /**
- * TV-native app shell: a fixed left sidebar (see [SirKTVSidebar]) is always
- * on screen except on Login and every fullscreen player route — no per-screen
- * top bar or horizontal nav pills anymore. The sidebar and the NavHost are
- * siblings in one Row so D-pad Left from a screen's own leftmost content can
- * hand off to it (see [LocalSidebarFocusRequester]/tvSidebarEscapeLeft)
- * without the sidebar ever stealing focus on its own.
+ * TV-native app shell: no persistent chrome at all — every screen renders
+ * edge-to-edge and Home's tiles are the only top-level navigation surface.
+ * Hardware Back is handled once, centrally, in [SirKTVBackHandler] rather
+ * than per screen (Home and the player screens are the sole exceptions —
+ * see its doc comment).
  */
 @Composable
 fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
     val navController = rememberNavController()
     val onNavigate: (SirKTVNavItem) -> Unit = { item -> navController.navigateToNavItem(item) }
-    val sidebarFocusRequester = remember { FocusRequester() }
 
     // MainActivity.onKeyDown/onNewIntent have no NavHostController of their
     // own — this is where their posted commands actually become navigation.
@@ -127,159 +131,127 @@ fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
         }
     }
 
-    val currentEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = currentEntry?.destination?.route
-    val showSidebar = shouldShowSidebar(currentRoute)
+    SirKTVBackHandler(navController = navController)
 
-    Row(Modifier.fillMaxSize().background(SirKTVBackground)) {
-        if (showSidebar) {
-            SirKTVSidebar(
-                currentRoute = currentRoute,
-                onNavigate = onNavigate,
-                focusRequester = sidebarFocusRequester
-            )
-        }
-
-        Box(Modifier.weight(1f).fillMaxSize()) {
-            CompositionLocalProvider(LocalSidebarFocusRequester provides sidebarFocusRequester.takeIf { showSidebar }) {
-            NavHost(
-                navController = navController,
-                startDestination = SirKTVDestinations.LOGIN,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                composable(SirKTVDestinations.LOGIN) {
-                    LoginScreen(
-                        onNavigateToLiveTv = { channelId ->
-                            navController.navigate(SirKTVDestinations.liveTv(channelId)) {
-                                popUpTo(SirKTVDestinations.LOGIN) { inclusive = true }
-                            }
-                        },
-                        onNavigateToHome = {
-                            navController.navigate(SirKTVDestinations.HOME) {
-                                popUpTo(SirKTVDestinations.LOGIN) { inclusive = true }
-                            }
+    Box(Modifier.fillMaxSize().background(SirKTVBackground)) {
+        NavHost(
+            navController = navController,
+            startDestination = SirKTVDestinations.LOGIN,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            composable(SirKTVDestinations.LOGIN) {
+                LoginScreen(
+                    onNavigateToLiveTv = { channelId ->
+                        navController.navigate(SirKTVDestinations.liveTv(channelId)) {
+                            popUpTo(SirKTVDestinations.LOGIN) { inclusive = true }
                         }
-                    )
-                }
-
-                composable(SirKTVDestinations.HOME) {
-                    HomeScreen(
-                        onOpenContent = { target ->
-                            when (target) {
-                                is HomeNavTarget.LiveTv -> navController.navigate(SirKTVDestinations.liveTv(target.channelId))
-                                is HomeNavTarget.MoviePlayer -> navController.navigate(SirKTVDestinations.moviePlayer(target.movieId))
-                                is HomeNavTarget.EpisodePlayer ->
-                                    navController.navigate(SirKTVDestinations.episodePlayer(target.seriesId, target.season, target.episode))
-                                is HomeNavTarget.SeriesDetail ->
-                                    navController.navigate(SirKTVDestinations.seriesDetail(target.seriesId))
-                            }
-                        },
-                        // Same nav semantics as a sidebar click (popUpTo HOME
-                        // saveState, singleTop, restoreState) — the Home
-                        // tiles are shortcuts to the sidebar's own destinations.
-                        onNavigateToSection = onNavigate,
-                        onLoggedOut = {
-                            navController.navigate(SirKTVDestinations.LOGIN) {
-                                popUpTo(SirKTVDestinations.HOME) { inclusive = true }
-                            }
+                    },
+                    onNavigateToHome = {
+                        navController.navigate(SirKTVDestinations.HOME) {
+                            popUpTo(SirKTVDestinations.LOGIN) { inclusive = true }
                         }
-                    )
-                }
-
-                composable(SirKTVDestinations.LIVE_TV_BROWSE) {
-                    LiveTvBrowseScreen(
-                        onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
-                        onBack = { navController.backToHome() }
-                    )
-                }
-
-                composable(
-                    route = SirKTVDestinations.LIVE_TV,
-                    arguments = listOf(navArgument("channelId") { type = NavType.StringType })
-                ) {
-                    LiveTvPlayerScreen(onBack = { navController.popBackStack() })
-                }
-
-                composable(SirKTVDestinations.SPORTS) {
-                    SportsScreen(
-                        onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
-                        onBack = { navController.backToHome() }
-                    )
-                }
-
-                composable(SirKTVDestinations.MOVIES) {
-                    MoviesScreen(
-                        onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
-                        onBack = { navController.backToHome() }
-                    )
-                }
-
-                composable(SirKTVDestinations.SERIES) {
-                    SeriesScreen(
-                        onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) },
-                        onBack = { navController.backToHome() }
-                    )
-                }
-
-                composable(
-                    route = SirKTVDestinations.SERIES_DETAIL,
-                    arguments = listOf(navArgument("seriesId") { type = NavType.StringType })
-                ) {
-                    SeriesDetailScreen(
-                        onEpisodeSelected = { seriesId, season, episode ->
-                            navController.navigate(SirKTVDestinations.episodePlayer(seriesId, season, episode))
-                        },
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                composable(SirKTVDestinations.FAVORITES) {
-                    FavoritesScreen(
-                        onLiveSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
-                        onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
-                        onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) }
-                    )
-                }
-
-                composable(
-                    route = SirKTVDestinations.SEARCH,
-                    arguments = listOf(navArgument("query") { type = NavType.StringType; defaultValue = "" })
-                ) {
-                    SearchScreen(
-                        onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
-                        onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
-                        onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) }
-                    )
-                }
-
-                composable(
-                    route = SirKTVDestinations.MOVIE_PLAYER,
-                    arguments = listOf(navArgument("movieId") { type = NavType.StringType })
-                ) {
-                    VodPlayerScreen(onBack = { navController.popBackStack() })
-                }
-
-                composable(
-                    route = SirKTVDestinations.EPISODE_PLAYER,
-                    arguments = listOf(
-                        navArgument("seriesId") { type = NavType.StringType },
-                        navArgument("season") { type = NavType.IntType },
-                        navArgument("episode") { type = NavType.IntType }
-                    )
-                ) {
-                    VodPlayerScreen(onBack = { navController.popBackStack() })
-                }
-
-                composable(SirKTVDestinations.SETTINGS) {
-                    SettingsScreen(
-                        onLoggedOut = {
-                            navController.navigate(SirKTVDestinations.LOGIN) {
-                                popUpTo(SirKTVDestinations.HOME) { inclusive = true }
-                            }
-                        }
-                    )
-                }
+                    }
+                )
             }
+
+            composable(SirKTVDestinations.HOME) {
+                HomeScreen(
+                    onNavigateToLiveTv = { onNavigate(SirKTVNavItem.LIVE_TV) },
+                    onNavigateToMovies = { onNavigate(SirKTVNavItem.MOVIES) },
+                    onNavigateToSeries = { onNavigate(SirKTVNavItem.SERIES) },
+                    onNavigateToFavorites = { onNavigate(SirKTVNavItem.FAVORITES) },
+                    onNavigateToSettings = { onNavigate(SirKTVNavItem.SETTINGS) }
+                )
+            }
+
+            composable(SirKTVDestinations.LIVE_TV_BROWSE) {
+                LiveTvBrowseScreen(
+                    onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) }
+                )
+            }
+
+            composable(
+                route = SirKTVDestinations.LIVE_TV,
+                arguments = listOf(navArgument("channelId") { type = NavType.StringType })
+            ) {
+                LiveTvPlayerScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(SirKTVDestinations.SPORTS) {
+                SportsScreen(
+                    onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) }
+                )
+            }
+
+            composable(SirKTVDestinations.MOVIES) {
+                MoviesScreen(
+                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) }
+                )
+            }
+
+            composable(SirKTVDestinations.SERIES) {
+                SeriesScreen(
+                    onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) }
+                )
+            }
+
+            composable(
+                route = SirKTVDestinations.SERIES_DETAIL,
+                arguments = listOf(navArgument("seriesId") { type = NavType.StringType })
+            ) {
+                SeriesDetailScreen(
+                    onEpisodeSelected = { seriesId, season, episode ->
+                        navController.navigate(SirKTVDestinations.episodePlayer(seriesId, season, episode))
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(SirKTVDestinations.FAVORITES) {
+                FavoritesScreen(
+                    onLiveSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
+                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
+                    onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) }
+                )
+            }
+
+            composable(
+                route = SirKTVDestinations.SEARCH,
+                arguments = listOf(navArgument("query") { type = NavType.StringType; defaultValue = "" })
+            ) {
+                SearchScreen(
+                    onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
+                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
+                    onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) }
+                )
+            }
+
+            composable(
+                route = SirKTVDestinations.MOVIE_PLAYER,
+                arguments = listOf(navArgument("movieId") { type = NavType.StringType })
+            ) {
+                VodPlayerScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(
+                route = SirKTVDestinations.EPISODE_PLAYER,
+                arguments = listOf(
+                    navArgument("seriesId") { type = NavType.StringType },
+                    navArgument("season") { type = NavType.IntType },
+                    navArgument("episode") { type = NavType.IntType }
+                )
+            ) {
+                VodPlayerScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(SirKTVDestinations.SETTINGS) {
+                SettingsScreen(
+                    onLoggedOut = {
+                        navController.navigate(SirKTVDestinations.LOGIN) {
+                            popUpTo(SirKTVDestinations.HOME) { inclusive = true }
+                        }
+                    }
+                )
             }
         }
     }

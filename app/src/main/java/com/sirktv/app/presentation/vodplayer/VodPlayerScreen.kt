@@ -93,7 +93,7 @@ fun VodPlayerScreen(
     KeepScreenOnWhilePlaying(uiState.playbackState)
 
     val rootFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { rootFocusRequester.requestFocus() }
+    LaunchedEffect(Unit) { runCatching { rootFocusRequester.requestFocus() } }
 
     Box(
         modifier = Modifier
@@ -156,7 +156,8 @@ fun VodPlayerScreen(
                 onSelectAudioTrack = viewModel::selectTrack,
                 onClearAudioTrack = viewModel::clearAudioOverride,
                 onToggleCaptions = viewModel::onToggleCaptions,
-                onSelectQuality = viewModel::selectQuality
+                onSelectQuality = viewModel::selectQuality,
+                onClose = onBack
             )
         }
 
@@ -189,7 +190,8 @@ private fun VodOverlay(
     onSelectAudioTrack: (androidx.media3.common.Tracks.Group, Int) -> Unit,
     onClearAudioTrack: () -> Unit,
     onToggleCaptions: () -> Unit,
-    onSelectQuality: (com.sirktv.app.domain.model.StreamQuality) -> Unit
+    onSelectQuality: (com.sirktv.app.domain.model.StreamQuality) -> Unit,
+    onClose: () -> Unit
 ) {
     var activeSheet by remember { mutableStateOf<VodSheet?>(null) }
 
@@ -217,11 +219,14 @@ private fun VodOverlay(
                 .fillMaxSize()
                 .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
         ) {
-            Column(modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().glassCard().padding(Dimens.SpaceMd)) {
-                Text(uiState.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                uiState.subtitle?.let {
-                    Text(it, color = Color.White.copy(alpha = 0.65f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f).glassCard().padding(Dimens.SpaceMd)) {
+                    Text(uiState.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    uiState.subtitle?.let {
+                        Text(it, color = Color.White.copy(alpha = 0.65f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
+                ActionIcon(label = "✕", onClick = onClose, modifier = Modifier.padding(start = Dimens.SpaceSm))
             }
 
             Column(
@@ -283,8 +288,8 @@ private fun SeekBar(positionMs: Long, durationMs: Long) {
 }
 
 @Composable
-private fun ActionIcon(label: String, active: Boolean = false, onClick: () -> Unit) {
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.size(40.dp).tvFocusStyle(cornerRadius = 20.dp)) {
+private fun ActionIcon(label: String, active: Boolean = false, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = modifier.size(40.dp).tvFocusStyle(cornerRadius = 20.dp)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()

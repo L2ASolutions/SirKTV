@@ -64,20 +64,24 @@ class SeriesViewModel @Inject constructor(
         refresh()
 
         viewModelScope.launch {
-            observeSeriesCategoriesUseCase().collect { categories ->
-                _uiState.update { it.copy(categories = categories) }
+            runCatching {
+                observeSeriesCategoriesUseCase().collect { categories ->
+                    _uiState.update { it.copy(categories = categories) }
+                }
             }
         }
         viewModelScope.launch {
-            observeSeriesUseCase().collect { series ->
-                _uiState.update {
-                    it.copy(
-                        allSeries = series,
-                        visibleSeries = filter(series, it.selectedCategoryId),
-                        // Self-heals any stale error the moment real data actually
-                        // lands, regardless of what triggered it to arrive.
-                        loadError = if (series.isNotEmpty()) null else it.loadError
-                    )
+            runCatching {
+                observeSeriesUseCase().collect { series ->
+                    _uiState.update {
+                        it.copy(
+                            allSeries = series,
+                            visibleSeries = filter(series, it.selectedCategoryId),
+                            // Self-heals any stale error the moment real data actually
+                            // lands, regardless of what triggered it to arrive.
+                            loadError = if (series.isNotEmpty()) null else it.loadError
+                        )
+                    }
                 }
             }
         }

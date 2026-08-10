@@ -66,7 +66,7 @@ fun TvSearchField(
             isEditing = false
             keyboardController?.hide()
             onSearchSubmitted()
-            firstResultFocusRequester?.requestFocus()
+            runCatching { firstResultFocusRequester?.requestFocus() }
         }),
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = SirKTVBackground,
@@ -99,7 +99,7 @@ fun TvSearchField(
                         if (firstResultFocusRequester != null) {
                             isEditing = false
                             keyboardController?.hide()
-                            firstResultFocusRequester.requestFocus()
+                            runCatching { firstResultFocusRequester.requestFocus() }
                             true
                         } else false
                     }

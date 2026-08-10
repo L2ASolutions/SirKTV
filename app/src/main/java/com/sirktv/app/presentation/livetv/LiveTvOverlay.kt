@@ -47,6 +47,7 @@ fun LiveTvOverlay(
     onChannelListToggle: () -> Unit,
     onChannelUp: () -> Unit,
     onChannelDown: () -> Unit,
+    onClose: () -> Unit,
     tracks: androidx.media3.common.Tracks?
 ) {
     var activeSheet by remember { mutableStateOf<OverlaySheet?>(null) }
@@ -86,6 +87,7 @@ fun LiveTvOverlay(
                 channel?.let { ChannelChip(name = it.name, number = it.channelNumber) }
                 Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                     LiveDotBadge()
+                    ActionIcon(label = "✕", onClick = onClose, modifier = Modifier.padding(start = Dimens.SpaceSm))
                 }
             }
 
@@ -251,10 +253,10 @@ private fun ActionRow(
 }
 
 @Composable
-private fun ActionIcon(label: String, active: Boolean = false, onClick: () -> Unit) {
-    androidx.tv.material3.Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
+private fun ActionIcon(label: String, active: Boolean = false, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    androidx.tv.material3.Surface(border = com.sirktv.app.presentation.common.tvNoBorder(),
         onClick = onClick,
-        modifier = Modifier.size(36.dp).tvFocusStyle(cornerRadius = 18.dp)
+        modifier = modifier.size(36.dp).tvFocusStyle(cornerRadius = 18.dp)
     ) {
         Box(
             modifier = Modifier

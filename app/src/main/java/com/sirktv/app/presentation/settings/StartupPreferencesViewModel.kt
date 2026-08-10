@@ -29,7 +29,7 @@ class StartupPreferencesViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { getStartupPreferenceUseCase().collect { _preference.value = it } }
-        viewModelScope.launch { observeChannelsUseCase().collect { _channels.value = it } }
+        viewModelScope.launch { runCatching { observeChannelsUseCase().collect { _channels.value = it } } }
     }
 
     fun setAutoStart(enabled: Boolean) = updatePreference { it.copy(autoStartLiveTv = enabled) }

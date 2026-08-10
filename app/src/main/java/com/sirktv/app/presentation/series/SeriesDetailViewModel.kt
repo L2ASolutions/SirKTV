@@ -42,8 +42,10 @@ class SeriesDetailViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            observeSeriesUseCase().collect { list ->
-                _uiState.update { it.copy(series = list.find { series -> series.id == seriesId }) }
+            runCatching {
+                observeSeriesUseCase().collect { list ->
+                    _uiState.update { it.copy(series = list.find { series -> series.id == seriesId }) }
+                }
             }
         }
         viewModelScope.launch {

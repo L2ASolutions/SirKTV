@@ -58,12 +58,14 @@ class FavoritesViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            combine(
-                observeFavoriteChannelsUseCase(),
-                observeFavoriteMoviesUseCase(),
-                observeFavoriteSeriesUseCase()
-            ) { channels, movies, series -> FavoritesUiState(channels, movies, series) }
-                .collect { state -> _uiState.value = state }
+            runCatching {
+                combine(
+                    observeFavoriteChannelsUseCase(),
+                    observeFavoriteMoviesUseCase(),
+                    observeFavoriteSeriesUseCase()
+                ) { channels, movies, series -> FavoritesUiState(channels, movies, series) }
+                    .collect { state -> _uiState.value = state }
+            }
         }
     }
 

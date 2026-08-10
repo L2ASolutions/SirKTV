@@ -1,75 +1,51 @@
 package com.sirktv.app.presentation.navigation
 
-import com.sirktv.app.presentation.common.SirKTVNavItem
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Covers the two pieces of the sidebar-shell routing that are pure functions
- * — [shouldShowSidebar] and [routeToNavItem] — and are therefore safe to
- * unit-test without a Compose/Navigation test rule or an emulator. The
- * behavioral cases requested alongside these (back-from-player, back-from-
- * home showing the exit dialog) are BackHandler/NavController integration
- * behavior that lives entirely inside composables; verifying those needs an
- * instrumented or Robolectric-backed Compose UI test, which this project
- * doesn't have set up yet — see the final report for what's not covered here.
+ * Covers [centralBackHandlerEnabled] — the pure route-classification logic
+ * behind the app's single centralized Back handler, and therefore safe to
+ * unit-test without a Compose/Navigation test rule or an emulator. Home and
+ * the three player routes manage Back locally (root exit-confirmation and
+ * the two-stage "reveal controls, then leave" respectively); every other
+ * screen has no sidebar left to navigate away with, so the central handler
+ * takes it back to Home.
  */
 class NavigationTest {
 
     @Test
-    fun `player screens show no sidebar`() {
-        assertFalse(shouldShowSidebar(SirKTVDestinations.LIVE_TV))
-        assertFalse(shouldShowSidebar(SirKTVDestinations.MOVIE_PLAYER))
-        assertFalse(shouldShowSidebar(SirKTVDestinations.EPISODE_PLAYER))
+    fun `home manages its own Back — central handler stays disabled there`() {
+        assertFalse(centralBackHandlerEnabled(SirKTVDestinations.HOME))
     }
 
     @Test
-    fun `login screen shows no sidebar`() {
-        assertFalse(shouldShowSidebar(SirKTVDestinations.LOGIN))
+    fun `player routes manage their own two-stage Back — central handler stays disabled there`() {
+        assertFalse(centralBackHandlerEnabled(SirKTVDestinations.LIVE_TV))
+        assertFalse(centralBackHandlerEnabled(SirKTVDestinations.MOVIE_PLAYER))
+        assertFalse(centralBackHandlerEnabled(SirKTVDestinations.EPISODE_PLAYER))
     }
 
     @Test
-    fun `unknown or null route shows no sidebar`() {
-        assertFalse(shouldShowSidebar(null))
+    fun `unknown or null route stays disabled`() {
+        assertFalse(centralBackHandlerEnabled(null))
     }
 
     @Test
-    fun `only Home, Favorites, Search, and Settings show the sidebar`() {
-        assertTrue(shouldShowSidebar(SirKTVDestinations.HOME))
-        assertTrue(shouldShowSidebar(SirKTVDestinations.FAVORITES))
-        assertTrue(shouldShowSidebar(SirKTVDestinations.SETTINGS))
-        assertTrue(shouldShowSidebar(SirKTVDestinations.search("batman")))
+    fun `every full-panel content browser and utility screen is handled centrally`() {
+        assertTrue(centralBackHandlerEnabled(SirKTVDestinations.LIVE_TV_BROWSE))
+        assertTrue(centralBackHandlerEnabled(SirKTVDestinations.MOVIES))
+        assertTrue(centralBackHandlerEnabled(SirKTVDestinations.SERIES))
+        assertTrue(centralBackHandlerEnabled(SirKTVDestinations.SPORTS))
+        assertTrue(centralBackHandlerEnabled(SirKTVDestinations.SERIES_DETAIL))
+        assertTrue(centralBackHandlerEnabled(SirKTVDestinations.FAVORITES))
+        assertTrue(centralBackHandlerEnabled(SirKTVDestinations.SETTINGS))
+        assertTrue(centralBackHandlerEnabled(SirKTVDestinations.search("batman")))
     }
 
     @Test
-    fun `full-panel content browsers hide the sidebar for full screen width`() {
-        assertFalse(shouldShowSidebar(SirKTVDestinations.LIVE_TV_BROWSE))
-        assertFalse(shouldShowSidebar(SirKTVDestinations.MOVIES))
-        assertFalse(shouldShowSidebar(SirKTVDestinations.SERIES))
-        assertFalse(shouldShowSidebar(SirKTVDestinations.SPORTS))
-        assertFalse(shouldShowSidebar(SirKTVDestinations.SERIES_DETAIL))
-    }
-
-    @Test
-    fun `sidebar navigation routes to correct screen`() {
-        assertEquals(SirKTVNavItem.HOME, routeToNavItem(SirKTVDestinations.HOME))
-        assertEquals(SirKTVNavItem.LIVE_TV, routeToNavItem(SirKTVDestinations.LIVE_TV_BROWSE))
-        assertEquals(SirKTVNavItem.MOVIES, routeToNavItem(SirKTVDestinations.MOVIES))
-        assertEquals(SirKTVNavItem.SERIES, routeToNavItem(SirKTVDestinations.SERIES))
-        assertEquals(SirKTVNavItem.SPORTS, routeToNavItem(SirKTVDestinations.SPORTS))
-        assertEquals(SirKTVNavItem.FAVORITES, routeToNavItem(SirKTVDestinations.FAVORITES))
-        assertEquals(SirKTVNavItem.SETTINGS, routeToNavItem(SirKTVDestinations.SETTINGS))
-    }
-
-    @Test
-    fun `series detail keeps series highlighted in sidebar`() {
-        assertEquals(SirKTVNavItem.SERIES, routeToNavItem(SirKTVDestinations.SERIES_DETAIL))
-    }
-
-    @Test
-    fun `search with a query still highlights search`() {
-        assertEquals(SirKTVNavItem.SEARCH, routeToNavItem(SirKTVDestinations.search("batman")))
+    fun `login is excluded — Back must never force-navigate to Home and skip authentication`() {
+        assertFalse(centralBackHandlerEnabled(SirKTVDestinations.LOGIN))
     }
 }

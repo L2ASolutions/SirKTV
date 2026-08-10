@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
+import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import androidx.tv.material3.Surface
 
@@ -57,7 +58,7 @@ fun StartupPreferencesScreen(viewModel: StartupPreferencesViewModel = hiltViewMo
                 Text("Startup channel", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Box(Modifier.alpha(if (preference.resumeLastChannel) 0.4f else 1f)) {
                     LazyColumn(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp).background(SirKTVBackground),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         items(channels, key = { it.id }) { channel ->

@@ -10,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,7 +17,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -222,38 +220,3 @@ fun tvNoButtonBorder(): ButtonBorder = ButtonDefaults.border(
     focusedDisabledBorder = Border.None
 )
 
-/**
- * The always-visible app-shell sidebar's own [FocusRequester], provided once
- * at the app-shell root (see SirKTVSidebar.kt) so any screen deep in the
- * NavHost can hand focus back to it without threading a parameter through
- * every screen's signature. Null on routes that render no sidebar at all
- * (login, player screens) — [tvSidebarEscapeLeft] is a no-op there.
- */
-val LocalSidebarFocusRequester = compositionLocalOf<FocusRequester?> { null }
-
-/**
- * Explicit "Left exits to the sidebar" handoff for a screen's single-column
- * leftmost container (a vertical list/stack where DirectionLeft has no other
- * in-container meaning — e.g. a category sidebar or a stack of section
- * headers). Deliberately NOT meant for multi-item horizontal rows or
- * multi-column grids: attaching this to a whole Row/grid container would
- * intercept every Left press in the capture phase before the currently
- * focused child gets a chance to move focus to its own left neighbor,
- * breaking in-row navigation. Those containers instead rely on Compose's
- * default 2D focus search to reach the sidebar once nothing further left
- * remains — which already works in this codebase since no row/grid item here
- * consumes DirectionLeft itself.
- */
-fun Modifier.tvSidebarEscapeLeft(): Modifier = composed {
-    val sidebarFocusRequester = LocalSidebarFocusRequester.current
-    if (sidebarFocusRequester == null) {
-        this
-    } else {
-        this.onPreviewKeyEvent { event ->
-            if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft) {
-                sidebarFocusRequester.requestFocus()
-                true
-            } else false
-        }
-    }
-}

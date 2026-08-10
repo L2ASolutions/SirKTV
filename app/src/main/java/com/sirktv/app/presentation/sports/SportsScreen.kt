@@ -1,6 +1,5 @@
 package com.sirktv.app.presentation.sports
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,7 +29,6 @@ import androidx.tv.material3.Surface
 import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
 import com.sirktv.app.presentation.common.tvFocusStyle
-import com.sirktv.app.presentation.common.tvSidebarEscapeLeft
 import com.sirktv.app.presentation.livetv.ChannelListColumn
 import com.sirktv.app.presentation.livetv.PreviewPanel
 import com.sirktv.app.presentation.theme.Dimens
@@ -44,14 +42,12 @@ private val SidebarWidth = 200.dp
 @Composable
 fun SportsScreen(
     onChannelSelected: (channelId: String) -> Unit,
-    onBack: () -> Unit,
     viewModel: SportsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // This screen has no sidebar (full-width panels instead) — hardware Back
-    // is the only way to leave, so it jumps to Home.
-    BackHandler(enabled = true) { onBack() }
+    // Hardware Back is handled centrally by SirKTVBackHandler (no sidebar to
+    // navigate away with, so it goes to Home) — nothing screen-local needed here.
 
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
@@ -94,7 +90,7 @@ private fun FilterSidebar(selectedFilter: SportsFilter, onFilterSelected: (Sport
             modifier = Modifier
                 .fillMaxHeight()
                 .fillMaxWidth()
-                .tvSidebarEscapeLeft()
+                .background(Color(0xFF0A0A0F))
                 .padding(vertical = Dimens.SpaceMd, horizontal = Dimens.SpaceSm),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {

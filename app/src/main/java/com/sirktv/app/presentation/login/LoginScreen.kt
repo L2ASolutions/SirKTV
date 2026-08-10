@@ -82,8 +82,8 @@ private fun Modifier.tvDpadNav(up: FocusRequester? = null, down: FocusRequester?
     onPreviewKeyEvent { event ->
         if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
         when (event.key) {
-            Key.DirectionUp -> up?.let { it.requestFocus(); true } ?: false
-            Key.DirectionDown -> down?.let { it.requestFocus(); true } ?: false
+            Key.DirectionUp -> up?.let { runCatching { it.requestFocus() }; true } ?: false
+            Key.DirectionDown -> down?.let { runCatching { it.requestFocus() }; true } ?: false
             else -> false
         }
     }
@@ -190,7 +190,7 @@ private fun LoginContent(
 
     LaunchedEffect(Unit) {
         delay(300) // wait for composition before the first requestFocus()
-        serverUrlFocusRequester.requestFocus()
+        runCatching { serverUrlFocusRequester.requestFocus() }
         // Silent focus only — the keyboard must NOT open just because the
         // screen appeared. It opens only when the user presses OK/Select on
         // a field (see tvShowKeyboardOnSelect on each TextField below).
@@ -271,7 +271,7 @@ private fun LoginContent(
                         singleLine = true,
                         enabled = !uiState.isLoading,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        keyboardActions = KeyboardActions(onNext = { usernameFocusRequester.requestFocus() }),
+                        keyboardActions = KeyboardActions(onNext = { runCatching { usernameFocusRequester.requestFocus() } }),
                         colors = loginFieldColors(),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
@@ -289,7 +289,7 @@ private fun LoginContent(
                         singleLine = true,
                         enabled = !uiState.isLoading,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        keyboardActions = KeyboardActions(onNext = { passwordFocusRequester.requestFocus() }),
+                        keyboardActions = KeyboardActions(onNext = { runCatching { passwordFocusRequester.requestFocus() } }),
                         colors = loginFieldColors(),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
@@ -307,7 +307,7 @@ private fun LoginContent(
                         singleLine = true,
                         enabled = !uiState.isLoading,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
-                        keyboardActions = KeyboardActions(onNext = { displayNameFocusRequester.requestFocus() }),
+                        keyboardActions = KeyboardActions(onNext = { runCatching { displayNameFocusRequester.requestFocus() } }),
                         visualTransformation = if (uiState.isPasswordVisible) {
                             VisualTransformation.None
                         } else {
@@ -341,7 +341,7 @@ private fun LoginContent(
                         singleLine = true,
                         enabled = !uiState.isLoading,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        keyboardActions = KeyboardActions(onNext = { rememberMeFocusRequester.requestFocus() }),
+                        keyboardActions = KeyboardActions(onNext = { runCatching { rememberMeFocusRequester.requestFocus() } }),
                         colors = loginFieldColors(),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier

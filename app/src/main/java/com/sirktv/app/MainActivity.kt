@@ -5,6 +5,8 @@ import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
+import android.util.Log
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -36,6 +38,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        installCrashRecoveryHandler()
         handleSearchIntent(intent)
         setContent {
             SirKTVTheme {
@@ -123,4 +126,28 @@ class MainActivity : ComponentActivity() {
 
     private fun isInPipModeCompat(): Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode
+
+    // A last-resort net for whatever runCatching/try-catch missed elsewhere in
+    // the app: by the time the JVM hands us a truly uncaught exception, this
+    // thread is already unwinding, so there's no surviving Compose tree to
+    // navigate within — the only reliable recovery is a fresh restart. Landing
+    // back on this same Activity re-enters SirKTVNavHost at Login, which
+    // silently re-authenticates a saved session and routes to Home in the
+    // same couple of frames a normal cold start would, so this reads to the
+    // user as "back to Home" rather than a crash.
+    private fun installCrashRecoveryHandler() {
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            try {
+                Log.e("SirKTV_Crash", "Uncaught exception, recovering to Home", throwable)
+                val restartIntent = Intent(applicationContext, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                }
+                startActivity(restartIntent)
+            } catch (recoveryError: Throwable) {
+                Log.e("SirKTV_Crash", "Crash recovery itself failed", recoveryError)
+            } finally {
+                Process.killProcess(Process.myPid())
+            }
+        }
+    }
 }

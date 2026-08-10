@@ -140,7 +140,7 @@ fun SeriesDetailScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = Dimens.SpaceLg, bottom = Dimens.SpaceSm)
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(modifier = Modifier.background(SirKTVBackground), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(uiState.seasons, key = { it.seasonNumber }) { season ->
                     SeasonTab(
                         label = "Season ${season.seasonNumber}",
@@ -151,7 +151,7 @@ fun SeriesDetailScreen(
             }
 
             LazyColumn(
-                modifier = Modifier.padding(top = Dimens.SpaceMd),
+                modifier = Modifier.background(SirKTVBackground).padding(top = Dimens.SpaceMd),
                 contentPadding = PaddingValues(bottom = Dimens.SpaceLg),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {

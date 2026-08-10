@@ -1,6 +1,5 @@
 package com.sirktv.app.presentation.favorites
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -40,7 +39,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Surface
 import com.sirktv.app.presentation.common.tvFocusStyle
-import com.sirktv.app.presentation.common.tvSidebarEscapeLeft
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.livetv.ChannelCard
 import com.sirktv.app.presentation.theme.AppSurface
@@ -66,13 +64,12 @@ fun FavoritesScreen(
     var moviesExpanded by remember { mutableStateOf(false) }
     var seriesExpanded by remember { mutableStateOf(false) }
 
-    // The sidebar is always visible and is how the user leaves this screen —
-    // hardware Back intentionally does nothing here, matching TiviMate.
-    BackHandler(enabled = true) {}
+    // Hardware Back is handled centrally by SirKTVBackHandler (no sidebar to
+    // navigate away with, so it goes to Home) — nothing screen-local needed here.
 
     Box(Modifier.fillMaxSize().background(SirKTVBackground)) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().background(SirKTVBackground),
             contentPadding = PaddingValues(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical),
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
         ) {
@@ -81,7 +78,7 @@ fun FavoritesScreen(
                     if (uiState.channels.isEmpty()) {
                         EmptySectionText()
                     } else {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+                        LazyRow(modifier = Modifier.background(SirKTVBackground), horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
                             items(uiState.channels, key = { it.id }) { channel ->
                                 LaunchedEffect(channel.id) { viewModel.requestEpgFor(channel.id) }
                                 ChannelCard(
@@ -102,7 +99,7 @@ fun FavoritesScreen(
                     if (uiState.movies.isEmpty()) {
                         EmptySectionText()
                     } else {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+                        LazyRow(modifier = Modifier.background(SirKTVBackground), horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
                             items(uiState.movies, key = { it.id }) { movie ->
                                 MediaCard(
                                     title = movie.title,
@@ -125,7 +122,7 @@ fun FavoritesScreen(
                     if (uiState.series.isEmpty()) {
                         EmptySectionText()
                     } else {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+                        LazyRow(modifier = Modifier.background(SirKTVBackground), horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
                             items(uiState.series, key = { it.id }) { series ->
                                 MediaCard(
                                     title = series.title,
@@ -160,7 +157,7 @@ private fun AccordionSection(
         Surface(
             border = com.sirktv.app.presentation.common.tvNoBorder(),
             onClick = onToggle,
-            modifier = Modifier.fillMaxWidth().tvSidebarEscapeLeft().tvFocusStyle(cornerRadius = 8.dp)
+            modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)
         ) {
             Row(
                 modifier = Modifier

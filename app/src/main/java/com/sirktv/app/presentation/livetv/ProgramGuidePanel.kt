@@ -97,7 +97,7 @@ fun ProgramGuidePanel(
 
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().background(Color(0xFF05070C)),
                 contentPadding = PaddingValues(
                     start = Dimens.SafeAreaHorizontal,
                     end = Dimens.SafeAreaHorizontal,

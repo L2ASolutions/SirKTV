@@ -1,6 +1,5 @@
 package com.sirktv.app.presentation.series
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -50,7 +49,6 @@ import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
 import com.sirktv.app.presentation.common.tvChannelRowFocusStyle
 import com.sirktv.app.presentation.common.tvNoBorder
-import com.sirktv.app.presentation.common.tvSidebarEscapeLeft
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.MediaRow
 import com.sirktv.app.presentation.theme.AppSidebar
@@ -70,14 +68,12 @@ private val CategoryRowSelectedBg = SirKTVPrimaryContainer
 @Composable
 fun SeriesScreen(
     onSeriesSelected: (seriesId: String) -> Unit,
-    onBack: () -> Unit,
     viewModel: SeriesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // This screen has no sidebar (full-width panels instead) — hardware Back
-    // is the only way to leave, so it jumps to Home.
-    BackHandler(enabled = true) { onBack() }
+    // Hardware Back is handled centrally by SirKTVBackHandler (no sidebar to
+    // navigate away with, so it goes to Home) — nothing screen-local needed here.
 
     val categoryFocusRequester = remember { FocusRequester() }
     val contentFocusRequester = remember { FocusRequester() }
@@ -135,13 +131,13 @@ private fun SeriesCategorySidebar(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .background(AppSidebar)
                 .focusRequester(focusRequester)
                 .focusRestorer()
-                .tvSidebarEscapeLeft()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     if (event.key == Key.DirectionRight) {
-                        rightFocusRequester.requestFocus()
+                        runCatching { rightFocusRequester.requestFocus() }
                         true
                     } else false
                 }
@@ -195,10 +191,10 @@ private fun SeriesCategoryRow(name: String, count: Int, selected: Boolean, onCli
 /**
  * Deliberately does NOT intercept DirectionLeft on this container — the
  * Recently Added row is its own horizontally-scrolling LazyRow and the grid
- * below is multi-column, so a blanket Left-jumps-to-sidebar handler here
- * would swallow ordinary in-row/in-grid Left navigation. Compose's default
- * 2D focus search already reaches the category sidebar correctly once
- * nothing further left remains — see tvSidebarEscapeLeft's doc comment.
+ * below is multi-column, so a blanket Left-jumps-to-category-list handler
+ * here would swallow ordinary in-row/in-grid Left navigation. Compose's
+ * default 2D focus search already reaches the category list correctly once
+ * nothing further left remains.
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -220,6 +216,7 @@ private fun SeriesContent(
         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
         modifier = Modifier
+            .background(SirKTVBackground)
             .focusRequester(focusRequester)
             .focusRestorer()
     ) {

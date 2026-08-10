@@ -91,22 +91,24 @@ class MoviesViewModel @Inject constructor(
         refresh()
 
         viewModelScope.launch {
-            combine(
-                observeMovieCategoriesUseCase(),
-                observeMoviesUseCase(),
-                observeContinueWatchingUseCase()
-            ) { categories, movies, continueWatching ->
-                Triple(categories, movies, continueWatching.filter { it.contentType == ContentType.MOVIE })
-            }.collect { (categories, movies, continueWatching) ->
-                _uiState.update {
-                    it.copy(
-                        categories = categories,
-                        allMovies = movies,
-                        continueWatching = continueWatching,
-                        // Self-heals any stale error the moment real data actually lands,
-                        // regardless of what triggered it to arrive.
-                        loadError = if (movies.isNotEmpty()) null else it.loadError
-                    )
+            runCatching {
+                combine(
+                    observeMovieCategoriesUseCase(),
+                    observeMoviesUseCase(),
+                    observeContinueWatchingUseCase()
+                ) { categories, movies, continueWatching ->
+                    Triple(categories, movies, continueWatching.filter { it.contentType == ContentType.MOVIE })
+                }.collect { (categories, movies, continueWatching) ->
+                    _uiState.update {
+                        it.copy(
+                            categories = categories,
+                            allMovies = movies,
+                            continueWatching = continueWatching,
+                            // Self-heals any stale error the moment real data actually lands,
+                            // regardless of what triggered it to arrive.
+                            loadError = if (movies.isNotEmpty()) null else it.loadError
+                        )
+                    }
                 }
             }
         }

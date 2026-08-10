@@ -86,7 +86,7 @@ fun ChannelListPanel(
             )
 
             LazyColumn(
-                modifier = Modifier.fillMaxHeight().fillMaxWidth().padding(top = Dimens.SpaceSm),
+                modifier = Modifier.fillMaxHeight().fillMaxWidth().background(Color(0xFF0A0A0F)).padding(top = Dimens.SpaceSm),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (favorites.isNotEmpty()) {
