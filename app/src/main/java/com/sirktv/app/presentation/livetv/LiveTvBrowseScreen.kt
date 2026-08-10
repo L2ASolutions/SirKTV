@@ -349,9 +349,12 @@ private fun CategorySidebarRow(label: String, count: Int, selected: Boolean, onC
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Center
         ) {
+            // Royal Blue — matches the same category-list label treatment on
+            // Movies and Series; the left accent bar + background tint above
+            // already carry the selected/unselected distinction.
             Text(
                 text = label,
-                color = SirKTVOnSurfaceStrong,
+                color = SirKTVPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,

@@ -58,7 +58,6 @@ import com.sirktv.app.presentation.theme.AppSidebar
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
-import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVPrimaryContainer
 import com.sirktv.app.presentation.theme.SirKTVTextSecondary
@@ -215,12 +214,11 @@ private fun SeriesCategoryRow(name: String, count: Int, selected: Boolean, onCli
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            // Always near-white, matching Live TV's category sidebar — a
-            // color that swaps with selection state (as this used to) read
-            // less legibly on real Fire Stick hardware than Live TV's plain,
-            // consistently-legible text; the left accent bar + background
-            // tint above already carry the selected/unselected distinction.
-            Text(name, color = SirKTVOnSurfaceStrong, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Royal Blue — the app's brand color for category/channel list
+            // labels across Live TV, Movies, and Series alike; the left
+            // accent bar + background tint above already carry the
+            // selected/unselected distinction, so this stays one flat color.
+            Text(name, color = SirKTVPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("Total: $count", color = SirKTVTextSecondary, fontSize = 11.sp)
         }
     }
