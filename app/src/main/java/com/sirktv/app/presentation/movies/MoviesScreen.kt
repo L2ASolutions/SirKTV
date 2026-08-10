@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,20 +49,22 @@ import com.sirktv.app.domain.model.WatchProgress
 import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
+import com.sirktv.app.presentation.common.SectionSearchButton
 import com.sirktv.app.presentation.common.tvChannelRowFocusStyle
 import com.sirktv.app.presentation.common.tvNoBorder
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.MediaRow
+import com.sirktv.app.presentation.home.PosterCardWidth
 import com.sirktv.app.presentation.theme.AppSidebar
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
+import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVPrimaryContainer
 import com.sirktv.app.presentation.theme.SirKTVTextSecondary
 import com.sirktv.app.presentation.theme.SirKTVTextTertiary
 
-private val PosterCardWidth = 150.dp
 private val CategoryListWidth = 260.dp
 private val CategoryRowHeight = 56.dp
 private val CategoryRowSelectedBg = SirKTVPrimaryContainer
@@ -69,6 +72,7 @@ private val CategoryRowSelectedBg = SirKTVPrimaryContainer
 @Composable
 fun MoviesScreen(
     onMovieSelected: (movieId: String) -> Unit,
+    onSearch: () -> Unit,
     viewModel: MoviesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -78,9 +82,24 @@ fun MoviesScreen(
 
     val categoryFocusRequester = remember { FocusRequester() }
     val contentFocusRequester = remember { FocusRequester() }
+    // D-pad Right from the category list must land on a specific, already-
+    // composed item, not the lazy container itself — see the doc comment on
+    // MoviesCategorySidebar's rightFocusRequester param.
+    val firstContentItemFocusRequester = remember { FocusRequester() }
 
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AppSidebar)
+                .padding(horizontal = Dimens.SpaceMd, vertical = Dimens.SpaceSm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Movies", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            SectionSearchButton(contentDescription = "Search movies", onClick = onSearch)
+        }
         when {
             uiState.isLoading -> SectionLoadingState("Loading movies…", modifier = Modifier.padding(Dimens.SafeAreaHorizontal))
             uiState.loadError != null && uiState.allMovies.isEmpty() ->
@@ -96,7 +115,8 @@ fun MoviesScreen(
                     totalCount = uiState.allMovies.size,
                     selectedCategoryId = uiState.selectedCategoryId,
                     focusRequester = categoryFocusRequester,
-                    rightFocusRequester = contentFocusRequester,
+                    rightFocusRequester = firstContentItemFocusRequester,
+                    rightFallbackFocusRequester = contentFocusRequester,
                     onCategorySelected = viewModel::onCategorySelected
                 )
 
@@ -106,14 +126,16 @@ fun MoviesScreen(
                             movies = uiState.visibleMovies,
                             onMovieSelected = onMovieSelected,
                             onToggleFavorite = viewModel::onToggleFavorite,
-                            focusRequester = contentFocusRequester
+                            focusRequester = contentFocusRequester,
+                            firstItemFocusRequester = firstContentItemFocusRequester
                         )
                     } else {
                         MoviesRows(
                             continueWatching = uiState.continueWatching,
                             rows = uiState.rows,
                             onMovieSelected = onMovieSelected,
-                            focusRequester = contentFocusRequester
+                            focusRequester = contentFocusRequester,
+                            firstItemFocusRequester = firstContentItemFocusRequester
                         )
                     }
                 }
@@ -124,6 +146,17 @@ fun MoviesScreen(
     }
 }
 
+/**
+ * [rightFocusRequester] is attached directly to the first already-placed
+ * card/row in the content panel, not to that panel's LazyColumn/
+ * LazyVerticalGrid container — requesting focus on the lazy container itself
+ * (relying on focusRestorer() to redirect into its first child) is only
+ * reliable once some child of that container has been focused at least once
+ * before; on the very first Right press, with nothing yet remembered, that
+ * request can silently fail and leave focus stuck here. [rightFallbackFocusRequester]
+ * (the container) is tried only if the primary target isn't attached to
+ * anything, e.g. the content panel is genuinely empty.
+ */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun MoviesCategorySidebar(
@@ -133,6 +166,7 @@ private fun MoviesCategorySidebar(
     selectedCategoryId: String?,
     focusRequester: FocusRequester,
     rightFocusRequester: FocusRequester,
+    rightFallbackFocusRequester: FocusRequester,
     onCategorySelected: (String?) -> Unit
 ) {
     Box(Modifier.fillMaxHeight().width(CategoryListWidth).background(AppSidebar)) {
@@ -146,6 +180,7 @@ private fun MoviesCategorySidebar(
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     if (event.key == Key.DirectionRight) {
                         runCatching { rightFocusRequester.requestFocus() }
+                            .onFailure { runCatching { rightFallbackFocusRequester.requestFocus() } }
                         true
                     } else false
                 }
@@ -174,13 +209,6 @@ private fun MoviesCategoryRow(name: String, count: Int, selected: Boolean, onCli
         targetValue = if (selected) CategoryRowSelectedBg else Color.Transparent,
         label = "movieCategoryRowBg"
     )
-    // Category names read Royal Blue when idle, white once selected — blue
-    // stays legible even on the rare frame a light background flashes behind
-    // it while white marks the active category unambiguously.
-    val nameColor by animateColorAsState(
-        targetValue = if (selected) Color.White else SirKTVPrimary,
-        label = "movieCategoryRowName"
-    )
     androidx.tv.material3.Surface(
         border = tvNoBorder(),
         onClick = onClick,
@@ -197,7 +225,12 @@ private fun MoviesCategoryRow(name: String, count: Int, selected: Boolean, onCli
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            Text(name, color = nameColor, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Always near-white, matching Live TV's category sidebar — a
+            // color that swaps with selection state (as this used to) read
+            // less legibly on real Fire Stick hardware than Live TV's plain,
+            // consistently-legible text; the left accent bar + background
+            // tint above already carry the selected/unselected distinction.
+            Text(name, color = SirKTVOnSurfaceStrong, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("Total: $count", color = SirKTVTextSecondary, fontSize = 11.sp)
         }
     }
@@ -218,8 +251,15 @@ private fun MoviesRows(
     continueWatching: List<WatchProgress>,
     rows: List<MovieRow>,
     onMovieSelected: (String) -> Unit,
-    focusRequester: FocusRequester
+    focusRequester: FocusRequester,
+    firstItemFocusRequester: FocusRequester
 ) {
+    // Whichever card renders first — Continue Watching's first item if that
+    // row exists, otherwise the first row's first movie — is the one Right
+    // from the category list should land on; see MoviesCategorySidebar's doc
+    // comment for why this must be a specific item, not the LazyColumn itself.
+    val firstCardId = continueWatching.firstOrNull()?.contentId ?: rows.firstOrNull()?.movies?.firstOrNull()?.id
+
     LazyColumn(
         contentPadding = PaddingValues(bottom = Dimens.SpaceLg),
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg),
@@ -237,7 +277,9 @@ private fun MoviesRows(
                         aspectRatio = 2f / 3f,
                         progressFraction = progress.progressFraction,
                         onClick = { onMovieSelected(progress.contentId) },
-                        modifier = Modifier.width(PosterCardWidth)
+                        modifier = Modifier.width(PosterCardWidth).then(
+                            if (progress.contentId == firstCardId) Modifier.focusRequester(firstItemFocusRequester) else Modifier
+                        )
                     )
                 }
             }
@@ -253,7 +295,9 @@ private fun MoviesRows(
                     badge = if (isRecentlyAddedRow && RecentlyAdded.isWithinNewWindow(movie.addedAtEpochMillis)) "NEW" else null,
                     isFavorite = movie.isFavorite,
                     onClick = { onMovieSelected(movie.id) },
-                    modifier = Modifier.width(PosterCardWidth)
+                    modifier = Modifier.width(PosterCardWidth).then(
+                        if (movie.id == firstCardId) Modifier.focusRequester(firstItemFocusRequester) else Modifier
+                    )
                 )
             }
         }
@@ -267,14 +311,23 @@ private fun MoviesCategoryGrid(
     movies: List<Movie>,
     onMovieSelected: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
-    focusRequester: FocusRequester
+    focusRequester: FocusRequester,
+    firstItemFocusRequester: FocusRequester
 ) {
     if (movies.isEmpty()) {
         Text("No movies found in this category.", color = SirKTVOnSurfaceMuted, fontSize = 13.sp)
         return
     }
+    val firstCardId = movies.first().id
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 180.dp),
+        // Fixed(5), not Adaptive — Adaptive stretches every card to fill
+        // whatever cell width it computes, which is exactly what made cards
+        // in this per-category grid render larger than the identical movie's
+        // card in the "All" rows view just above, which pins an explicit
+        // PosterCardWidth. A fixed column count keeps every cell (and so
+        // every card, since it also pins PosterCardWidth below) the same
+        // physical size regardless of which view is showing it.
+        columns = GridCells.Fixed(5),
         contentPadding = PaddingValues(bottom = Dimens.SpaceLg),
         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
@@ -291,7 +344,10 @@ private fun MoviesCategoryGrid(
                 rating = movie.rating,
                 isFavorite = movie.isFavorite,
                 onClick = { onMovieSelected(movie.id) },
-                onLongClick = { onToggleFavorite(movie.id) }
+                onLongClick = { onToggleFavorite(movie.id) },
+                modifier = Modifier.width(PosterCardWidth).then(
+                    if (movie.id == firstCardId) Modifier.focusRequester(firstItemFocusRequester) else Modifier
+                )
             )
         }
     }

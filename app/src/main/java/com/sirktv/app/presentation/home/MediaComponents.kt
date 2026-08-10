@@ -41,6 +41,18 @@ import com.sirktv.app.presentation.theme.SirKTVTextSecondary
 import com.sirktv.app.presentation.theme.SirKTVTextTertiary
 import androidx.tv.material3.Surface
 
+/**
+ * The one poster-card width used everywhere a movie/series MediaCard shows
+ * up — Movies/Series rows, their category grids, Favorites, and Search
+ * results. MediaCard derives its height from this via its 2:3 [aspectRatio],
+ * so there's no separate height constant to drift out of sync. Every one of
+ * those call sites must apply `Modifier.width(PosterCardWidth)` explicitly:
+ * MediaCard has no width opinion of its own, so a call site that omits it
+ * (as the category grids used to) lets its container — e.g. a LazyVerticalGrid
+ * column — stretch the card to fill whatever cell width it computes instead.
+ */
+val PosterCardWidth = 150.dp
+
 /** Section header shared by every horizontally-scrolling row on Home/Movies/Series/Favorites. */
 @Composable
 fun RowHeader(title: String, count: Int? = null, modifier: Modifier = Modifier) {

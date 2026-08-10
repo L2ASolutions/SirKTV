@@ -40,6 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Surface
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.home.MediaCard
+import com.sirktv.app.presentation.home.PosterCardWidth
 import com.sirktv.app.presentation.livetv.ChannelCard
 import com.sirktv.app.presentation.theme.AppSurface
 import com.sirktv.app.presentation.theme.Dimens
@@ -47,7 +48,6 @@ import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.TextTertiary
 
-private val PosterCardWidth = 150.dp
 private val LiveTvCardWidth = 320.dp
 
 @Composable

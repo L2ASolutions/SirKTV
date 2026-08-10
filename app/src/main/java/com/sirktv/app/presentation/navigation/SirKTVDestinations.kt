@@ -11,13 +11,23 @@ object SirKTVDestinations {
     const val SERIES = "series"
     const val SERIES_DETAIL = "series_detail/{seriesId}"
     const val FAVORITES = "favorites"
-    const val SEARCH = "search?query={query}"
+    const val SEARCH = "search?query={query}&section={section}"
     const val MOVIE_PLAYER = "movie_player/{movieId}"
     const val EPISODE_PLAYER = "episode_player/{seriesId}/{season}/{episode}"
+
+    /** Values [SearchViewModel] reads back out of the "section" nav arg to scope results to one content type. */
+    object SearchSection {
+        const val LIVE = "live"
+        const val MOVIES = "movies"
+        const val SERIES = "series"
+    }
 
     fun liveTv(channelId: String) = "live_tv/$channelId"
     fun seriesDetail(seriesId: String) = "series_detail/$seriesId"
     fun moviePlayer(movieId: String) = "movie_player/$movieId"
     fun episodePlayer(seriesId: String, season: Int, episode: Int) = "episode_player/$seriesId/$season/$episode"
-    fun search(query: String = "") = "search?query=${java.net.URLEncoder.encode(query, "UTF-8")}"
+
+    /** [section] narrows the shared Search screen to one content type — see [SearchSection]. Null means unscoped, cross-content search (the hardware SEARCH/mic button's behavior). */
+    fun search(query: String = "", section: String? = null) =
+        "search?query=${java.net.URLEncoder.encode(query, "UTF-8")}&section=${section ?: ""}"
 }

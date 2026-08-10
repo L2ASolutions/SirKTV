@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,6 +68,7 @@ import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.domain.model.EpgProgram
 import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
+import com.sirktv.app.presentation.common.SectionSearchButton
 import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvChannelRowFocusStyle
 import com.sirktv.app.presentation.common.tvFocusStyle
@@ -101,6 +103,7 @@ internal val LiveTvActiveRowBackground = SirKTVPrimaryContainer
 @Composable
 fun LiveTvBrowseScreen(
     onChannelSelected: (channelId: String) -> Unit,
+    onSearch: () -> Unit,
     viewModel: LiveTvBrowseViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -130,6 +133,10 @@ fun LiveTvBrowseScreen(
     val sidebarFocusRequester = remember { FocusRequester() }
     val channelListFocusRequester = remember { FocusRequester() }
     val miniPlayerFocusRequester = remember { FocusRequester() }
+    // D-pad Right from the category sidebar must land on a specific,
+    // already-placed channel row, not the lazy container itself — see the
+    // doc comment on LiveTvCategorySidebar's rightFocusRequester param.
+    val firstChannelFocusRequester = remember { FocusRequester() }
 
     // Default focus on entry is the category list — no player of any kind is
     // ever built here. Wrapped so a crash anywhere in this entry sequence
@@ -146,6 +153,17 @@ fun LiveTvBrowseScreen(
 
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(com.sirktv.app.presentation.theme.AppSidebar)
+                .padding(horizontal = Dimens.SpaceMd, vertical = Dimens.SpaceSm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Live TV", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            SectionSearchButton(contentDescription = "Search channels", onClick = onSearch)
+        }
         when {
             uiState.isError -> LiveTvCrashErrorState(onRetry = viewModel::retryAfterError)
             uiState.isLoading -> SectionLoadingState("Loading channels…")
@@ -162,7 +180,8 @@ fun LiveTvBrowseScreen(
                     totalCount = uiState.allChannels.size,
                     selectedCategoryId = uiState.selectedCategoryId,
                     focusRequester = sidebarFocusRequester,
-                    rightFocusRequester = channelListFocusRequester,
+                    rightFocusRequester = firstChannelFocusRequester,
+                    rightFallbackFocusRequester = channelListFocusRequester,
                     onCategorySelected = viewModel::onCategorySelected
                 )
                 LiveTvChannelListColumn(
@@ -172,6 +191,7 @@ fun LiveTvBrowseScreen(
                     nowPlayingChannelId = uiState.nowPlayingChannelId,
                     epgCache = uiState.epgCache,
                     focusRequester = channelListFocusRequester,
+                    firstItemFocusRequester = firstChannelFocusRequester,
                     leftFocusRequester = sidebarFocusRequester,
                     rightFocusRequester = miniPlayerFocusRequester,
                     hasActiveChannel = uiState.activeChannel != null,
@@ -256,6 +276,17 @@ private fun LiveTvCrashErrorState(onRetry: () -> Unit) {
     }
 }
 
+/**
+ * [rightFocusRequester] is attached directly to the first already-placed
+ * channel row, not to the channel list's LazyColumn container — requesting
+ * focus on the lazy container itself (relying on focusRestorer() to redirect
+ * into its first child) is only reliable once some child of that container
+ * has been focused at least once before; on the very first Right press, with
+ * nothing yet remembered, that request can silently fail and leave focus
+ * stuck here. [rightFallbackFocusRequester] (the container) is tried only if
+ * the primary target isn't attached to anything, e.g. the channel list is
+ * genuinely empty.
+ */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun LiveTvCategorySidebar(
@@ -265,6 +296,7 @@ private fun LiveTvCategorySidebar(
     selectedCategoryId: String?,
     focusRequester: FocusRequester,
     rightFocusRequester: FocusRequester,
+    rightFallbackFocusRequester: FocusRequester,
     onCategorySelected: (String?) -> Unit
 ) {
     Box(Modifier.fillMaxHeight().width(SidebarWidth).background(com.sirktv.app.presentation.theme.AppSidebar)) {
@@ -279,6 +311,7 @@ private fun LiveTvCategorySidebar(
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     if (event.key == Key.DirectionRight) {
                         runCatching { rightFocusRequester.requestFocus() }
+                            .onFailure { runCatching { rightFallbackFocusRequester.requestFocus() } }
                         true
                     } else false
                 }
@@ -338,6 +371,7 @@ private fun LiveTvChannelListColumn(
     nowPlayingChannelId: String?,
     epgCache: Map<String, EpgNowNext>,
     focusRequester: FocusRequester,
+    firstItemFocusRequester: FocusRequester,
     leftFocusRequester: FocusRequester,
     rightFocusRequester: FocusRequester,
     hasActiveChannel: Boolean,
@@ -400,7 +434,8 @@ private fun LiveTvChannelListColumn(
                         onFocusHighlighted = { onHighlight(channel.id) },
                         onActivate = { onActivate(channel.id) },
                         onToggleFavorite = { onToggleFavorite(channel.id) },
-                        onHeartFocusChanged = { heartFocused = it }
+                        onHeartFocusChanged = { heartFocused = it },
+                        modifier = if (channel.id == channels.first().id) Modifier.focusRequester(firstItemFocusRequester) else Modifier
                     )
                 }
             }
@@ -418,7 +453,8 @@ private fun LiveTvChannelRow(
     onFocusHighlighted: () -> Unit,
     onActivate: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onHeartFocusChanged: (Boolean) -> Unit
+    onHeartFocusChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val showAccent = isActive || isNowPlayingFullscreen
     val accentBarColor by animateColorAsState(targetValue = if (showAccent) SirKTVPrimary else Color.Transparent, label = "rowAccent")
@@ -430,7 +466,7 @@ private fun LiveTvChannelRow(
             // (focus alone) never starts playback, matching TiviMate/IPTV
             // Smarters rather than this screen's old "preview on focus".
             onClick = onActivate,
-            modifier = Modifier
+            modifier = modifier
                 .weight(1f)
                 .fillMaxHeight()
                 .tvChannelRowFocusStyle(cornerRadius = Dimens.CardCornerRadius)

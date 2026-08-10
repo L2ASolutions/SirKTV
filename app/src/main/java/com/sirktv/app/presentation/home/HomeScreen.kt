@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -67,7 +68,7 @@ private val SettingsTileAccent = Color(0xFF57606A)
 private val TileBorderIdle = Color(0xFF21262D)
 
 /** Every Home tile — Live TV included — is exactly this tall; only width is ever distributed with weight(). */
-private val TILE_HEIGHT = 160.dp
+private val TILE_HEIGHT = 150.dp
 
 /**
  * Home is a pure full-screen launcher now that there's no persistent sidebar
@@ -113,8 +114,12 @@ fun HomeScreen(
         // Remaining space centers the fixed-height tile stack — every tile
         // (Live TV included) is exactly TILE_HEIGHT tall; weight() below is
         // only ever used to distribute width within a row, never height.
+        // clipToBounds() is a hard safety net: if this stack's total height
+        // ever exceeds the space actually available (a short/low-density Fire
+        // Stick output), Compose does not clip overflowing content by
+        // default, so a tile could otherwise paint past the screen edge.
         Column(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+            modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds(),
             verticalArrangement = Arrangement.Center
         ) {
             // ROW 1 — Live TV dominant: full width, same height as every
@@ -218,7 +223,14 @@ private fun HomeTile(
         border = tvNoBorder(),
         onClick = onClick,
         modifier = modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clipToBounds()
+            // graphicsLayer's scale is a pure visual transform — it does not
+            // resize the tile's layout bounds, so without clip = true the
+            // scaled-up render bleeds past those bounds. That bleed is what
+            // pushed the full-width Live TV tile past the screen edge on
+            // focus: a 2% scale on an ~1800dp-wide tile is ~18dp of overflow
+            // per side, far more than the same 2% on a half-width tile.
+            .graphicsLayer { scaleX = scale; scaleY = scale; clip = true }
             .onFocusChanged { isFocused = it.isFocused }
     ) {
         Box(

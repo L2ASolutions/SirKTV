@@ -11,6 +11,7 @@ import com.sirktv.app.domain.usecase.SearchContentUseCase
 import com.sirktv.app.domain.usecase.ToggleFavoriteUseCase
 import com.sirktv.app.domain.usecase.ToggleMovieFavoriteUseCase
 import com.sirktv.app.domain.usecase.ToggleSeriesFavoriteUseCase
+import com.sirktv.app.presentation.navigation.SirKTVDestinations
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -27,7 +28,9 @@ data class SearchUiState(
     val query: String = "",
     val recentSearches: List<String> = emptyList(),
     val results: SearchResults = SearchResults.EMPTY,
-    val hasSearched: Boolean = false
+    val hasSearched: Boolean = false,
+    /** Set when Search was opened from a specific section's own Search button — see [SirKTVDestinations.SearchSection]. Null (the hardware SEARCH/mic button's path) means unscoped, cross-content search. */
+    val section: String? = null
 )
 
 @HiltViewModel
@@ -55,6 +58,11 @@ class SearchViewModel @Inject constructor(
                 }
             }
         }
+        // Set only when a section's own Search button (Live TV/Movies/Series)
+        // launched this screen — the hardware SEARCH/mic button never sets it,
+        // so that path stays unscoped cross-content search as before.
+        val section = savedStateHandle.get<String>("section")?.takeIf { it.isNotBlank() }
+        _uiState.update { it.copy(section = section) }
         // Pre-filled by the Fire TV remote's mic button (ACTION_SEARCH) or the
         // hardware SEARCH key reopening this screen with a query already typed.
         val initialQuery = savedStateHandle.get<String>("query").orEmpty()
@@ -98,7 +106,15 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun runSearch(query: String) {
-        val results = searchContentUseCase(query)
+        val results = searchContentUseCase(query).scopedTo(_uiState.value.section)
         _uiState.update { it.copy(results = results, hasSearched = query.trim().length >= 2) }
+    }
+
+    /** Zeroes out the two content types [section] didn't ask for — see [SearchUiState.section]. */
+    private fun SearchResults.scopedTo(section: String?): SearchResults = when (section) {
+        SirKTVDestinations.SearchSection.LIVE -> copy(movies = emptyList(), series = emptyList())
+        SirKTVDestinations.SearchSection.MOVIES -> copy(channels = emptyList(), series = emptyList())
+        SirKTVDestinations.SearchSection.SERIES -> copy(channels = emptyList(), movies = emptyList())
+        else -> this
     }
 }

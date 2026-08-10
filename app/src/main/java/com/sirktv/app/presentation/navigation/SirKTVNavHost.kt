@@ -166,7 +166,10 @@ fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
 
             composable(SirKTVDestinations.LIVE_TV_BROWSE) {
                 LiveTvBrowseScreen(
-                    onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) }
+                    onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
+                    onSearch = {
+                        navController.navigate(SirKTVDestinations.search(section = SirKTVDestinations.SearchSection.LIVE)) { launchSingleTop = true }
+                    }
                 )
             }
 
@@ -185,13 +188,19 @@ fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
 
             composable(SirKTVDestinations.MOVIES) {
                 MoviesScreen(
-                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) }
+                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
+                    onSearch = {
+                        navController.navigate(SirKTVDestinations.search(section = SirKTVDestinations.SearchSection.MOVIES)) { launchSingleTop = true }
+                    }
                 )
             }
 
             composable(SirKTVDestinations.SERIES) {
                 SeriesScreen(
-                    onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) }
+                    onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) },
+                    onSearch = {
+                        navController.navigate(SirKTVDestinations.search(section = SirKTVDestinations.SearchSection.SERIES)) { launchSingleTop = true }
+                    }
                 )
             }
 
@@ -217,7 +226,10 @@ fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
 
             composable(
                 route = SirKTVDestinations.SEARCH,
-                arguments = listOf(navArgument("query") { type = NavType.StringType; defaultValue = "" })
+                arguments = listOf(
+                    navArgument("query") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("section") { type = NavType.StringType; nullable = true; defaultValue = null }
+                )
             ) {
                 SearchScreen(
                     onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },

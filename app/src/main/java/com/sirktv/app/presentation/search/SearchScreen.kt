@@ -33,11 +33,21 @@ import com.sirktv.app.presentation.common.CategoryPill
 import com.sirktv.app.presentation.common.TvSearchField
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.home.MediaCard
+import com.sirktv.app.presentation.home.PosterCardWidth
 import com.sirktv.app.presentation.home.RowHeader
+import com.sirktv.app.presentation.navigation.SirKTVDestinations
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVTextTertiary
+
+/** [section] is [SearchUiState.section] — narrows the placeholder copy to match what Search was scoped to. */
+private fun searchPlaceholderFor(section: String?): String = when (section) {
+    SirKTVDestinations.SearchSection.LIVE -> "Search channels…"
+    SirKTVDestinations.SearchSection.MOVIES -> "Search movies…"
+    SirKTVDestinations.SearchSection.SERIES -> "Search series…"
+    else -> "Search live TV, movies, and series"
+}
 
 @Composable
 fun SearchScreen(
@@ -64,7 +74,7 @@ fun SearchScreen(
         TvSearchField(
             query = uiState.query,
             onQueryChange = viewModel::onQueryChanged,
-            placeholder = "Search live TV, movies, and series",
+            placeholder = searchPlaceholderFor(uiState.section),
             fieldFocusRequester = fieldFocusRequester,
             firstResultFocusRequester = firstResultFocusRequester.takeIf { !uiState.results.isEmpty },
             onSearchSubmitted = { viewModel.onSearchSubmitted() },
@@ -182,7 +192,7 @@ private fun SearchResultsList(
                             isFavorite = movie.isFavorite,
                             onClick = { onMovieSelected(movie.id) },
                             onLongClick = { onToggleMovieFavorite(movie.id) },
-                            modifier = Modifier.width(140.dp).then(
+                            modifier = Modifier.width(PosterCardWidth).then(
                                 if (firstSectionKey == "movies" && index == 0) {
                                     Modifier.focusRequester(firstResultFocusRequester)
                                 } else Modifier
@@ -204,7 +214,7 @@ private fun SearchResultsList(
                             isFavorite = series.isFavorite,
                             onClick = { onSeriesSelected(series.id) },
                             onLongClick = { onToggleSeriesFavorite(series.id) },
-                            modifier = Modifier.width(140.dp).then(
+                            modifier = Modifier.width(PosterCardWidth).then(
                                 if (firstSectionKey == "series" && index == 0) {
                                     Modifier.focusRequester(firstResultFocusRequester)
                                 } else Modifier

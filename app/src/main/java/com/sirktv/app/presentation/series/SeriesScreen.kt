@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -47,19 +48,21 @@ import com.sirktv.app.domain.model.Series
 import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
+import com.sirktv.app.presentation.common.SectionSearchButton
 import com.sirktv.app.presentation.common.tvChannelRowFocusStyle
 import com.sirktv.app.presentation.common.tvNoBorder
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.MediaRow
+import com.sirktv.app.presentation.home.PosterCardWidth
 import com.sirktv.app.presentation.theme.AppSidebar
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
+import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVPrimaryContainer
 import com.sirktv.app.presentation.theme.SirKTVTextSecondary
 
-private val PosterCardWidth = 150.dp
 private val CategoryListWidth = 260.dp
 private val CategoryRowHeight = 56.dp
 private val CategoryRowSelectedBg = SirKTVPrimaryContainer
@@ -67,6 +70,7 @@ private val CategoryRowSelectedBg = SirKTVPrimaryContainer
 @Composable
 fun SeriesScreen(
     onSeriesSelected: (seriesId: String) -> Unit,
+    onSearch: () -> Unit,
     viewModel: SeriesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -76,9 +80,24 @@ fun SeriesScreen(
 
     val categoryFocusRequester = remember { FocusRequester() }
     val contentFocusRequester = remember { FocusRequester() }
+    // D-pad Right from the category list must land on a specific, already-
+    // composed item, not the lazy container itself — see the doc comment on
+    // SeriesCategorySidebar's rightFocusRequester param.
+    val firstContentItemFocusRequester = remember { FocusRequester() }
 
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AppSidebar)
+                .padding(horizontal = Dimens.SpaceMd, vertical = Dimens.SpaceSm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Series", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            SectionSearchButton(contentDescription = "Search series", onClick = onSearch)
+        }
         when {
             uiState.isLoading -> SectionLoadingState("Loading series…", modifier = Modifier.padding(Dimens.SafeAreaHorizontal))
             uiState.loadError != null ->
@@ -94,7 +113,8 @@ fun SeriesScreen(
                     totalCount = uiState.allSeries.size,
                     selectedCategoryId = uiState.selectedCategoryId,
                     focusRequester = categoryFocusRequester,
-                    rightFocusRequester = contentFocusRequester,
+                    rightFocusRequester = firstContentItemFocusRequester,
+                    rightFallbackFocusRequester = contentFocusRequester,
                     onCategorySelected = viewModel::onCategorySelected
                 )
 
@@ -105,6 +125,7 @@ fun SeriesScreen(
                         onSeriesSelected = onSeriesSelected,
                         onToggleFavorite = viewModel::onToggleFavorite,
                         focusRequester = contentFocusRequester,
+                        firstItemFocusRequester = firstContentItemFocusRequester,
                         emptyMessage = "No series found in this category."
                     )
                 }
@@ -115,6 +136,17 @@ fun SeriesScreen(
     }
 }
 
+/**
+ * [rightFocusRequester] is attached directly to the first already-placed
+ * card/row in the content panel, not to that panel's LazyVerticalGrid
+ * container — requesting focus on the lazy container itself (relying on
+ * focusRestorer() to redirect into its first child) is only reliable once
+ * some child of that container has been focused at least once before; on the
+ * very first Right press, with nothing yet remembered, that request can
+ * silently fail and leave focus stuck here. [rightFallbackFocusRequester]
+ * (the container) is tried only if the primary target isn't attached to
+ * anything, e.g. the content panel is genuinely empty.
+ */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun SeriesCategorySidebar(
@@ -124,6 +156,7 @@ private fun SeriesCategorySidebar(
     selectedCategoryId: String?,
     focusRequester: FocusRequester,
     rightFocusRequester: FocusRequester,
+    rightFallbackFocusRequester: FocusRequester,
     onCategorySelected: (String?) -> Unit
 ) {
     Box(Modifier.fillMaxHeight().width(CategoryListWidth).background(AppSidebar)) {
@@ -137,6 +170,7 @@ private fun SeriesCategorySidebar(
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     if (event.key == Key.DirectionRight) {
                         runCatching { rightFocusRequester.requestFocus() }
+                            .onFailure { runCatching { rightFallbackFocusRequester.requestFocus() } }
                         true
                     } else false
                 }
@@ -165,13 +199,6 @@ private fun SeriesCategoryRow(name: String, count: Int, selected: Boolean, onCli
         targetValue = if (selected) CategoryRowSelectedBg else Color.Transparent,
         label = "seriesCategoryRowBg"
     )
-    // Category names read Royal Blue when idle, white once selected — blue
-    // stays legible even on the rare frame a light background flashes behind
-    // it while white marks the active category unambiguously.
-    val nameColor by animateColorAsState(
-        targetValue = if (selected) Color.White else SirKTVPrimary,
-        label = "seriesCategoryRowName"
-    )
     androidx.tv.material3.Surface(
         border = tvNoBorder(),
         onClick = onClick,
@@ -188,7 +215,12 @@ private fun SeriesCategoryRow(name: String, count: Int, selected: Boolean, onCli
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            Text(name, color = nameColor, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Always near-white, matching Live TV's category sidebar — a
+            // color that swaps with selection state (as this used to) read
+            // less legibly on real Fire Stick hardware than Live TV's plain,
+            // consistently-legible text; the left accent bar + background
+            // tint above already carry the selected/unselected distinction.
+            Text(name, color = SirKTVOnSurfaceStrong, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("Total: $count", color = SirKTVTextSecondary, fontSize = 11.sp)
         }
     }
@@ -210,14 +242,26 @@ private fun SeriesContent(
     onSeriesSelected: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
     focusRequester: FocusRequester,
+    firstItemFocusRequester: FocusRequester,
     emptyMessage: String
 ) {
     if (series.isEmpty() && recentlyAdded.isEmpty()) {
         Text(emptyMessage, color = SirKTVOnSurfaceMuted, fontSize = 13.sp)
         return
     }
+    // Whichever card renders first — Recently Added's first item if that row
+    // exists, otherwise the grid's first series — is the one Right from the
+    // category list should land on; see SeriesCategorySidebar's doc comment
+    // for why this must be a specific item, not the LazyVerticalGrid itself.
+    val firstCardId = recentlyAdded.firstOrNull()?.id ?: series.firstOrNull()?.id
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 180.dp),
+        // Fixed(5), not Adaptive — Adaptive stretches every card to fill
+        // whatever cell width it computes, which is exactly what made cards
+        // here render larger than the identical series's card in the
+        // Recently Added row above, which pins an explicit PosterCardWidth.
+        // A fixed column count keeps every cell (and so every card, since it
+        // also pins PosterCardWidth below) the same physical size.
+        columns = GridCells.Fixed(5),
         contentPadding = PaddingValues(bottom = Dimens.SpaceLg),
         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
@@ -238,7 +282,9 @@ private fun SeriesContent(
                         isFavorite = item.isFavorite,
                         onClick = { onSeriesSelected(item.id) },
                         onLongClick = { onToggleFavorite(item.id) },
-                        modifier = Modifier.width(PosterCardWidth)
+                        modifier = Modifier.width(PosterCardWidth).then(
+                            if (item.id == firstCardId) Modifier.focusRequester(firstItemFocusRequester) else Modifier
+                        )
                     )
                 }
             }
@@ -251,7 +297,10 @@ private fun SeriesContent(
                 rating = item.rating,
                 isFavorite = item.isFavorite,
                 onClick = { onSeriesSelected(item.id) },
-                onLongClick = { onToggleFavorite(item.id) }
+                onLongClick = { onToggleFavorite(item.id) },
+                modifier = Modifier.width(PosterCardWidth).then(
+                    if (item.id == firstCardId) Modifier.focusRequester(firstItemFocusRequester) else Modifier
+                )
             )
         }
     }
