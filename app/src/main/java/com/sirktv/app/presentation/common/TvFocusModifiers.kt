@@ -35,6 +35,8 @@ import androidx.tv.material3.ButtonBorder
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ClickableSurfaceBorder
 import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.ClickableSurfaceGlow
+import androidx.tv.material3.Glow
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVFocusBorder
 
@@ -194,6 +196,20 @@ fun tvNoBorder(): ClickableSurfaceBorder = ClickableSurfaceDefaults.border(
     pressedBorder = Border.None,
     disabledBorder = Border.None,
     focusedDisabledBorder = Border.None
+)
+
+/**
+ * androidx.tv.material3.Surface also draws its own default elevation-tinted
+ * glow on focus/press, independent of border — on some hardware this reads
+ * as a stray bright halo behind whatever custom focus treatment sits on top
+ * of it (e.g. the sidebar's full-row background color change). Pass this
+ * wherever that default glow needs to be fully suppressed.
+ */
+@Composable
+fun tvNoGlow(): ClickableSurfaceGlow = ClickableSurfaceDefaults.glow(
+    glow = Glow.None,
+    focusedGlow = Glow.None,
+    pressedGlow = Glow.None
 )
 
 /** Same as [tvNoBorder] but for androidx.tv.material3.Button, which has its own separate border token set. */

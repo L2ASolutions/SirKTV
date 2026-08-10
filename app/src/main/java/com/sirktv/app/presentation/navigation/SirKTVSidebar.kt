@@ -22,8 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -31,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
@@ -52,27 +49,32 @@ import com.sirktv.app.domain.session.CurrentSession
 import com.sirktv.app.presentation.common.SirKTVLogoMark
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.tvNoBorder
+import com.sirktv.app.presentation.common.tvNoGlow
+import com.sirktv.app.presentation.theme.AppSidebar
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 internal val SidebarWidth = 220.dp
 private val SidebarItemHeight = 56.dp
-private val SidebarAccentBarWidth = 4.dp
+private val SidebarAccentBarWidth = 3.dp
 
-private val SidebarBackground = Color(0xFF0D0D0D)
-private val SidebarDivider = Color(0xFF1E1E1E)
-private val SidebarFooterText = Color(0xFF444444)
+private val SidebarBackground = AppSidebar
+private val SidebarDivider = Color(0xFF1E2D4A)
+private val SidebarFooterText = Color(0xFF445577)
 private val SidebarAccentColor = Color(0xFF0066FF)
 
-private val SidebarPillSelectedBg = Color(0xFF0066FF)
-private val SidebarPillFocusedBg = Color(0xFF1F1F1F)
-private val SidebarIconSelected = Color.White
-private val SidebarIconFocused = Color(0xFFA3A3A3)
-private val SidebarIconIdle = Color(0xFF555555)
-private val SidebarTextSelected = Color.White
-private val SidebarTextFocused = Color(0xFFE0E0E0)
-private val SidebarTextIdle = Color(0xFF555555)
+// Focus/selection is ONLY ever a full-row background color change plus (for
+// the selected item) the left accent bar — no pill, no glow, no border. A
+// pill/glow box behind the icon previously rendered as a stray bright
+// highlight on real hardware; the row background is the one and only focus
+// indicator now.
+private val SidebarRowSelectedBg = Color(0xFF1A2A4A)
+private val SidebarRowFocusedBg = Color(0xFF162035)
+private val SidebarIconActive = Color.White
+private val SidebarIconIdle = Color(0xFF8899BB)
+private val SidebarTextActive = Color.White
+private val SidebarTextIdle = Color(0xFF8899BB)
 
 private val SidebarEntries = SirKTVNavItem.entries.toList()
 
@@ -178,41 +180,24 @@ private fun SidebarNavItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
+    val active = isSelected || isFocused
 
-    val rowScale by animateFloatAsState(
-        targetValue = if (isFocused) 1.03f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "sidebarRowScale"
-    )
-    val pillScale by animateFloatAsState(
-        targetValue = if (isSelected || isFocused) 1f else 0f,
-        animationSpec = tween(200),
-        label = "sidebarPillScale"
-    )
-    val pillColor by animateColorAsState(
+    val bgColor by animateColorAsState(
         targetValue = when {
-            isSelected -> SidebarPillSelectedBg
-            isFocused -> SidebarPillFocusedBg
+            isSelected -> SidebarRowSelectedBg
+            isFocused -> SidebarRowFocusedBg
             else -> Color.Transparent
         },
         animationSpec = tween(200),
-        label = "sidebarPillColor"
+        label = "sidebarRowBg"
     )
     val iconTint by animateColorAsState(
-        targetValue = when {
-            isSelected -> SidebarIconSelected
-            isFocused -> SidebarIconFocused
-            else -> SidebarIconIdle
-        },
+        targetValue = if (active) SidebarIconActive else SidebarIconIdle,
         animationSpec = tween(200),
         label = "sidebarIconTint"
     )
     val textColor by animateColorAsState(
-        targetValue = when {
-            isSelected -> SidebarTextSelected
-            isFocused -> SidebarTextFocused
-            else -> SidebarTextIdle
-        },
+        targetValue = if (active) SidebarTextActive else SidebarTextIdle,
         animationSpec = tween(200),
         label = "sidebarTextColor"
     )
@@ -221,6 +206,7 @@ private fun SidebarNavItem(
         onClick = onClick,
         interactionSource = interactionSource,
         border = tvNoBorder(),
+        glow = tvNoGlow(),
         modifier = Modifier
             .fillMaxWidth()
             .height(SidebarItemHeight)
@@ -229,10 +215,10 @@ private fun SidebarNavItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight()
-                .scale(rowScale)
+                .background(bgColor)
                 // Royal Blue accent bar on the item's own left edge — the
                 // active section only, never on focus alone (focus already
-                // reads as the brighter pill + text color).
+                // reads as the brighter row background + text/icon color).
                 .drawBehind {
                     if (isSelected) {
                         drawRect(color = SidebarAccentColor, size = Size(SidebarAccentBarWidth.toPx(), size.height))
@@ -241,30 +227,16 @@ private fun SidebarNavItem(
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .scale(pillScale)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(pillColor)
-                )
-                SidebarIcon(item = item, tint = iconTint, isSelected = isSelected, isFocused = isFocused)
-            }
-            Spacer(Modifier.width(12.dp))
+            SidebarIcon(item = item, tint = iconTint, isSelected = isSelected, isFocused = isFocused)
+            Spacer(Modifier.width(14.dp))
             Text(
                 text = item.label,
                 color = textColor,
                 fontSize = 15.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                letterSpacing = if (isSelected) (-0.3).sp else 0.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (isSelected) {
-                Spacer(Modifier.weight(1f))
-                Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(SidebarAccentColor))
-            }
         }
     }
 }

@@ -2,6 +2,7 @@ package com.sirktv.app.presentation.favorites
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,12 +41,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Surface
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.common.tvSidebarEscapeLeft
-import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.livetv.ChannelCard
+import com.sirktv.app.presentation.theme.AppSurface
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
+import com.sirktv.app.presentation.theme.TextTertiary
 
 private val PosterCardWidth = 150.dp
 private val LiveTvCardWidth = 320.dp
@@ -75,7 +79,7 @@ fun FavoritesScreen(
             item {
                 AccordionSection(title = "Live TV", count = uiState.channels.size, expanded = liveExpanded, onToggle = { liveExpanded = !liveExpanded }) {
                     if (uiState.channels.isEmpty()) {
-                        EmptySectionText("No favorite channels yet. Tap the heart on any channel to add it here.")
+                        EmptySectionText()
                     } else {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
                             items(uiState.channels, key = { it.id }) { channel ->
@@ -96,25 +100,20 @@ fun FavoritesScreen(
             item {
                 AccordionSection(title = "Favorite Movies", count = uiState.movies.size, expanded = moviesExpanded, onToggle = { moviesExpanded = !moviesExpanded }) {
                     if (uiState.movies.isEmpty()) {
-                        EmptySectionText("No favorite movies yet. Tap the heart on any movie to add it here.")
+                        EmptySectionText()
                     } else {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
                             items(uiState.movies, key = { it.id }) { movie ->
-                                Column(modifier = Modifier.width(PosterCardWidth)) {
-                                    MediaCard(
-                                        title = movie.title,
-                                        imageUrl = movie.posterUrl,
-                                        aspectRatio = 2f / 3f,
-                                        rating = movie.rating,
-                                        isFavorite = true,
-                                        onClick = { onMovieSelected(movie.id) }
-                                    )
-                                    FavoriteToggleChip(
-                                        isFavorite = true,
-                                        onToggle = { viewModel.onRemoveMovie(movie.id) },
-                                        modifier = Modifier.padding(top = 6.dp)
-                                    )
-                                }
+                                MediaCard(
+                                    title = movie.title,
+                                    imageUrl = movie.posterUrl,
+                                    aspectRatio = 2f / 3f,
+                                    rating = movie.rating,
+                                    isFavorite = true,
+                                    onClick = { onMovieSelected(movie.id) },
+                                    onLongClick = { viewModel.onRemoveMovie(movie.id) },
+                                    modifier = Modifier.width(PosterCardWidth)
+                                )
                             }
                         }
                     }
@@ -124,25 +123,20 @@ fun FavoritesScreen(
             item {
                 AccordionSection(title = "Favorite Series", count = uiState.series.size, expanded = seriesExpanded, onToggle = { seriesExpanded = !seriesExpanded }) {
                     if (uiState.series.isEmpty()) {
-                        EmptySectionText("No favorite series yet. Tap the heart on any series to add it here.")
+                        EmptySectionText()
                     } else {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
                             items(uiState.series, key = { it.id }) { series ->
-                                Column(modifier = Modifier.width(PosterCardWidth)) {
-                                    MediaCard(
-                                        title = series.title,
-                                        imageUrl = series.posterUrl,
-                                        aspectRatio = 2f / 3f,
-                                        rating = series.rating,
-                                        isFavorite = true,
-                                        onClick = { onSeriesSelected(series.id) }
-                                    )
-                                    FavoriteToggleChip(
-                                        isFavorite = true,
-                                        onToggle = { viewModel.onRemoveSeries(series.id) },
-                                        modifier = Modifier.padding(top = 6.dp)
-                                    )
-                                }
+                                MediaCard(
+                                    title = series.title,
+                                    imageUrl = series.posterUrl,
+                                    aspectRatio = 2f / 3f,
+                                    rating = series.rating,
+                                    isFavorite = true,
+                                    onClick = { onSeriesSelected(series.id) },
+                                    onLongClick = { viewModel.onRemoveSeries(series.id) },
+                                    modifier = Modifier.width(PosterCardWidth)
+                                )
                             }
                         }
                     }
@@ -160,6 +154,8 @@ private fun AccordionSection(
     onToggle: () -> Unit,
     content: @Composable () -> Unit
 ) {
+    val chevronRotation by animateFloatAsState(targetValue = if (expanded) 0f else -90f, label = "accordionChevron")
+
     Column {
         Surface(
             border = com.sirktv.app.presentation.common.tvNoBorder(),
@@ -169,13 +165,25 @@ private fun AccordionSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = Dimens.SpaceMd, vertical = Dimens.SpaceSm),
+                    .height(52.dp)
+                    .background(AppSurface, RoundedCornerShape(8.dp))
+                    .padding(horizontal = Dimens.SpaceMd),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("$title ($count)", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(if (expanded) "▾" else "▸", color = SirKTVOnSurfaceMuted, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("($count)", color = SirKTVOnSurfaceMuted, fontSize = 13.sp)
+                }
+                // Chevron points down expanded, right collapsed — animated
+                // rotation instead of swapping glyphs.
+                Text(
+                    text = "▾",
+                    color = SirKTVOnSurfaceMuted,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.rotate(chevronRotation)
+                )
             }
         }
         AnimatedVisibility(visible = expanded, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
@@ -186,7 +194,8 @@ private fun AccordionSection(
     }
 }
 
+/** Shown instead of an empty row whenever a favorites section has nothing in it yet. */
 @Composable
-private fun EmptySectionText(message: String) {
-    Text(message, color = SirKTVOnSurfaceMuted, fontSize = 13.sp, modifier = Modifier.padding(vertical = Dimens.SpaceSm))
+private fun EmptySectionText() {
+    Text("Nothing here yet", color = TextTertiary, fontSize = 13.sp, modifier = Modifier.padding(vertical = Dimens.SpaceSm))
 }

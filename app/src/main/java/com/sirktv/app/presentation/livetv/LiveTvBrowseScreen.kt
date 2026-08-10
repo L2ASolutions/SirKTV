@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
@@ -151,6 +152,8 @@ fun LiveTvBrowseScreen(
             else -> Row(Modifier.fillMaxSize()) {
                 LiveTvCategorySidebar(
                     categories = uiState.categories,
+                    counts = remember(uiState.allChannels) { uiState.allChannels.groupingBy { it.categoryId }.eachCount() },
+                    totalCount = uiState.allChannels.size,
                     selectedCategoryId = uiState.selectedCategoryId,
                     focusRequester = sidebarFocusRequester,
                     rightFocusRequester = channelListFocusRequester,
@@ -232,12 +235,14 @@ private fun LiveTvCrashErrorState(onRetry: () -> Unit) {
 @Composable
 private fun LiveTvCategorySidebar(
     categories: List<Category>,
+    counts: Map<String, Int>,
+    totalCount: Int,
     selectedCategoryId: String?,
     focusRequester: FocusRequester,
     rightFocusRequester: FocusRequester,
     onCategorySelected: (String?) -> Unit
 ) {
-    Box(Modifier.fillMaxHeight().width(SidebarWidth).background(Color(0xEE0A0A0F))) {
+    Box(Modifier.fillMaxHeight().width(SidebarWidth).background(com.sirktv.app.presentation.theme.AppSidebar)) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxHeight()
@@ -252,50 +257,49 @@ private fun LiveTvCategorySidebar(
                         true
                     } else false
                 }
-                .padding(vertical = Dimens.SpaceMd, horizontal = Dimens.SpaceSm),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             item {
-                Text(
-                    text = "CATEGORIES",
-                    color = Color.White.copy(alpha = 0.4f),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 6.dp, start = 8.dp)
-                )
-            }
-            item {
-                CategorySidebarRow(label = "All Channels", selected = selectedCategoryId == null, onClick = { onCategorySelected(null) })
+                CategorySidebarRow(label = "All Channels", count = totalCount, selected = selectedCategoryId == null, onClick = { onCategorySelected(null) })
             }
             items(categories, key = { it.id }) { category ->
-                CategorySidebarRow(label = category.name, selected = selectedCategoryId == category.id, onClick = { onCategorySelected(category.id) })
+                CategorySidebarRow(
+                    label = category.name,
+                    count = counts[category.id] ?: 0,
+                    selected = selectedCategoryId == category.id,
+                    onClick = { onCategorySelected(category.id) }
+                )
             }
         }
     }
 }
 
-@Composable
-private fun CategorySidebarRow(label: String, selected: Boolean, onClick: () -> Unit) {
-    val accentBarColor by animateColorAsState(targetValue = if (selected) SirKTVPrimary else Color.Transparent, label = "categoryAccent")
+private val CategoryRowSelectedBg = Color(0xFF1A2A4A)
 
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 8.dp)) {
-        Row(
+@Composable
+private fun CategorySidebarRow(label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
+    val bgColor by animateColorAsState(targetValue = if (selected) CategoryRowSelectedBg else Color.Transparent, label = "categoryRowBg")
+
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 0.dp)) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(if (selected) SirKTVCardBackground else Color.Transparent, RoundedCornerShape(8.dp))
-                .padding(vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .height(56.dp)
+                .background(bgColor)
+                .drawBehind {
+                    if (selected) drawRect(color = SirKTVPrimary, size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height))
+                }
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.Center
         ) {
-            Box(Modifier.width(4.dp).height(18.dp).background(accentBarColor, RoundedCornerShape(2.dp)))
             Text(
                 text = label,
-                color = if (selected) SirKTVOnSurfaceStrong else SirKTVOnSurfaceMuted,
-                fontSize = 12.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp)
+                overflow = TextOverflow.Ellipsis
             )
+            Text("Total: $count", color = SirKTVOnSurfaceMuted, fontSize = 11.sp)
         }
     }
 }

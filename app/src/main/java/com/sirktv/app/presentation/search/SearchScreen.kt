@@ -34,7 +34,6 @@ import com.sirktv.app.domain.model.SearchResults
 import com.sirktv.app.presentation.common.CategoryPill
 import com.sirktv.app.presentation.common.TvSearchField
 import com.sirktv.app.presentation.common.tvFocusStyle
-import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.RowHeader
 import com.sirktv.app.presentation.theme.Dimens
@@ -153,22 +152,18 @@ private fun SearchResultsList(
             item {
                 ResultRow(title = "Live TV", count = results.channels.size) {
                     itemsIndexed(results.channels, key = { _, it -> "ch-${it.id}" }) { index, channel ->
-                        Column(modifier = Modifier.width(220.dp)) {
-                            MediaCard(
-                                title = channel.name,
-                                imageUrl = channel.logoUrl,
-                                isFavorite = channel.isFavorite,
-                                onClick = { onChannelSelected(channel.id) },
-                                modifier = if (firstSectionKey == "channels" && index == 0) {
+                        MediaCard(
+                            title = channel.name,
+                            imageUrl = channel.logoUrl,
+                            isFavorite = channel.isFavorite,
+                            onClick = { onChannelSelected(channel.id) },
+                            onLongClick = { onToggleChannelFavorite(channel.id) },
+                            modifier = Modifier.width(220.dp).then(
+                                if (firstSectionKey == "channels" && index == 0) {
                                     Modifier.focusRequester(firstResultFocusRequester)
                                 } else Modifier
                             )
-                            FavoriteToggleChip(
-                                isFavorite = channel.isFavorite,
-                                onToggle = { onToggleChannelFavorite(channel.id) },
-                                modifier = Modifier.padding(top = 6.dp)
-                            )
-                        }
+                        )
                     }
                 }
             }
@@ -177,24 +172,20 @@ private fun SearchResultsList(
             item {
                 ResultRow(title = "Movies", count = results.movies.size) {
                     itemsIndexed(results.movies, key = { _, it -> "mv-${it.id}" }) { index, movie ->
-                        Column(modifier = Modifier.width(140.dp)) {
-                            MediaCard(
-                                title = movie.title,
-                                imageUrl = movie.posterUrl,
-                                aspectRatio = 2f / 3f,
-                                rating = movie.rating,
-                                isFavorite = movie.isFavorite,
-                                onClick = { onMovieSelected(movie.id) },
-                                modifier = if (firstSectionKey == "movies" && index == 0) {
+                        MediaCard(
+                            title = movie.title,
+                            imageUrl = movie.posterUrl,
+                            aspectRatio = 2f / 3f,
+                            rating = movie.rating,
+                            isFavorite = movie.isFavorite,
+                            onClick = { onMovieSelected(movie.id) },
+                            onLongClick = { onToggleMovieFavorite(movie.id) },
+                            modifier = Modifier.width(140.dp).then(
+                                if (firstSectionKey == "movies" && index == 0) {
                                     Modifier.focusRequester(firstResultFocusRequester)
                                 } else Modifier
                             )
-                            FavoriteToggleChip(
-                                isFavorite = movie.isFavorite,
-                                onToggle = { onToggleMovieFavorite(movie.id) },
-                                modifier = Modifier.padding(top = 6.dp)
-                            )
-                        }
+                        )
                     }
                 }
             }
@@ -203,24 +194,20 @@ private fun SearchResultsList(
             item {
                 ResultRow(title = "Series", count = results.series.size) {
                     itemsIndexed(results.series, key = { _, it -> "sr-${it.id}" }) { index, series ->
-                        Column(modifier = Modifier.width(140.dp)) {
-                            MediaCard(
-                                title = series.title,
-                                imageUrl = series.posterUrl,
-                                aspectRatio = 2f / 3f,
-                                rating = series.rating,
-                                isFavorite = series.isFavorite,
-                                onClick = { onSeriesSelected(series.id) },
-                                modifier = if (firstSectionKey == "series" && index == 0) {
+                        MediaCard(
+                            title = series.title,
+                            imageUrl = series.posterUrl,
+                            aspectRatio = 2f / 3f,
+                            rating = series.rating,
+                            isFavorite = series.isFavorite,
+                            onClick = { onSeriesSelected(series.id) },
+                            onLongClick = { onToggleSeriesFavorite(series.id) },
+                            modifier = Modifier.width(140.dp).then(
+                                if (firstSectionKey == "series" && index == 0) {
                                     Modifier.focusRequester(firstResultFocusRequester)
                                 } else Modifier
                             )
-                            FavoriteToggleChip(
-                                isFavorite = series.isFavorite,
-                                onToggle = { onToggleSeriesFavorite(series.id) },
-                                modifier = Modifier.padding(top = 6.dp)
-                            )
-                        }
+                        )
                     }
                 }
             }

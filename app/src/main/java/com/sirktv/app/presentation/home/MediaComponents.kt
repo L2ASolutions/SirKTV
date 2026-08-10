@@ -1,7 +1,5 @@
 package com.sirktv.app.presentation.home
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -223,24 +221,24 @@ private fun MediaCardArt(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(6.dp)
-                        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
+                        .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
-                    Text(it, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(it, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
-            if (isFavorite) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(50)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("♥", color = SirKTVPrimary, fontSize = 13.sp, modifier = Modifier.padding(4.dp))
-                }
-            }
+            // Status indicator only — no background/pill, no click target of
+            // its own (toggling happens via long-press, see MediaCard's
+            // onLongClick). Outlined when not favorited, filled Royal Blue
+            // when favorited, always visible either way.
+            Text(
+                text = if (isFavorite) "♥" else "♡",
+                color = if (isFavorite) SirKTVPrimary else SirKTVTextSecondary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)
+            )
 
             progressFraction?.let { fraction ->
                 Box(
@@ -256,39 +254,3 @@ private fun MediaCardArt(
     }
 }
 
-/**
- * Standalone focus stop placed *below* a [MediaCard] in browse grids (Movies,
- * Series) so adding/removing a favorite doesn't need a second focusable
- * target nested inside the card's own click target — D-pad Up/Down between
- * a tile and its own toggle stays predictable that way.
- */
-@Composable
-fun FavoriteToggleChip(isFavorite: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    // Small pulse on the icon whenever the favorite state flips, so toggling
-    // reads as a deliberate "fill" action rather than an instant color swap.
-    val fillScale by animateFloatAsState(
-        targetValue = if (isFavorite) 1f else 0.85f,
-        animationSpec = spring(dampingRatio = 0.4f),
-        label = "favoriteFillScale"
-    )
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onToggle, modifier = modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    if (isFavorite) SirKTVPrimary.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f),
-                    RoundedCornerShape(8.dp)
-                )
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = if (isFavorite) "♥ Favorited" else "♡ Add to Favorites",
-                color = if (isFavorite) SirKTVPrimary else Color.White.copy(alpha = 0.7f),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.graphicsLayer { scaleX = fillScale; scaleY = fillScale }
-            )
-        }
-    }
-}
