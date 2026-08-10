@@ -50,7 +50,14 @@ data class LiveTvBrowseUiState(
     val allChannels: List<Channel> = emptyList(),
     val visibleChannels: List<Channel> = emptyList(),
     val selectedCategoryId: String? = null,
+    // D-pad focus only — which row is highlighted as the user browses.
+    // Distinct from activeChannelId: highlighting a row never starts
+    // playback on its own anymore, matching the TiviMate/IPTV Smarters
+    // pattern (OK press is what loads a channel into the mini player).
     val selectedChannelId: String? = null,
+    // Which channel is actually loaded (and audible) in the mini player —
+    // null means the mini player is hidden. Set only by onChannelActivated.
+    val activeChannelId: String? = null,
     val nowPlayingChannelId: String? = null,
     val epgCache: Map<String, EpgNowNext> = emptyMap(),
     val epgListingsCache: Map<String, List<EpgProgram>> = emptyMap(),
@@ -62,13 +69,16 @@ data class LiveTvBrowseUiState(
     val isError: Boolean = false
 ) {
     val selectedChannel: Channel? get() = allChannels.find { it.id == selectedChannelId } ?: visibleChannels.firstOrNull()
+    val activeChannel: Channel? get() = allChannels.find { it.id == activeChannelId }
 }
 
 /**
- * Flat Xtream-category sidebar + channel list + a real (muted, looping)
- * preview player, shown after login/from Home so the user picks a channel
- * manually. Nothing plays unmuted until "Watch Full Screen" is pressed —
- * this screen never auto-tunes the fullscreen player on its own.
+ * Flat Xtream-category sidebar + channel list + a real, fully-audible mini
+ * player (TiviMate/IPTV Smarters pattern) — nothing plays until the user
+ * presses OK on a channel row. Browsing/focus never auto-plays anything; the
+ * mini player only ever shows whichever channel was last explicitly
+ * activated, and "Full Screen" hands that same channel off to the dedicated
+ * player route.
  */
 @HiltViewModel
 class LiveTvBrowseViewModel @Inject constructor(
@@ -90,36 +100,38 @@ class LiveTvBrowseViewModel @Inject constructor(
     private val requestedEpgChannelIds = mutableSetOf<String>()
     private val requestedEpgListingChannelIds = mutableSetOf<String>()
 
-    // --- Preview player: a second, independent ExoPlayer instance (muted,
-    // looping) dedicated to this screen only — never shared with the
-    // fullscreen SirKTVPlayerEngine singleton. ---
+    // --- Mini player: a second, independent ExoPlayer instance dedicated to
+    // this screen only — never shared with the fullscreen SirKTVPlayerEngine
+    // singleton. Built lazily on the first OK press on a channel row (never
+    // eagerly on screen entry), and plays with full audio — this is real
+    // playback, not a muted preview. ---
 
-    private val _previewPlayer = MutableStateFlow<ExoPlayer?>(null)
-    val previewPlayer: StateFlow<ExoPlayer?> = _previewPlayer.asStateFlow()
+    private val _miniPlayer = MutableStateFlow<ExoPlayer?>(null)
+    val miniPlayer: StateFlow<ExoPlayer?> = _miniPlayer.asStateFlow()
 
-    private val _previewState = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
-    val previewState: StateFlow<PlaybackState> = _previewState.asStateFlow()
+    private val _miniPlayerState = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
+    val miniPlayerState: StateFlow<PlaybackState> = _miniPlayerState.asStateFlow()
 
-    private var previewChannelId: String? = null
-    private var previewLoadTimeoutJob: Job? = null
+    private var miniPlayerChannelId: String? = null
+    private var miniPlayerLoadTimeoutJob: Job? = null
 
-    private val previewListener = object : Player.Listener {
+    private val miniPlayerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
             when (playbackState) {
                 Player.STATE_READY -> {
-                    previewLoadTimeoutJob?.cancel()
-                    _previewState.value = PlaybackState.Playing
+                    miniPlayerLoadTimeoutJob?.cancel()
+                    _miniPlayerState.value = PlaybackState.Playing
                 }
                 Player.STATE_BUFFERING -> {
-                    if (_previewState.value !is PlaybackState.Error) _previewState.value = PlaybackState.Buffering
+                    if (_miniPlayerState.value !is PlaybackState.Error) _miniPlayerState.value = PlaybackState.Buffering
                 }
                 else -> Unit
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            previewLoadTimeoutJob?.cancel()
-            _previewState.value = PlaybackState.Error(attemptsExhausted = true)
+            miniPlayerLoadTimeoutJob?.cancel()
+            _miniPlayerState.value = PlaybackState.Error(attemptsExhausted = true)
         }
     }
 
@@ -148,11 +160,11 @@ class LiveTvBrowseViewModel @Inject constructor(
                                 isLoading = if (channels.isNotEmpty()) false else it.isLoading
                             )
                         }
-                        // Deliberately does NOT auto-load a preview here: the preview
-                        // ExoPlayer is only ever built/used once a channel row actually
-                        // gains D-pad focus (see onChannelHighlighted) — never eagerly
-                        // on screen entry, so a slow/failing player build can't take
-                        // down the initial render of this screen.
+                        // Deliberately does NOT auto-load the mini player here: it's
+                        // only ever built/used once a channel row is explicitly
+                        // activated with OK (see onChannelActivated) — never eagerly
+                        // on screen entry or on mere focus, so a slow/failing player
+                        // build can't take down the initial render of this screen.
                     }
                 } catch (e: Exception) {
                     Log.e("SirKTV_LiveTV", "CRASH in categories/channels collector: ${e.stackTraceToString()}")
@@ -211,19 +223,36 @@ class LiveTvBrowseViewModel @Inject constructor(
         refresh()
     }
 
-    /** null selects the pinned "All Channels" row. */
+    /**
+     * null selects the pinned "All Channels" row. Deliberately does NOT touch
+     * the mini player — switching categories while browsing shouldn't
+     * interrupt whatever channel is currently playing.
+     */
     fun onCategorySelected(categoryId: String?) {
         _uiState.update {
             val visible = filterChannels(it.allChannels, categoryId)
             it.copy(selectedCategoryId = categoryId, visibleChannels = visible, selectedChannelId = visible.firstOrNull()?.id)
         }
-        _uiState.value.selectedChannel?.let { loadPreview(it.id) }
     }
 
-    /** Called as D-pad focus lands on a channel row — loads its preview immediately, no OK press required. */
+    /** D-pad focus landing on a channel row — highlight only, never starts playback on its own. */
     fun onChannelHighlighted(channelId: String) {
         _uiState.update { it.copy(selectedChannelId = channelId) }
-        loadPreview(channelId)
+    }
+
+    /** OK/Select pressed on a channel row — loads that channel into the mini player with full audio. */
+    fun onChannelActivated(channelId: String) {
+        _uiState.update { it.copy(activeChannelId = channelId) }
+        loadMiniPlayer(channelId)
+    }
+
+    /** The X button on the mini player — stops playback and hides the panel, but keeps the ExoPlayer instance warm for the next activation. */
+    fun dismissMiniPlayer() {
+        miniPlayerLoadTimeoutJob?.cancel()
+        runCatching { _miniPlayer.value?.stop() }
+        _uiState.update { it.copy(activeChannelId = null) }
+        _miniPlayerState.value = PlaybackState.Idle
+        miniPlayerChannelId = null
     }
 
     fun requestEpgFor(channelId: String) {
@@ -252,23 +281,22 @@ class LiveTvBrowseViewModel @Inject constructor(
         if (categoryId == null) channels else channels.filter { it.categoryId == categoryId }
 
     /**
-     * Builds the preview ExoPlayer if it doesn't exist yet. Called explicitly
-     * from the screen's `LaunchedEffect(Unit)` — never from init/the
-     * constructor — so construction only ever happens once the Composable is
-     * actually alive, and a failure here (device without the right codec,
-     * ExoPlayer internals throwing during setup, etc.) can't take the whole
-     * screen down before it even renders.
+     * Builds the mini player ExoPlayer if it doesn't exist yet. Only ever
+     * called from [loadMiniPlayer] — the moment the user first presses OK on
+     * a channel row — never eagerly on screen entry, so a failure here
+     * (device without the right codec, ExoPlayer internals throwing during
+     * setup, etc.) can't take the whole screen down before it even renders.
      */
-    fun initPreviewPlayer() {
-        if (_previewPlayer.value != null) return
-        runCatching { buildPreviewPlayer() }
-            .onSuccess { _previewPlayer.value = it }
-            .onFailure { _previewState.value = PlaybackState.Error(attemptsExhausted = true) }
+    private fun initMiniPlayer() {
+        if (_miniPlayer.value != null) return
+        runCatching { buildMiniPlayer() }
+            .onSuccess { _miniPlayer.value = it }
+            .onFailure { _miniPlayerState.value = PlaybackState.Error(attemptsExhausted = true) }
     }
 
-    private fun buildPreviewPlayer(): ExoPlayer {
+    private fun buildMiniPlayer(): ExoPlayer {
         // Same buffer profile the fullscreen engine defaults to, but with a
-        // much shorter start buffer so previews feel instant while scrolling.
+        // much shorter start buffer so the mini player feels instant.
         val buffer = PlayerSettings.MEDIUM_BUFFER
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(buffer.minBufferMs, buffer.maxBufferMs, 2_000, buffer.rebufferThresholdMs)
@@ -282,56 +310,59 @@ class LiveTvBrowseViewModel @Inject constructor(
             .setLoadControl(loadControl)
             .setMediaSourceFactory(mediaSourceFactory)
             .build()
-        player.volume = 0f
-        player.repeatMode = Player.REPEAT_MODE_ONE
-        player.addListener(previewListener)
+        // Real playback, not a preview — full audio, no looping (this is a
+        // live stream, not a finite clip).
+        player.volume = 1f
+        player.repeatMode = Player.REPEAT_MODE_OFF
+        player.addListener(miniPlayerListener)
         return player
     }
 
-    /** Lazy, focus-driven — called only from [onChannelHighlighted]/[onCategorySelected], never on screen entry. */
-    private fun loadPreview(channelId: String) {
-        if (previewChannelId == channelId && _previewState.value !is PlaybackState.Error) return
+    /** Only one channel plays at a time — called from [onChannelActivated], swaps the mini player's stream to a new channel. */
+    private fun loadMiniPlayer(channelId: String) {
+        if (miniPlayerChannelId == channelId && _miniPlayerState.value !is PlaybackState.Error) return
         val credentials = currentSession.credentials.value ?: return
-        initPreviewPlayer()
-        val player = _previewPlayer.value ?: return
+        initMiniPlayer()
+        val player = _miniPlayer.value ?: return
 
         runCatching {
-            previewChannelId = channelId
+            miniPlayerChannelId = channelId
             val url = XtreamStreamUrlBuilder.buildPrimaryUrl(credentials.serverUrl, credentials.username, credentials.password, channelId)
-            previewLoadTimeoutJob?.cancel()
-            _previewState.value = PlaybackState.Buffering
+            miniPlayerLoadTimeoutJob?.cancel()
+            _miniPlayerState.value = PlaybackState.Buffering
             player.stop()
+            player.clearMediaItems()
             player.setMediaItem(MediaItem.fromUri(url))
             player.prepare()
             player.play()
 
-            previewLoadTimeoutJob = viewModelScope.launch {
+            miniPlayerLoadTimeoutJob = viewModelScope.launch {
                 delay(8_000)
-                if (_previewState.value is PlaybackState.Buffering) {
-                    _previewState.value = PlaybackState.Error(attemptsExhausted = true)
+                if (_miniPlayerState.value is PlaybackState.Buffering) {
+                    _miniPlayerState.value = PlaybackState.Error(attemptsExhausted = true)
                 }
             }
         }.onFailure {
-            _previewState.value = PlaybackState.Error(attemptsExhausted = true)
+            _miniPlayerState.value = PlaybackState.Error(attemptsExhausted = true)
         }
     }
 
     /** Full teardown — called from the screen's DisposableEffect(onDispose) and from [onCleared]. */
-    fun releasePreview() {
-        previewLoadTimeoutJob?.cancel()
+    fun releaseMiniPlayer() {
+        miniPlayerLoadTimeoutJob?.cancel()
         runCatching {
-            _previewPlayer.value?.let {
-                it.removeListener(previewListener)
+            _miniPlayer.value?.let {
+                it.removeListener(miniPlayerListener)
                 it.stop()
                 it.release()
             }
         }
-        _previewPlayer.value = null
-        _previewState.value = PlaybackState.Idle
-        previewChannelId = null
+        _miniPlayer.value = null
+        _miniPlayerState.value = PlaybackState.Idle
+        miniPlayerChannelId = null
     }
 
     override fun onCleared() {
-        releasePreview()
+        releaseMiniPlayer()
     }
 }

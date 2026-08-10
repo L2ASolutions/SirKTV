@@ -1,5 +1,6 @@
 package com.sirktv.app.presentation.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
@@ -37,8 +38,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Text as TvText
-import com.sirktv.app.presentation.common.SirKTVChrome
-import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.theme.Dimens
@@ -51,11 +50,14 @@ import androidx.tv.material3.Surface
 
 @Composable
 fun SettingsScreen(
-    onNavigate: (SirKTVNavItem) -> Unit,
     onLoggedOut: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     var expandedTile by remember { mutableStateOf<SettingsTile?>(null) }
+
+    // The sidebar is always visible and is how the user leaves this screen —
+    // hardware Back intentionally does nothing here, matching TiviMate.
+    BackHandler(enabled = true) {}
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -71,10 +73,6 @@ fun SettingsScreen(
             contentPadding = PaddingValues(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical),
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
         ) {
-            item {
-                SirKTVChrome(activeItem = SirKTVNavItem.SETTINGS, onNavigate = onNavigate, onRefresh = {})
-            }
-
             item {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(5),

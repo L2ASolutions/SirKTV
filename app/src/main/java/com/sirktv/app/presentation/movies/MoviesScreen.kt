@@ -1,5 +1,6 @@
 package com.sirktv.app.presentation.movies
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,10 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -33,8 +31,6 @@ import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.presentation.common.CategoryPill
 import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
-import com.sirktv.app.presentation.common.SirKTVChrome
-import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.MediaRow
@@ -47,10 +43,13 @@ private val PosterCardWidth = 150.dp
 @Composable
 fun MoviesScreen(
     onMovieSelected: (movieId: String) -> Unit,
-    onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: MoviesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // The sidebar is always visible and is how the user leaves this screen —
+    // hardware Back intentionally does nothing here, matching TiviMate.
+    BackHandler(enabled = true) {}
 
     Column(
         modifier = Modifier
@@ -58,27 +57,18 @@ fun MoviesScreen(
             .background(SirKTVBackground)
             .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
     ) {
-        SirKTVChrome(activeItem = SirKTVNavItem.MOVIES, onNavigate = onNavigate, onRefresh = viewModel::refresh)
-
+        // No "Movies" title here — the sidebar's accent bar already shows
+        // this is the active section; just the item count, plus the genre
+        // filter row. Global search lives behind the Search sidebar item —
+        // this row is a genre filter only, the correct TV pattern.
         if (!uiState.isLoading && (uiState.loadError == null || uiState.allMovies.isNotEmpty())) {
-            Row(
-                modifier = Modifier.padding(top = Dimens.SpaceLg),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
-            ) {
-                Column {
-                    Text("Movies", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text(
-                        text = "${uiState.allMovies.size} movie(s) on this account",
-                        color = SirKTVOnSurfaceMuted,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
+            Text(
+                text = "${uiState.allMovies.size} movie(s) on this account",
+                color = SirKTVOnSurfaceMuted,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(top = Dimens.SpaceLg)
+            )
 
-            // Global search lives behind the Search nav pill — this row is a
-            // genre filter only, the correct TV pattern (no on-screen typing).
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(top = Dimens.SpaceMd)

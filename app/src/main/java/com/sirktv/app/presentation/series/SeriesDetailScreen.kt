@@ -43,8 +43,6 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text as TvText
 import coil.compose.AsyncImage
 import com.sirktv.app.domain.model.Episode
-import com.sirktv.app.presentation.common.SirKTVChrome
-import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.glassCard
 import com.sirktv.app.presentation.common.tvFocusStyle
@@ -59,7 +57,6 @@ import com.sirktv.app.presentation.theme.SirKTVSurfaceVariant
 fun SeriesDetailScreen(
     onEpisodeSelected: (seriesId: String, season: Int, episode: Int) -> Unit,
     onBack: () -> Unit,
-    onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: SeriesDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -72,9 +69,7 @@ fun SeriesDetailScreen(
             .background(SirKTVBackground)
             .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
     ) {
-        SirKTVChrome(activeItem = SirKTVNavItem.SERIES, onNavigate = onNavigate, onRefresh = {})
-
-        androidx.tv.material3.Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
+        androidx.tv.material3.Surface(border = com.sirktv.app.presentation.common.tvNoBorder(),
             onClick = onBack,
             modifier = Modifier.padding(top = Dimens.SpaceLg, bottom = Dimens.SpaceSm).tvFocusStyle(cornerRadius = 6.dp)
         ) {

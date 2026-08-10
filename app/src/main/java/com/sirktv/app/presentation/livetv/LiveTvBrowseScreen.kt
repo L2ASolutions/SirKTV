@@ -1,6 +1,7 @@
 package com.sirktv.app.presentation.livetv
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
@@ -50,7 +51,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,12 +66,10 @@ import com.sirktv.app.domain.model.EpgNowNext
 import com.sirktv.app.domain.model.EpgProgram
 import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
-import com.sirktv.app.presentation.common.SirKTVChrome
-import com.sirktv.app.presentation.common.SirKTVNavItem
-import com.sirktv.app.presentation.common.SirKTVLogoMark
 import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvChannelRowFocusStyle
 import com.sirktv.app.presentation.common.tvFocusStyle
+import com.sirktv.app.presentation.common.tvSidebarEscapeLeft
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVCardBackground
@@ -85,46 +83,54 @@ internal val ChannelListWidth = 340.dp
 private val ChannelRowHeight = 72.dp
 internal val LiveTvLiveRed = Color(0xFFFF4757)
 internal val LiveTvTrackGray = Color(0xFF333333)
+internal val LiveTvActiveRowBackground = Color(0xFF1A1A1A)
 
 /**
- * Landing point for Live TV: a flat Xtream-category sidebar, channel list,
- * and a real (muted, looping) preview panel so the user picks a channel
- * manually. Nothing plays unmuted until "Watch Full Screen" is pressed —
- * this screen never auto-tunes the fullscreen player on its own.
+ * Landing point for Live TV: a flat Xtream-category sidebar, a channel list,
+ * and — only after the user explicitly presses OK on a channel — a real,
+ * fully-audible mini player (TiviMate/IPTV Smarters pattern, not a muted
+ * always-on preview). Nothing plays until that OK press; browsing/focus
+ * alone never starts audio. "Full Screen" hands the same channel off to the
+ * dedicated player route; this screen never auto-tunes it on its own.
  */
 @Composable
 fun LiveTvBrowseScreen(
     onChannelSelected: (channelId: String) -> Unit,
-    onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: LiveTvBrowseViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    val previewPlayer by viewModel.previewPlayer.collectAsState()
-    val previewState by viewModel.previewState.collectAsState()
+    val miniPlayer by viewModel.miniPlayer.collectAsState()
+    val miniPlayerState by viewModel.miniPlayerState.collectAsState()
 
-    // The preview ExoPlayer is a screen-scoped resource, independent of the
-    // fullscreen SirKTVPlayerEngine singleton — it must stop the moment this
-    // screen leaves composition, not just when the ViewModel is cleared (the
-    // nav back-stack entry can outlive that if the user is routed elsewhere
-    // without popping this destination).
+    // The sidebar is always visible and is how the user leaves this screen —
+    // hardware Back intentionally does nothing here, matching TiviMate. The
+    // one exception is an open mini player: Back dismisses it (and only it)
+    // before falling back to the no-op, so a stray Back press can't silently
+    // swallow "close the mini player" as if it did nothing at all.
+    BackHandler(enabled = true) {
+        if (uiState.activeChannelId != null) viewModel.dismissMiniPlayer()
+    }
+
+    // The mini player ExoPlayer is a screen-scoped resource, independent of
+    // the fullscreen SirKTVPlayerEngine singleton — it must stop the moment
+    // this screen leaves composition, not just when the ViewModel is cleared
+    // (the nav back-stack entry can outlive that if the user is routed
+    // elsewhere without popping this destination). This is also what stops
+    // this screen's audio the instant "Full Screen" pushes the player route.
     DisposableEffect(Unit) {
-        onDispose { viewModel.releasePreview() }
+        onDispose { viewModel.releaseMiniPlayer() }
     }
 
     val sidebarFocusRequester = remember { FocusRequester() }
     val channelListFocusRequester = remember { FocusRequester() }
-    val watchFullScreenFocusRequester = remember { FocusRequester() }
+    val miniPlayerFocusRequester = remember { FocusRequester() }
 
-    // Preview ExoPlayer construction is deliberately triggered from here, not
-    // from the ViewModel's init/constructor — this guarantees it only ever
-    // happens once this screen is actually composed and alive. Wrapped so
-    // that a crash anywhere in this entry sequence (player build, initial
-    // focus request, etc.) lands as a logged diagnostic instead of taking the
-    // whole app down — see "SirKTV_LiveTV" in logcat.
+    // Default focus on entry is the category list — no player of any kind is
+    // ever built here. Wrapped so a crash anywhere in this entry sequence
+    // lands as a logged diagnostic instead of taking the whole app down —
+    // see "SirKTV_LiveTV" in logcat.
     LaunchedEffect(Unit) {
         try {
-            viewModel.initPreviewPlayer()
             delay(300)
             sidebarFocusRequester.requestFocus()
         } catch (e: Exception) {
@@ -133,10 +139,6 @@ fun LiveTvBrowseScreen(
     }
 
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
-        Box(Modifier.padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)) {
-            SirKTVChrome(activeItem = SirKTVNavItem.LIVE_TV, onNavigate = onNavigate, onRefresh = viewModel::refresh)
-        }
-
         when {
             uiState.isError -> LiveTvCrashErrorState(onRetry = viewModel::retryAfterError)
             uiState.isLoading -> SectionLoadingState("Loading channels…")
@@ -145,7 +147,7 @@ fun LiveTvBrowseScreen(
                 onRetry = viewModel::refresh
             )
             uiState.allChannels.isEmpty() -> SectionLoadingState("Loading channels…")
-            // Full width, edge-to-edge — no horizontal safe-zone padding on the three columns themselves.
+            // Full width, edge-to-edge — no horizontal safe-zone padding on the columns themselves.
             else -> Row(Modifier.fillMaxSize()) {
                 LiveTvCategorySidebar(
                     categories = uiState.categories,
@@ -157,29 +159,35 @@ fun LiveTvBrowseScreen(
                 LiveTvChannelListColumn(
                     channels = uiState.visibleChannels,
                     selectedChannelId = uiState.selectedChannelId,
+                    activeChannelId = uiState.activeChannelId,
                     nowPlayingChannelId = uiState.nowPlayingChannelId,
                     epgCache = uiState.epgCache,
                     focusRequester = channelListFocusRequester,
                     leftFocusRequester = sidebarFocusRequester,
-                    rightFocusRequester = watchFullScreenFocusRequester,
+                    rightFocusRequester = miniPlayerFocusRequester,
+                    hasActiveChannel = uiState.activeChannel != null,
                     onVisible = viewModel::requestEpgFor,
                     onHighlight = viewModel::onChannelHighlighted,
-                    onToggleFavorite = viewModel::onToggleFavorite
-                )
-                LiveTvPreviewPanel(
-                    channel = uiState.selectedChannel,
-                    categoryLabel = uiState.categories.find { it.id == uiState.selectedChannel?.categoryId }?.name,
-                    nowNext = uiState.selectedChannel?.let { uiState.epgCache[it.id] },
-                    listings = uiState.selectedChannel?.let { uiState.epgListingsCache[it.id] }.orEmpty(),
-                    previewPlayer = previewPlayer,
-                    previewState = previewState,
-                    watchFullScreenFocusRequester = watchFullScreenFocusRequester,
-                    leftFocusRequester = channelListFocusRequester,
-                    onRequestListings = viewModel::requestEpgListingsFor,
-                    onToggleFavorite = { uiState.selectedChannel?.let { viewModel.onToggleFavorite(it.id) } },
-                    onWatchFullScreen = { channel -> onChannelSelected(channel.id) },
+                    onActivate = viewModel::onChannelActivated,
+                    onToggleFavorite = viewModel::onToggleFavorite,
                     modifier = Modifier.weight(1f)
                 )
+                uiState.activeChannel?.let { channel ->
+                    MiniPlayerPanel(
+                        channel = channel,
+                        nowNext = uiState.epgCache[channel.id],
+                        listings = uiState.epgListingsCache[channel.id].orEmpty(),
+                        player = miniPlayer,
+                        playerState = miniPlayerState,
+                        isFavorite = channel.isFavorite,
+                        focusRequester = miniPlayerFocusRequester,
+                        leftFocusRequester = channelListFocusRequester,
+                        onRequestListings = viewModel::requestEpgListingsFor,
+                        onToggleFavorite = { viewModel.onToggleFavorite(channel.id) },
+                        onDismiss = viewModel::dismissMiniPlayer,
+                        onExpandFullScreen = { onChannelSelected(channel.id) }
+                    )
+                }
             }
         }
     }
@@ -236,6 +244,7 @@ private fun LiveTvCategorySidebar(
                 .fillMaxWidth()
                 .focusRequester(focusRequester)
                 .focusRestorer()
+                .tvSidebarEscapeLeft()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     if (event.key == Key.DirectionRight) {
@@ -296,14 +305,18 @@ private fun CategorySidebarRow(label: String, selected: Boolean, onClick: () -> 
 private fun LiveTvChannelListColumn(
     channels: List<Channel>,
     selectedChannelId: String?,
+    activeChannelId: String?,
     nowPlayingChannelId: String?,
     epgCache: Map<String, EpgNowNext>,
     focusRequester: FocusRequester,
     leftFocusRequester: FocusRequester,
     rightFocusRequester: FocusRequester,
+    hasActiveChannel: Boolean,
     onVisible: (String) -> Unit,
     onHighlight: (String) -> Unit,
-    onToggleFavorite: (String) -> Unit
+    onActivate: (String) -> Unit,
+    onToggleFavorite: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     // Shared across every row's favorite heart: whichever heart last reported
     // focus, so the column-level Left/Right handler below knows whether the
@@ -311,7 +324,7 @@ private fun LiveTvChannelListColumn(
     // (the row's own secondary focus zone, reached by default 2D search).
     var heartFocused by remember { mutableStateOf(false) }
 
-    Box(Modifier.fillMaxHeight().width(ChannelListWidth)) {
+    Box(modifier.fillMaxHeight()) {
         if (channels.isEmpty()) {
             Text(
                 "No channels in this category yet.",
@@ -330,7 +343,11 @@ private fun LiveTvChannelListColumn(
                     .onPreviewKeyEvent { event ->
                         if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                         when (event.key) {
-                            Key.DirectionRight -> if (heartFocused) {
+                            // Only hand off to the mini player's own focus
+                            // zone when it's actually on screen — otherwise
+                            // rightFocusRequester isn't attached to anything
+                            // and requestFocus() would throw.
+                            Key.DirectionRight -> if (heartFocused && hasActiveChannel) {
                                 rightFocusRequester.requestFocus(); true
                             } else false
                             Key.DirectionLeft -> if (heartFocused) {
@@ -347,9 +364,11 @@ private fun LiveTvChannelListColumn(
                     LiveTvChannelRow(
                         channel = channel,
                         nowNext = epgCache[channel.id],
-                        isSelected = channel.id == selectedChannelId,
+                        isHighlighted = channel.id == selectedChannelId,
+                        isActive = channel.id == activeChannelId,
                         isNowPlayingFullscreen = channel.id == nowPlayingChannelId,
-                        onFocusSelected = { onHighlight(channel.id) },
+                        onFocusHighlighted = { onHighlight(channel.id) },
+                        onActivate = { onActivate(channel.id) },
                         onToggleFavorite = { onToggleFavorite(channel.id) },
                         onHeartFocusChanged = { heartFocused = it }
                     )
@@ -363,35 +382,38 @@ private fun LiveTvChannelListColumn(
 private fun LiveTvChannelRow(
     channel: Channel,
     nowNext: EpgNowNext?,
-    isSelected: Boolean,
+    isHighlighted: Boolean,
+    isActive: Boolean,
     isNowPlayingFullscreen: Boolean,
-    onFocusSelected: () -> Unit,
+    onFocusHighlighted: () -> Unit,
+    onActivate: () -> Unit,
     onToggleFavorite: () -> Unit,
     onHeartFocusChanged: (Boolean) -> Unit
 ) {
-    val showAccent = isSelected || isNowPlayingFullscreen
+    val showAccent = isActive || isNowPlayingFullscreen
     val accentBarColor by animateColorAsState(targetValue = if (showAccent) SirKTVPrimary else Color.Transparent, label = "rowAccent")
 
     Row(modifier = Modifier.fillMaxWidth().height(ChannelRowHeight), verticalAlignment = Alignment.CenterVertically) {
-        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
-            onClick = onFocusSelected,
+        Surface(
+            border = com.sirktv.app.presentation.common.tvNoBorder(),
+            // OK/Select loads this channel into the mini player — browsing
+            // (focus alone) never starts playback, matching TiviMate/IPTV
+            // Smarters rather than this screen's old "preview on focus".
+            onClick = onActivate,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
                 .tvChannelRowFocusStyle(cornerRadius = Dimens.CardCornerRadius)
-                // "Preview on focus" — no OK press required, matching every
-                // other player screen in this app where D-pad navigation
-                // alone drives what's on screen.
-                .onFocusChanged { if (it.isFocused) onFocusSelected() }
+                .onFocusChanged { if (it.isFocused) onFocusHighlighted() }
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(if (isSelected) SirKTVCardBackground else Color.Transparent, RoundedCornerShape(Dimens.CardCornerRadius)),
+                    .background(if (isActive) LiveTvActiveRowBackground else Color.Transparent, RoundedCornerShape(Dimens.CardCornerRadius)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(Modifier.width(4.dp).height(40.dp).background(accentBarColor, RoundedCornerShape(2.dp)))
-                LiveTvChannelLogo(channel = channel, showLiveBadge = isSelected, modifier = Modifier.padding(start = 10.dp))
+                LiveTvChannelLogo(channel = channel, showLiveBadge = isActive, modifier = Modifier.padding(start = 10.dp))
                 Column(modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
                     Text(
                         text = channel.name,
@@ -651,7 +673,7 @@ private fun InlineTag(text: String) {
     }
 }
 
-/** Reused by SportsScreen (green accent) — kept exactly as-is; Live TV browse now uses [LiveTvPreviewPanel] instead. */
+/** Reused by SportsScreen (green accent) — kept exactly as-is; Live TV browse now uses [MiniPlayerPanel] instead. */
 @Composable
 internal fun PreviewPanel(
     channel: Channel?,

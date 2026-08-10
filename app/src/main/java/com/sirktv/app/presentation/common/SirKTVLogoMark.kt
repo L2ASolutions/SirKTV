@@ -18,8 +18,8 @@ import com.sirktv.app.presentation.theme.SirKTVPrimaryVariant
  * reference so the app icon, this composable, and the web spec stay in sync.
  */
 @Composable
-fun SirKTVLogoMark(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.size(56.dp)) {
+fun SirKTVLogoMark(modifier: Modifier = Modifier.size(56.dp)) {
+    Canvas(modifier = modifier) {
         val scale = size.width / 64f
         val gradient = Brush.linearGradient(colors = listOf(SirKTVPrimary, SirKTVPrimaryVariant))
 

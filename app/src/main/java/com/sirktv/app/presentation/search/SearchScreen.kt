@@ -1,5 +1,6 @@
 package com.sirktv.app.presentation.search
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,8 +32,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Surface
 import com.sirktv.app.domain.model.SearchResults
 import com.sirktv.app.presentation.common.CategoryPill
-import com.sirktv.app.presentation.common.SirKTVChrome
-import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.TvSearchField
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.home.FavoriteToggleChip
@@ -47,7 +46,6 @@ fun SearchScreen(
     onChannelSelected: (channelId: String) -> Unit,
     onMovieSelected: (movieId: String) -> Unit,
     onSeriesSelected: (seriesId: String) -> Unit,
-    onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -55,15 +53,17 @@ fun SearchScreen(
     val firstResultFocusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { fieldFocusRequester.requestFocus() }
 
+    // The sidebar is always visible and is how the user leaves this screen —
+    // hardware Back intentionally does nothing here, matching TiviMate.
+    BackHandler(enabled = true) {}
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(SirKTVBackground)
             .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
     ) {
-        SirKTVChrome(activeItem = SirKTVNavItem.SEARCH, onNavigate = onNavigate, onRefresh = {})
-        Text("Search", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = Dimens.SpaceLg))
-
+        // No "Search" title — the input itself is the header, sidebar shows the active section.
         TvSearchField(
             query = uiState.query,
             onQueryChange = viewModel::onQueryChanged,

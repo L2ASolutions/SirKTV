@@ -1,5 +1,6 @@
 package com.sirktv.app.presentation.sports
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,9 +28,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Surface
 import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
-import com.sirktv.app.presentation.common.SirKTVChrome
-import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.tvFocusStyle
+import com.sirktv.app.presentation.common.tvSidebarEscapeLeft
 import com.sirktv.app.presentation.livetv.ChannelListColumn
 import com.sirktv.app.presentation.livetv.PreviewPanel
 import com.sirktv.app.presentation.theme.Dimens
@@ -43,16 +43,15 @@ private val SidebarWidth = 200.dp
 @Composable
 fun SportsScreen(
     onChannelSelected: (channelId: String) -> Unit,
-    onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: SportsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
-        Box(Modifier.padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)) {
-            SirKTVChrome(activeItem = SirKTVNavItem.SPORTS, onNavigate = onNavigate, onRefresh = viewModel::refresh)
-        }
+    // The sidebar is always visible and is how the user leaves this screen —
+    // hardware Back intentionally does nothing here, matching TiviMate.
+    BackHandler(enabled = true) {}
 
+    Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
         when {
             uiState.isLoading -> SectionLoadingState("Loading channels…")
             uiState.loadError != null -> SectionErrorState(error = uiState.loadError!!, onRetry = viewModel::refresh)
@@ -87,7 +86,11 @@ fun SportsScreen(
 private fun FilterSidebar(selectedFilter: SportsFilter, onFilterSelected: (SportsFilter) -> Unit) {
     Box(Modifier.fillMaxHeight().width(SidebarWidth).background(Color(0xEE0A0A0F))) {
         LazyColumn(
-            modifier = Modifier.fillMaxHeight().fillMaxWidth().padding(vertical = Dimens.SpaceMd, horizontal = Dimens.SpaceSm),
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth()
+                .tvSidebarEscapeLeft()
+                .padding(vertical = Dimens.SpaceMd, horizontal = Dimens.SpaceSm),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             item {

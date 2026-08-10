@@ -1,5 +1,6 @@
 package com.sirktv.app.presentation.favorites
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -35,9 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Surface
-import com.sirktv.app.presentation.common.SirKTVChrome
-import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.tvFocusStyle
+import com.sirktv.app.presentation.common.tvSidebarEscapeLeft
 import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.livetv.ChannelCard
@@ -53,7 +53,6 @@ fun FavoritesScreen(
     onLiveSelected: (channelId: String) -> Unit,
     onMovieSelected: (movieId: String) -> Unit,
     onSeriesSelected: (seriesId: String) -> Unit,
-    onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: FavoritesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -63,16 +62,16 @@ fun FavoritesScreen(
     var moviesExpanded by remember { mutableStateOf(false) }
     var seriesExpanded by remember { mutableStateOf(false) }
 
+    // The sidebar is always visible and is how the user leaves this screen —
+    // hardware Back intentionally does nothing here, matching TiviMate.
+    BackHandler(enabled = true) {}
+
     Box(Modifier.fillMaxSize().background(SirKTVBackground)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical),
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
         ) {
-            item {
-                SirKTVChrome(activeItem = SirKTVNavItem.FAVORITES, onNavigate = onNavigate, onRefresh = {})
-            }
-
             item {
                 AccordionSection(title = "Live TV", count = uiState.channels.size, expanded = liveExpanded, onToggle = { liveExpanded = !liveExpanded }) {
                     if (uiState.channels.isEmpty()) {
@@ -162,7 +161,11 @@ private fun AccordionSection(
     content: @Composable () -> Unit
 ) {
     Column {
-        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onToggle, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
+        Surface(
+            border = com.sirktv.app.presentation.common.tvNoBorder(),
+            onClick = onToggle,
+            modifier = Modifier.fillMaxWidth().tvSidebarEscapeLeft().tvFocusStyle(cornerRadius = 8.dp)
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

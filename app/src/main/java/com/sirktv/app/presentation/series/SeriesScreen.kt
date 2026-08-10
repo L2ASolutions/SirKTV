@@ -1,11 +1,11 @@
 package com.sirktv.app.presentation.series
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,10 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -31,8 +28,6 @@ import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.presentation.common.CategoryPill
 import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
-import com.sirktv.app.presentation.common.SirKTVChrome
-import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.home.FavoriteToggleChip
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.MediaRow
@@ -45,10 +40,13 @@ private val PosterCardWidth = 150.dp
 @Composable
 fun SeriesScreen(
     onSeriesSelected: (seriesId: String) -> Unit,
-    onNavigate: (SirKTVNavItem) -> Unit,
     viewModel: SeriesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // The sidebar is always visible and is how the user leaves this screen —
+    // hardware Back intentionally does nothing here, matching TiviMate.
+    BackHandler(enabled = true) {}
 
     Column(
         modifier = Modifier
@@ -56,8 +54,6 @@ fun SeriesScreen(
             .background(SirKTVBackground)
             .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
     ) {
-        SirKTVChrome(activeItem = SirKTVNavItem.SERIES, onNavigate = onNavigate, onRefresh = viewModel::refresh)
-
         if (uiState.isLoading) {
             SectionLoadingState("Loading series…", modifier = Modifier.padding(top = Dimens.SpaceMd))
             return@Column
@@ -67,21 +63,14 @@ fun SeriesScreen(
             return@Column
         }
 
-        Row(
-            modifier = Modifier.padding(top = Dimens.SpaceLg),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
-        ) {
-            Column {
-                Text("Series", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(
-                    text = "${uiState.allSeries.size} series on this account",
-                    color = SirKTVOnSurfaceMuted,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-        }
+        // No "Series" title here — the sidebar's accent bar already shows
+        // this is the active section; just the item count.
+        Text(
+            text = "${uiState.allSeries.size} series on this account",
+            color = SirKTVOnSurfaceMuted,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(top = Dimens.SpaceLg)
+        )
 
         if (uiState.recentlyAdded.isNotEmpty()) {
             MediaRow(
