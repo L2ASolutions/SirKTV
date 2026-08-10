@@ -62,14 +62,16 @@ import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
+import com.sirktv.app.presentation.theme.SirKTVSurfaceElevated
+import com.sirktv.app.presentation.theme.SirKTVTextTertiary
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 private val MiniPlayerWidth = 340.dp
 private val MiniPlayerVideoHeight = 200.dp
-private val MiniPlayerFavoriteBg = Color(0xFF1F1F1F)
-private val MiniPlayerEndTimeColor = Color(0xFF666666)
+private val MiniPlayerFavoriteBg = SirKTVSurfaceElevated
+private val MiniPlayerEndTimeColor = SirKTVTextTertiary
 
 /**
  * The Live TV browse screen's third column: a real, fully-audible mini
@@ -125,7 +127,7 @@ fun MiniPlayerPanel(
             onExpandFullScreen = onExpandFullScreen
         )
 
-        Text(channel.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(channel.name, color = SirKTVOnSurfaceStrong, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
 
         nowNext?.now?.let { now ->
             Text(now.title, color = SirKTVOnSurfaceMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -160,7 +162,7 @@ fun MiniPlayerPanel(
             }
         }
 
-        Text("Schedule", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = Dimens.SpaceSm))
+        Text("Schedule", color = SirKTVOnSurfaceStrong, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = Dimens.SpaceSm))
 
         val upcoming = remember(listings, nowNext) { upcomingSchedule(listings) }
         if (upcoming.isEmpty()) {
@@ -279,7 +281,7 @@ private fun MiniPlayerVideo(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(channel.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     nowNext?.now?.let {
-                        Text(it.title, color = Color(0xFFA3A3A3), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(it.title, color = SirKTVOnSurfaceMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
                 MiniPlayerIconButton(icon = "⤢", contentDescription = "Expand to full screen", onClick = onExpandFullScreen)

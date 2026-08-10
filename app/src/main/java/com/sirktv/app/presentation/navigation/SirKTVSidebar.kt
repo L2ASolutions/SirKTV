@@ -51,6 +51,13 @@ import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.tvNoBorder
 import com.sirktv.app.presentation.common.tvNoGlow
 import com.sirktv.app.presentation.theme.AppSidebar
+import com.sirktv.app.presentation.theme.SirKTVDivider
+import com.sirktv.app.presentation.theme.SirKTVPrimary
+import com.sirktv.app.presentation.theme.SirKTVPrimaryContainer
+import com.sirktv.app.presentation.theme.SirKTVSurfaceElevated
+import com.sirktv.app.presentation.theme.SirKTVTextPrimary
+import com.sirktv.app.presentation.theme.SirKTVTextSecondary
+import com.sirktv.app.presentation.theme.SirKTVTextTertiary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
@@ -60,21 +67,21 @@ private val SidebarItemHeight = 56.dp
 private val SidebarAccentBarWidth = 3.dp
 
 private val SidebarBackground = AppSidebar
-private val SidebarDivider = Color(0xFF1E2D4A)
-private val SidebarFooterText = Color(0xFF445577)
-private val SidebarAccentColor = Color(0xFF0066FF)
+private val SidebarDivider = SirKTVDivider
+private val SidebarFooterText = SirKTVTextTertiary
+private val SidebarAccentColor = SirKTVPrimary
 
 // Focus/selection is ONLY ever a full-row background color change plus (for
 // the selected item) the left accent bar — no pill, no glow, no border. A
 // pill/glow box behind the icon previously rendered as a stray bright
 // highlight on real hardware; the row background is the one and only focus
 // indicator now.
-private val SidebarRowSelectedBg = Color(0xFF1A2A4A)
-private val SidebarRowFocusedBg = Color(0xFF162035)
-private val SidebarIconActive = Color.White
-private val SidebarIconIdle = Color(0xFF8899BB)
-private val SidebarTextActive = Color.White
-private val SidebarTextIdle = Color(0xFF8899BB)
+private val SidebarRowSelectedBg = SirKTVPrimaryContainer
+private val SidebarRowFocusedBg = SirKTVSurfaceElevated
+private val SidebarIconActive = SirKTVTextPrimary
+private val SidebarIconIdle = SirKTVTextSecondary
+private val SidebarTextActive = SirKTVTextPrimary
+private val SidebarTextIdle = SirKTVTextSecondary
 
 private val SidebarEntries = SirKTVNavItem.entries.toList()
 
@@ -123,7 +130,7 @@ fun SirKTVSidebar(
             Spacer(Modifier.width(10.dp))
             Text(
                 "SirKTV",
-                color = Color.White,
+                color = SirKTVTextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.5).sp

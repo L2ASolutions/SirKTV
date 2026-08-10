@@ -153,6 +153,10 @@ fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
                                     navController.navigate(SirKTVDestinations.seriesDetail(target.seriesId))
                             }
                         },
+                        // Same nav semantics as a sidebar click (popUpTo HOME
+                        // saveState, singleTop, restoreState) — the Home
+                        // tiles are shortcuts to the sidebar's own destinations.
+                        onNavigateToSection = onNavigate,
                         onLoggedOut = {
                             navController.navigate(SirKTVDestinations.LOGIN) {
                                 popUpTo(SirKTVDestinations.HOME) { inclusive = true }

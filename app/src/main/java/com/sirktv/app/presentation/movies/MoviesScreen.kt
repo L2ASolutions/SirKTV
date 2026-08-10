@@ -58,14 +58,16 @@ import com.sirktv.app.presentation.theme.AppSidebar
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
+import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
+import com.sirktv.app.presentation.theme.SirKTVPrimaryContainer
 import com.sirktv.app.presentation.theme.SirKTVTextSecondary
 import com.sirktv.app.presentation.theme.SirKTVTextTertiary
 
 private val PosterCardWidth = 150.dp
 private val CategoryListWidth = 220.dp
 private val CategoryRowHeight = 56.dp
-private val CategoryRowSelectedBg = Color(0xFF1A2A4A)
+private val CategoryRowSelectedBg = SirKTVPrimaryContainer
 
 @Composable
 fun MoviesScreen(
@@ -189,7 +191,7 @@ private fun MoviesCategoryRow(name: String, count: Int, selected: Boolean, onCli
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            Text(name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(name, color = SirKTVOnSurfaceStrong, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("Total: $count", color = SirKTVTextSecondary, fontSize = 11.sp)
         }
     }

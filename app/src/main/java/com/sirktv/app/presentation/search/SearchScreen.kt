@@ -24,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +38,7 @@ import com.sirktv.app.presentation.home.RowHeader
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
 import com.sirktv.app.presentation.theme.SirKTVPrimary
+import com.sirktv.app.presentation.theme.SirKTVTextTertiary
 
 @Composable
 fun SearchScreen(
@@ -99,7 +99,7 @@ fun SearchScreen(
 @Composable
 private fun RecentSearches(recent: List<String>, onPick: (String) -> Unit, onClear: () -> Unit) {
     if (recent.isEmpty()) {
-        Text("Search for a channel, movie, or series title.", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)
+        Text("Search for a channel, movie, or series title.", color = SirKTVTextTertiary, fontSize = 13.sp)
         return
     }
     Row(
@@ -136,7 +136,7 @@ private fun SearchResultsList(
     onToggleSeriesFavorite: (String) -> Unit
 ) {
     if (results.isEmpty) {
-        Text("No matches found.", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)
+        Text("No matches found.", color = SirKTVTextTertiary, fontSize = 13.sp)
         return
     }
     // Whichever section renders first gets its first card wired to

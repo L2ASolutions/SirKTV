@@ -147,7 +147,7 @@ private fun SettingsTileCard(tile: SettingsTile, selected: Boolean, onClick: () 
                             .background(SirKTVPrimary.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
                             .padding(8.dp)
                     ) {
-                        Text("⚙", fontSize = 14.sp, color = SirKTVPrimary)
+                        Text(tile.icon, fontSize = 14.sp, color = SirKTVPrimary)
                     }
                 }
                 Text(tile.label, color = SirKTVOnSurfaceStrong, fontSize = 12.sp, fontWeight = FontWeight.Bold)

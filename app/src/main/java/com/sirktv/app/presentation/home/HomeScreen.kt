@@ -2,15 +2,21 @@ package com.sirktv.app.presentation.home
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -26,44 +32,62 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Button
+import androidx.tv.material3.Surface
 import androidx.tv.material3.Text as TvText
 import com.sirktv.app.domain.model.EpgNowNext
+import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvFocusStyle
+import com.sirktv.app.presentation.common.tvNoBorder
 import com.sirktv.app.presentation.common.tvNoButtonBorder
 import com.sirktv.app.presentation.livetv.ChannelCard
+import com.sirktv.app.presentation.navigation.SirKTVIcons
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
+import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import com.sirktv.app.presentation.theme.SirKTVSurface
+import com.sirktv.app.presentation.theme.SirKTVSurfaceElevated
+import com.sirktv.app.presentation.theme.SirKTVTextPrimary
+import com.sirktv.app.presentation.theme.SirKTVTextSecondary
+import com.sirktv.app.presentation.theme.SirKTVTextTertiary
 import java.util.Calendar
 
 private val WideCardWidth = 300.dp
 private val PosterCardWidth = 150.dp
 
-private val EmptyStateIconColor = Color(0xFF333333)
-private val EmptyStateTitleColor = Color(0xFF666666)
-private val EmptyStateSubtitleColor = Color(0xFF444444)
+private val EmptyStateIconColor = SirKTVTextTertiary
+private val EmptyStateTitleColor = SirKTVTextSecondary
+private val EmptyStateSubtitleColor = SirKTVTextTertiary
+
+private val LiveTvTileAccent = Color(0xFF1F6FEB)
+private val MoviesTileAccent = Color(0xFF7C3AED)
+private val SeriesTileAccent = Color(0xFF0891B2)
 
 /**
- * Home is a pure personal dashboard now that the sidebar handles all
- * top-level navigation — no section tiles, no duplicate nav of any kind.
- * Just a time-aware greeting and up to three personal rows (Continue
- * Watching, My Favorites, Recently Watched), each pulled straight from Room
- * and only shown when it actually has data. No content sync ever happens
+ * Home is a personal dashboard (time-aware greeting, Continue Watching, My
+ * Favorites, Recently Watched — each pulled straight from Room and only
+ * shown when it actually has data) plus three section launcher tiles
+ * (Live TV/Movies/Series) at the top, mirroring the always-visible sidebar's
+ * top three destinations as one-tap shortcuts. No content sync ever happens
  * here — [HomeViewModel] only reads what's already cached locally.
  */
 @Composable
 fun HomeScreen(
     onOpenContent: (HomeNavTarget) -> Unit,
+    onNavigateToSection: (SirKTVNavItem) -> Unit,
     onLoggedOut: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -97,10 +121,14 @@ fun HomeScreen(
             item {
                 Text(
                     text = "${timeOfDayGreeting()}, ${displayName ?: "there"}",
-                    color = Color.White,
-                    fontSize = 24.sp,
+                    color = SirKTVTextPrimary,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
+
+            item {
+                HomeSectionTiles(onNavigate = onNavigateToSection)
             }
 
             if (state.continueWatching.isNotEmpty()) {
@@ -163,6 +191,99 @@ private fun timeOfDayGreeting(): String = when (Calendar.getInstance().get(Calen
     in 5..11 -> "Good morning"
     in 12..16 -> "Good afternoon"
     else -> "Good evening"
+}
+
+/** One-tap shortcuts to the sidebar's top three destinations — stacked full-width, 80dp tall each. */
+@Composable
+private fun HomeSectionTiles(onNavigate: (SirKTVNavItem) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+        HomeSectionTile(
+            title = "Live TV",
+            subtitle = "Browse live channels",
+            accentColor = LiveTvTileAccent,
+            icon = { tint, mod -> SirKTVIcons.LiveTv(tint, mod) },
+            onClick = { onNavigate(SirKTVNavItem.LIVE_TV) }
+        )
+        HomeSectionTile(
+            title = "Movies",
+            subtitle = "Browse the movie library",
+            accentColor = MoviesTileAccent,
+            icon = { tint, mod -> SirKTVIcons.Movies(tint, mod) },
+            onClick = { onNavigate(SirKTVNavItem.MOVIES) }
+        )
+        HomeSectionTile(
+            title = "Series",
+            subtitle = "Browse TV series",
+            accentColor = SeriesTileAccent,
+            icon = { tint, mod -> SirKTVIcons.Series(tint, mod) },
+            onClick = { onNavigate(SirKTVNavItem.SERIES) }
+        )
+    }
+}
+
+@Composable
+private fun HomeSectionTile(
+    title: String,
+    subtitle: String,
+    accentColor: Color,
+    icon: @Composable (Color, Modifier) -> Unit,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(targetValue = if (isFocused) 1.03f else 1f, label = "homeTileScale")
+    val rowBackground by animateColorAsState(
+        targetValue = if (isFocused) SirKTVSurfaceElevated else SirKTVCardBackground,
+        label = "homeTileBackground"
+    )
+    val glowElevation by animateDpAsState(targetValue = if (isFocused) Dimens.FocusGlowElevation else 0.dp, label = "homeTileGlow")
+    val chevronColor by animateColorAsState(targetValue = if (isFocused) accentColor else SirKTVTextTertiary, label = "homeTileChevron")
+
+    Surface(
+        border = tvNoBorder(),
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .shadow(
+                elevation = glowElevation,
+                shape = RoundedCornerShape(8.dp),
+                clip = false,
+                ambientColor = accentColor,
+                spotColor = accentColor
+            )
+            .onFocusChanged { isFocused = it.isFocused }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(8.dp))
+                .background(rowBackground),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.width(3.dp).fillMaxHeight().background(accentColor))
+            Box(
+                modifier = Modifier
+                    .padding(start = Dimens.SpaceMd)
+                    .size(48.dp)
+                    .background(accentColor.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                icon(accentColor, Modifier.size(24.dp))
+            }
+            Column(modifier = Modifier.weight(1f).padding(horizontal = Dimens.SpaceMd)) {
+                Text(title, color = SirKTVTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                Text(subtitle, color = SirKTVTextSecondary, fontSize = 12.sp)
+            }
+            Text(
+                "❯",
+                color = chevronColor,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(end = Dimens.SpaceMd)
+            )
+        }
+    }
 }
 
 /** Mixed favorite channels/movies/series in one horizontal shelf — the same card widgets used everywhere else in the app. */
@@ -253,7 +374,7 @@ private fun ExitConfirmationDialog(onConfirm: () -> Unit, onDismiss: () -> Unit)
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
         ) {
-            Text("Exit SirKTV?", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text("Exit SirKTV?", color = SirKTVTextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
                 Button(
                     border = tvNoButtonBorder(),

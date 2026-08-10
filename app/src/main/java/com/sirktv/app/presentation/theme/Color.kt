@@ -11,34 +11,37 @@ import androidx.compose.ui.graphics.Color
 // values here (rather than renaming every call site) applies the navy
 // palette across the whole app at once. AppBackground/AppSurface/etc. are
 // aliases of the exact same values for anything written against those names.
-val SirKTVBackground = Color(0xFF0A0F1E)
-val SirKTVSurface = Color(0xFF141E33)
-val SirKTVSurfaceElevated = Color(0xFF1A2540)
+val SirKTVBackground = Color(0xFF0D1117)
+val SirKTVSurface = Color(0xFF161B22)
+val SirKTVSurfaceElevated = Color(0xFF1C2333)
 val SirKTVSurfaceVariant = SirKTVSurfaceElevated
 
 // Card background used by every channel/EPG/poster card (Home, Live TV
-// channel list, Live TV browse, Favorites Channels tab) — distinct from the
-// navy app background so cards read as raised surfaces.
-val SirKTVCardBackground = Color(0xFF111827)
+// channel list, Live TV browse, Favorites Channels tab) — same tier as
+// SirKTVSurface so cards read as raised surfaces without needing a border.
+val SirKTVCardBackground = SirKTVSurface
 
-// Brand primary is Royal Blue #0066FF — used for the wordmark, large surfaces,
-// buttons, and (per the focus-visibility spec) the glow on every focusable
-// element, exactly matching the brand hex rather than a lifted tint. NEVER
+// Brand primary — used for the wordmark, large surfaces, buttons, and (per
+// the focus-visibility spec) the glow on every focusable element. NEVER
 // rendered as a border — see tvFocusStyle, which glow-only by design.
-val SirKTVPrimary = Color(0xFF0066FF)
+val SirKTVPrimary = Color(0xFF1F6FEB)
 val SirKTVPrimaryVariant = Color(0xFF9A86FF)
+// Selected-row tint (e.g. category/channel rows) — a dim navy fill, not the
+// bright primary itself, so a selected row reads as "active" without
+// competing with the focus glow.
+val SirKTVPrimaryContainer = Color(0xFF1A2A4A)
 val SirKTVOnPrimary = Color(0xFFFFFFFF)
-val SirKTVOnBackground = Color(0xFFFFFFFF)
+val SirKTVOnBackground = Color(0xFFE6EDF3)
 
-// Text hierarchy — three tiers: pure white for headlines/titles/primary
-// content (never gray, never blue-gray for primary labels — this is a
-// dark-mode-only app, so nothing here should ever read as dark-on-dark), a
-// muted blue-gray for body/secondary copy (counts, metadata, subtitles), and
-// a very muted blue-gray for tertiary text (timestamps, small labels) that
+// Text hierarchy — three tiers: a soft off-white for headlines/titles/primary
+// content (pure white is reserved for text drawn over images/video scrims,
+// where the extra contrast is needed — see Color.White usages in poster
+// cards and player overlays), a muted gray for body/secondary copy (counts,
+// metadata, subtitles), and a dim gray for tertiary text/placeholders that
 // should recede from everything else.
-val SirKTVTextPrimary = Color(0xFFFFFFFF)
-val SirKTVTextSecondary = Color(0xFF8899BB)
-val SirKTVTextTertiary = Color(0xFF445577)
+val SirKTVTextPrimary = Color(0xFFE6EDF3)
+val SirKTVTextSecondary = Color(0xFF848D97)
+val SirKTVTextTertiary = Color(0xFF484F58)
 
 // Back-compat aliases — dozens of existing call sites reference these names;
 // repointing them at the new tiers (rather than renaming every call site)
@@ -48,9 +51,9 @@ val SirKTVOnSurfaceMuted = SirKTVTextSecondary
 
 val SirKTVDivider = Color(0xFF1E2D4A)
 
-// Netflix red — reserved for genuine error states only (never a general accent).
-val SirKTVError = Color(0xFFE50914)
-val SirKTVFocusBorder = Color(0xFF0066FF)
+// Reserved for genuine error states only (never a general accent).
+val SirKTVError = Color(0xFFDA3633)
+val SirKTVFocusBorder = SirKTVPrimary
 val SirKTVLiveIndicator = Color(0xFFFF4757)
 
 // Sports section accent — intentionally breaks from the app-wide blue focus
@@ -64,7 +67,10 @@ val SirKTVSeriesAccent = Color(0xFF00BCD4)
 // --- Named aliases matching the Hot-Player-style palette spec exactly. Same
 // values as above — use whichever name reads more clearly at the call site. ---
 val AppBackground = SirKTVBackground
-val AppSidebar = Color(0xFF0F1626)
+// Darker rail background for side panels that sit beside the main content
+// area — nav sidebar, category columns, mini-player column — one tier below
+// SirKTVBackground so those rails read as physically recessed.
+val AppSidebar = Color(0xFF080C12)
 val AppSurface = SirKTVSurface
 val AppSurfaceElevated = SirKTVSurfaceElevated
 val AppCard = SirKTVCardBackground

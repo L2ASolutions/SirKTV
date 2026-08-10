@@ -77,14 +77,19 @@ import com.sirktv.app.presentation.theme.SirKTVCardBackground
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
+import com.sirktv.app.presentation.theme.SirKTVPrimaryContainer
 import kotlinx.coroutines.delay
 
-private val SidebarWidth = 200.dp
+private val SidebarWidth = 220.dp
 internal val ChannelListWidth = 340.dp
-private val ChannelRowHeight = 72.dp
+private val ChannelRowHeight = 64.dp
+// Matches MiniPlayerPanel's own MiniPlayerWidth — kept as a separate constant
+// here (rather than importing that private val) so this placeholder never
+// resizes the panel when a channel is later activated.
+private val MiniPlayerPanelWidth = 340.dp
 internal val LiveTvLiveRed = Color(0xFFFF4757)
-internal val LiveTvTrackGray = Color(0xFF333333)
-internal val LiveTvActiveRowBackground = Color(0xFF1A1A1A)
+internal val LiveTvTrackGray = Color.White.copy(alpha = 0.15f)
+internal val LiveTvActiveRowBackground = SirKTVPrimaryContainer
 
 /**
  * Landing point for Live TV: a flat Xtream-category sidebar, a channel list,
@@ -175,24 +180,41 @@ fun LiveTvBrowseScreen(
                     onToggleFavorite = viewModel::onToggleFavorite,
                     modifier = Modifier.weight(1f)
                 )
-                uiState.activeChannel?.let { channel ->
+                val activeChannel = uiState.activeChannel
+                if (activeChannel != null) {
                     MiniPlayerPanel(
-                        channel = channel,
-                        nowNext = uiState.epgCache[channel.id],
-                        listings = uiState.epgListingsCache[channel.id].orEmpty(),
+                        channel = activeChannel,
+                        nowNext = uiState.epgCache[activeChannel.id],
+                        listings = uiState.epgListingsCache[activeChannel.id].orEmpty(),
                         player = miniPlayer,
                         playerState = miniPlayerState,
-                        isFavorite = channel.isFavorite,
+                        isFavorite = activeChannel.isFavorite,
                         focusRequester = miniPlayerFocusRequester,
                         leftFocusRequester = channelListFocusRequester,
                         onRequestListings = viewModel::requestEpgListingsFor,
-                        onToggleFavorite = { viewModel.onToggleFavorite(channel.id) },
+                        onToggleFavorite = { viewModel.onToggleFavorite(activeChannel.id) },
                         onDismiss = viewModel::dismissMiniPlayer,
-                        onExpandFullScreen = { onChannelSelected(channel.id) }
+                        onExpandFullScreen = { onChannelSelected(activeChannel.id) }
                     )
+                } else {
+                    MiniPlayerEmptyPanel()
                 }
             }
         }
+    }
+}
+
+/** Third-panel placeholder shown before the user has pressed OK on any channel — keeps the three-panel layout fixed-width and always present, never a two-panel layout that shifts when a channel is later activated. */
+@Composable
+private fun MiniPlayerEmptyPanel() {
+    Box(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(MiniPlayerPanelWidth)
+            .background(com.sirktv.app.presentation.theme.AppSidebar),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Select a channel", color = SirKTVOnSurfaceMuted, fontSize = 14.sp)
     }
 }
 
@@ -293,13 +315,13 @@ private fun CategorySidebarRow(label: String, count: Int, selected: Boolean, onC
         ) {
             Text(
                 text = label,
-                color = Color.White,
+                color = SirKTVOnSurfaceStrong,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text("Total: $count", color = SirKTVOnSurfaceMuted, fontSize = 11.sp)
+            Text("Total: $count", color = SirKTVOnSurfaceMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -417,7 +439,7 @@ private fun LiveTvChannelRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(Modifier.width(4.dp).height(40.dp).background(accentBarColor, RoundedCornerShape(2.dp)))
-                LiveTvChannelLogo(channel = channel, showLiveBadge = isActive, modifier = Modifier.padding(start = 10.dp))
+                LiveTvChannelLogo(channel = channel, showLiveBadge = isActive || isNowPlayingFullscreen, modifier = Modifier.padding(start = 10.dp))
                 Column(modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
                     Text(
                         text = channel.name,
@@ -428,15 +450,6 @@ private fun LiveTvChannelRow(
                         overflow = TextOverflow.Ellipsis
                     )
                     LiveTvNowPlayingLine(nowNext)
-                    if (isNowPlayingFullscreen) {
-                        Text(
-                            "NOW PLAYING",
-                            color = SirKTVPrimary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                    }
                 }
             }
         }
@@ -452,7 +465,7 @@ private fun LiveTvChannelRow(
 @Composable
 internal fun LiveTvChannelLogo(channel: Channel, showLiveBadge: Boolean, modifier: Modifier = Modifier) {
     val hasLogo = !channel.logoUrl.isNullOrBlank()
-    Box(modifier.size(48.dp)) {
+    Box(modifier.size(44.dp)) {
         if (hasLogo) {
             AsyncImage(
                 model = channel.logoUrl,

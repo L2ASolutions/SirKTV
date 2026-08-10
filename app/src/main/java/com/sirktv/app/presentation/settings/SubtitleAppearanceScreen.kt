@@ -28,6 +28,7 @@ import com.sirktv.app.domain.model.SubtitleEdgeStyle
 import com.sirktv.app.domain.model.SubtitleTextColor
 import com.sirktv.app.domain.model.SubtitleTextSize
 import com.sirktv.app.presentation.theme.Dimens
+import com.sirktv.app.presentation.theme.SirKTVBackground
 
 /** Embedded inline as the expanded panel for the "Subtitle Appearance" settings tile. */
 @Composable
@@ -104,7 +105,7 @@ private fun SubtitlePreview(appearance: SubtitleAppearance) {
         modifier = Modifier
             .fillMaxWidth()
             .height(140.dp)
-            .background(Color(0xFF14141C), RoundedCornerShape(Dimens.CornerRadius)),
+            .background(SirKTVBackground, RoundedCornerShape(Dimens.CornerRadius)),
         contentAlignment = Alignment.BottomCenter
     ) {
         Column(
