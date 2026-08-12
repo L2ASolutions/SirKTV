@@ -215,7 +215,10 @@ fun LiveTvBrowseScreen(
                         onRequestListings = viewModel::requestEpgListingsFor,
                         onToggleFavorite = { viewModel.onToggleFavorite(activeChannel.id) },
                         onDismiss = viewModel::dismissMiniPlayer,
-                        onExpandFullScreen = { onChannelSelected(activeChannel.id) }
+                        onExpandFullScreen = {
+                            viewModel.prewarmFullScreen(activeChannel.id)
+                            onChannelSelected(activeChannel.id)
+                        }
                     )
                 } else {
                     MiniPlayerEmptyPanel()

@@ -196,9 +196,17 @@ class LiveTvPlayerViewModel @Inject constructor(
 
     private fun tuneTo(channel: Channel) {
         val credentials = currentSession.credentials.value ?: return
-        val primary = XtreamStreamUrlBuilder.buildPrimaryUrl(credentials.serverUrl, credentials.username, credentials.password, channel.id)
-        val backup = XtreamStreamUrlBuilder.buildBackupUrl(credentials.serverUrl, credentials.username, credentials.password, channel.id)
-        playerEngine.play(channel.id, primary, backup)
+        // Skip re-issuing play() when the engine is already tuned to this
+        // channel (e.g. Live TV Browse's mini player pre-warmed it right
+        // before handing off to this screen) — calling play() again would
+        // restart the just-begun buffering for no reason. A genuine channel
+        // change (stepChannel/onChannelSelected to a different channel) always
+        // has a different id here, so normal zapping is unaffected.
+        if (playerEngine.tunedChannelId != channel.id) {
+            val primary = XtreamStreamUrlBuilder.buildPrimaryUrl(credentials.serverUrl, credentials.username, credentials.password, channel.id)
+            val backup = XtreamStreamUrlBuilder.buildBackupUrl(credentials.serverUrl, credentials.username, credentials.password, channel.id)
+            playerEngine.play(channel.id, primary, backup)
+        }
         _uiState.update { it.copy(currentChannelId = channel.id, nowNext = EpgNowNext(now = null, next = null)) }
         mediaSessionManager.updateMetadata(channel.name)
         viewModelScope.launch { setLastWatchedChannelUseCase(channel.id) }

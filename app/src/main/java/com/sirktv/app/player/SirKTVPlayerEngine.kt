@@ -60,6 +60,16 @@ class SirKTVPlayerEngine @Inject constructor(
     private var attachedPlayerView: PlayerView? = null
 
     private var currentChannelId: String? = null
+
+    /**
+     * Read-only view of [currentChannelId] for callers deciding whether to
+     * pre-warm playback ahead of a navigation (e.g. Live TV's mini player
+     * "Full Screen" hand-off) or skip re-tuning a channel this singleton
+     * already has loading/loaded. Null whenever nothing has been tuned since
+     * the last [release].
+     */
+    val tunedChannelId: String? get() = currentChannelId
+
     private var primaryUrl: String? = null
     private var backupUrl: String? = null
     private var usingBackup = false

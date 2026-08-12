@@ -12,6 +12,7 @@ import com.sirktv.app.domain.usecase.ObserveChannelsUseCase
 import com.sirktv.app.domain.usecase.SyncChannelsUseCase
 import com.sirktv.app.domain.usecase.ToggleFavoriteUseCase
 import com.sirktv.app.player.PlaybackState
+import com.sirktv.app.player.SirKTVPlayerEngine
 import com.sirktv.app.testutil.FakeChannelRepository
 import com.sirktv.app.testutil.FakeDisplayNameRepository
 import com.sirktv.app.testutil.FakeStartupPreferenceRepository
@@ -61,7 +62,12 @@ class LiveTvViewModelTest {
             getEpgNowNextUseCase = GetEpgNowNextUseCase(repo),
             getEpgListingsUseCase = GetEpgListingsUseCase(repo),
             toggleFavoriteUseCase = ToggleFavoriteUseCase(repo),
-            getStartupPreferenceUseCase = GetStartupPreferenceUseCase(FakeStartupPreferenceRepository())
+            getStartupPreferenceUseCase = GetStartupPreferenceUseCase(FakeStartupPreferenceRepository()),
+            // Only ever touched inside prewarmFullScreen(), which none of
+            // these tests call — a real instance is cheap to construct (no
+            // side effects until play()/attachTo() are invoked) and needs no
+            // mocking, matching the OkHttpClient() above.
+            playerEngine = SirKTVPlayerEngine(context, OkHttpClient(), appScope)
         )
     }
 

@@ -27,6 +27,7 @@ import com.sirktv.app.domain.usecase.SyncChannelsUseCase
 import com.sirktv.app.domain.usecase.ToggleFavoriteUseCase
 import com.sirktv.app.network.XtreamStreamUrlBuilder
 import com.sirktv.app.player.PlaybackState
+import com.sirktv.app.player.SirKTVPlayerEngine
 import com.sirktv.app.presentation.common.SECTION_SYNC_TIMEOUT_MS
 import com.sirktv.app.presentation.common.SectionLoadError
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -91,7 +92,8 @@ class LiveTvBrowseViewModel @Inject constructor(
     private val getEpgNowNextUseCase: GetEpgNowNextUseCase,
     private val getEpgListingsUseCase: GetEpgListingsUseCase,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
-    private val getStartupPreferenceUseCase: GetStartupPreferenceUseCase
+    private val getStartupPreferenceUseCase: GetStartupPreferenceUseCase,
+    private val playerEngine: SirKTVPlayerEngine
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LiveTvBrowseUiState())
@@ -253,6 +255,27 @@ class LiveTvBrowseViewModel @Inject constructor(
         _uiState.update { it.copy(activeChannelId = null) }
         _miniPlayerState.value = PlaybackState.Idle
         miniPlayerChannelId = null
+    }
+
+    /**
+     * Kicks off the fullscreen [SirKTVPlayerEngine] singleton's buffering for
+     * [channelId] the instant "Full Screen" is pressed on the mini player —
+     * before the nav transition, the player route's composable, and its Hilt
+     * ViewModel even exist. [LiveTvPlayerViewModel.tuneTo] skips re-issuing
+     * `play()` when the engine is already tuned to the requested channel, so
+     * this shaves the visible rebuffer on hand-off down to whatever's left
+     * once the fullscreen screen actually attaches its PlayerView, without
+     * merging the mini player's own independent ExoPlayer instance into the
+     * singleton (see the class doc comment on why those stay separate).
+     */
+    fun prewarmFullScreen(channelId: String) {
+        if (playerEngine.tunedChannelId == channelId) return
+        val credentials = currentSession.credentials.value ?: return
+        runCatching {
+            val primary = XtreamStreamUrlBuilder.buildPrimaryUrl(credentials.serverUrl, credentials.username, credentials.password, channelId)
+            val backup = XtreamStreamUrlBuilder.buildBackupUrl(credentials.serverUrl, credentials.username, credentials.password, channelId)
+            playerEngine.play(channelId, primary, backup)
+        }
     }
 
     fun requestEpgFor(channelId: String) {
