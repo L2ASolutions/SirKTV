@@ -23,8 +23,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -80,7 +82,9 @@ import com.sirktv.app.presentation.theme.SirKTVOnSurfaceMuted
 import com.sirktv.app.presentation.theme.SirKTVOnSurfaceStrong
 import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVPrimaryContainer
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val SidebarWidth = 220.dp
 internal val ChannelListWidth = 340.dp
@@ -138,6 +142,12 @@ fun LiveTvBrowseScreen(
     // already-placed channel row, not the lazy container itself — see the
     // doc comment on LiveTvCategorySidebar's rightFocusRequester param.
     val firstChannelFocusRequester = remember { FocusRequester() }
+    // Owned here (not inside LiveTvChannelListColumn) so the category
+    // sidebar's DirectionRight handler can scroll it back to the top itself
+    // — see the doc comment on that handler for why this must happen
+    // synchronously before requesting focus, not via a reactive effect.
+    val channelListState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     // Default focus on entry is the category list — no player of any kind is
     // ever built here. Wrapped so a crash anywhere in this entry sequence
@@ -183,6 +193,8 @@ fun LiveTvBrowseScreen(
                     focusRequester = sidebarFocusRequester,
                     rightFocusRequester = firstChannelFocusRequester,
                     rightFallbackFocusRequester = channelListFocusRequester,
+                    channelListState = channelListState,
+                    coroutineScope = coroutineScope,
                     onCategorySelected = viewModel::onCategorySelected
                 )
                 LiveTvChannelListColumn(
@@ -195,6 +207,7 @@ fun LiveTvBrowseScreen(
                     firstItemFocusRequester = firstChannelFocusRequester,
                     leftFocusRequester = sidebarFocusRequester,
                     rightFocusRequester = miniPlayerFocusRequester,
+                    listState = channelListState,
                     hasActiveChannel = uiState.activeChannel != null,
                     onVisible = viewModel::requestEpgFor,
                     onHighlight = viewModel::onChannelHighlighted,
@@ -290,6 +303,20 @@ private fun LiveTvCrashErrorState(onRetry: () -> Unit) {
  * stuck here. [rightFallbackFocusRequester] (the container) is tried only if
  * the primary target isn't attached to anything, e.g. the channel list is
  * genuinely empty.
+ *
+ * [channelListState] is scrolled back to the top *before* either focus
+ * request fires, inside the same coroutine — not via a reactive effect keyed
+ * on the channel list's data. The channel list's LazyColumn is one shared
+ * call site across every category (including "All Channels"), so its scroll
+ * offset carries over between categories; a reactive reset can lose the race
+ * against a Right press that follows the category switch immediately, which
+ * left the first channel row (and so [rightFocusRequester]) outside the
+ * composed viewport and made Right silently do nothing on every category
+ * except whichever one happened to already be scrolled near the top.
+ * `LazyListState.scrollToItem` forces a synchronous remeasure — and Lazy
+ * layouts subcompose during measurement — so by the time it returns here,
+ * the first row is guaranteed to be composed and its focus requester
+ * attached.
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -301,6 +328,8 @@ private fun LiveTvCategorySidebar(
     focusRequester: FocusRequester,
     rightFocusRequester: FocusRequester,
     rightFallbackFocusRequester: FocusRequester,
+    channelListState: LazyListState,
+    coroutineScope: CoroutineScope,
     onCategorySelected: (String?) -> Unit
 ) {
     Box(Modifier.fillMaxHeight().width(SidebarWidth).background(com.sirktv.app.presentation.theme.AppSidebar)) {
@@ -314,8 +343,11 @@ private fun LiveTvCategorySidebar(
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     if (event.key == Key.DirectionRight) {
-                        runCatching { rightFocusRequester.requestFocus() }
-                            .onFailure { runCatching { rightFallbackFocusRequester.requestFocus() } }
+                        coroutineScope.launch {
+                            runCatching { channelListState.scrollToItem(0) }
+                            runCatching { rightFocusRequester.requestFocus() }
+                                .onFailure { runCatching { rightFallbackFocusRequester.requestFocus() } }
+                        }
                         true
                     } else false
                 }
@@ -381,6 +413,7 @@ private fun LiveTvChannelListColumn(
     firstItemFocusRequester: FocusRequester,
     leftFocusRequester: FocusRequester,
     rightFocusRequester: FocusRequester,
+    listState: LazyListState,
     hasActiveChannel: Boolean,
     onVisible: (String) -> Unit,
     onHighlight: (String) -> Unit,
@@ -403,18 +436,11 @@ private fun LiveTvChannelListColumn(
                 modifier = Modifier.align(Alignment.Center).padding(Dimens.SpaceMd)
             )
         } else {
-            // This LazyColumn's call site is reused across category
-            // switches (only `channels` changes), so its LazyListState
-            // keeps whatever scroll offset the user left it at. Without
-            // resetting it, the item carrying firstItemFocusRequester
-            // (the new first channel) can end up outside the composed
-            // viewport, so the requester never attaches and D-pad Right
-            // from the category sidebar silently breaks after switching
-            // categories.
-            val listState = rememberLazyListState()
-            LaunchedEffect(channels.firstOrNull()?.id) {
-                listState.scrollToItem(0)
-            }
+            // listState is owned by LiveTvBrowseScreen and shared with
+            // LiveTvCategorySidebar, which scrolls it back to item 0 itself
+            // before handing focus off on DirectionRight — see the doc
+            // comment on that handler for why a reactive reset here isn't
+            // enough on its own.
             LazyColumn(
                 state = listState,
                 contentPadding = PaddingValues(horizontal = Dimens.SpaceMd, vertical = Dimens.SpaceMd),
