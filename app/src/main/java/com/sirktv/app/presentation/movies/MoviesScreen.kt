@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -64,6 +65,7 @@ import com.sirktv.app.presentation.theme.SirKTVPrimary
 import com.sirktv.app.presentation.theme.SirKTVPrimaryContainer
 import com.sirktv.app.presentation.theme.SirKTVTextSecondary
 import com.sirktv.app.presentation.theme.SirKTVTextTertiary
+import kotlinx.coroutines.delay
 
 private val CategoryListWidth = 260.dp
 private val CategoryRowHeight = 56.dp
@@ -86,6 +88,16 @@ fun MoviesScreen(
     // composed item, not the lazy container itself — see the doc comment on
     // MoviesCategorySidebar's rightFocusRequester param.
     val firstContentItemFocusRequester = remember { FocusRequester() }
+
+    // Without an explicit initial focus request, DirectionRight is only
+    // intercepted by the category sidebar's onPreviewKeyEvent when Compose's
+    // default focus placement happens to land inside that subtree — which
+    // isn't guaranteed on screen entry, making the very first Right press
+    // work inconsistently. Mirrors LiveTvBrowseScreen's identical fix.
+    LaunchedEffect(Unit) {
+        delay(300)
+        runCatching { categoryFocusRequester.requestFocus() }
+    }
 
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(SirKTVBackground)) {
