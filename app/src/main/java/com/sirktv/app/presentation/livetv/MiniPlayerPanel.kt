@@ -56,6 +56,7 @@ import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvChannelRowFocusStyle
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.common.tvNoBorder
+import com.sirktv.app.presentation.common.tvNoGlow
 import com.sirktv.app.presentation.common.tvNoButtonBorder
 import com.sirktv.app.presentation.theme.Dimens
 import com.sirktv.app.presentation.theme.SirKTVBackground
@@ -300,7 +301,7 @@ private fun MiniPlayerVideo(
 @Composable
 private fun MiniPlayerIconButton(icon: String, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
-        border = tvNoBorder(),
+        border = tvNoBorder(), glow = tvNoGlow(),
         onClick = onClick,
         modifier = modifier.size(28.dp).tvFocusStyle(cornerRadius = 14.dp)
     ) {

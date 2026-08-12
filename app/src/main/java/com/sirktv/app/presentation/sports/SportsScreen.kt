@@ -105,7 +105,7 @@ private fun FilterSidebar(selectedFilter: SportsFilter, onFilterSelected: (Sport
             }
             items(SportsFilter.entries.toList(), key = { it.name }) { filter ->
                 val selected = filter == selectedFilter
-                Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = { onFilterSelected(filter) }, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
+                Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = { onFilterSelected(filter) }, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

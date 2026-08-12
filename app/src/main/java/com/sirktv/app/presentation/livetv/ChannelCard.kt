@@ -73,7 +73,7 @@ fun ChannelCard(
             content()
         }
     } else {
-        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = modifier.tvChannelRowFocusStyle(cornerRadius = Dimens.CardCornerRadius) { isFocused = it }) {
+        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onClick, modifier = modifier.tvChannelRowFocusStyle(cornerRadius = Dimens.CardCornerRadius) { isFocused = it }) {
             content()
         }
     }
@@ -175,7 +175,7 @@ private fun ChannelCardRow(
 
 @Composable
 fun FavoriteHeartButton(isFavorite: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onToggle, modifier = modifier.tvFocusStyle(cornerRadius = 8.dp)) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onToggle, modifier = modifier.tvFocusStyle(cornerRadius = 8.dp)) {
         Text(
             text = if (isFavorite) "♥" else "♡",
             color = if (isFavorite) SirKTVPrimary else Color.White.copy(alpha = 0.6f),

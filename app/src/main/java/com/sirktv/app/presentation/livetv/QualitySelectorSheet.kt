@@ -51,7 +51,7 @@ fun QualitySelectorSheet(
                 fontSize = 11.sp
             )
             StreamQuality.entries.forEach { quality ->
-                Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = { onSelect(quality) }, modifier = Modifier.tvFocusStyle(cornerRadius = 8.dp)) {
+                Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = { onSelect(quality) }, modifier = Modifier.tvFocusStyle(cornerRadius = 8.dp)) {
                     Text(
                         text = (if (quality == current) "● " else "") + quality.label(),
                         color = if (quality == current) SirKTVPrimary else Color.White,

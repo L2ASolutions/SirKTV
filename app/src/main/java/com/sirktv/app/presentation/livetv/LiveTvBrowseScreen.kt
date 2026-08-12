@@ -340,7 +340,7 @@ private val CategoryRowSelectedBg = Color(0xFF1A2A4A)
 private fun CategorySidebarRow(label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
     val bgColor by animateColorAsState(targetValue = if (selected) CategoryRowSelectedBg else Color.Transparent, label = "categoryRowBg")
 
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 0.dp)) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onClick, modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 0.dp)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -467,7 +467,7 @@ private fun LiveTvChannelRow(
 
     Row(modifier = Modifier.fillMaxWidth().height(ChannelRowHeight), verticalAlignment = Alignment.CenterVertically) {
         Surface(
-            border = com.sirktv.app.presentation.common.tvNoBorder(),
+            border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(),
             // OK/Select loads this channel into the mini player — browsing
             // (focus alone) never starts playback, matching TiviMate/IPTV
             // Smarters rather than this screen's old "preview on focus".
@@ -592,7 +592,7 @@ internal fun LiveTvFavoriteHeart(
         }
     }
 
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), 
         onClick = onToggle,
         modifier = modifier
             .size(40.dp)
@@ -676,7 +676,7 @@ private fun BrowseChannelRow(
         label = "channelRowAccentBarColor"
     )
 
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), 
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 12.dp) { isFocused = it }
     ) {

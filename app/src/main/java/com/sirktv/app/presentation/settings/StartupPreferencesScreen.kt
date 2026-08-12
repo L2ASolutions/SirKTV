@@ -63,7 +63,7 @@ fun StartupPreferencesScreen(viewModel: StartupPreferencesViewModel = hiltViewMo
                     ) {
                         items(channels, key = { it.id }) { channel ->
                             val isSelected = channel.id == preference.startupChannelId
-                            Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
+                            Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), 
                                 onClick = { if (!preference.resumeLastChannel) viewModel.setStartupChannel(channel.id) },
                                 modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)
                             ) {

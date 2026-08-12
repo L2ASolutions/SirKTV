@@ -26,7 +26,7 @@ import com.sirktv.app.presentation.theme.SirKTVTextSecondary
 @Composable
 fun SectionSearchButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
-        border = tvNoBorder(),
+        border = tvNoBorder(), glow = tvNoGlow(),
         onClick = onClick,
         modifier = modifier
             .semantics { this.contentDescription = contentDescription }

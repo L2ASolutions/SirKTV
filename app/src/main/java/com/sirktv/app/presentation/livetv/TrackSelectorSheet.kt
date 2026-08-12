@@ -81,7 +81,7 @@ fun TrackSelectorSheet(
 
 @Composable
 private fun TrackOptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), 
         onClick = onClick,
         modifier = Modifier.tvFocusStyle(cornerRadius = 8.dp)
     ) {

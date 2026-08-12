@@ -48,6 +48,7 @@ import com.sirktv.app.presentation.common.SirKTVLogoMark
 import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.common.tvNoBorder
+import com.sirktv.app.presentation.common.tvNoGlow
 import com.sirktv.app.presentation.common.tvNoButtonBorder
 import com.sirktv.app.presentation.navigation.SirKTVIcons
 import com.sirktv.app.presentation.theme.Dimens
@@ -220,7 +221,7 @@ private fun HomeTile(
     val iconTint by animateColorAsState(targetValue = if (isFocused) accentColor else SirKTVTextSecondary, label = "homeTileIconTint")
 
     Surface(
-        border = tvNoBorder(),
+        border = tvNoBorder(), glow = tvNoGlow(),
         onClick = onClick,
         modifier = modifier
             .clipToBounds()

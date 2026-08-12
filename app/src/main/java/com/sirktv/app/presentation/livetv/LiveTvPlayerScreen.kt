@@ -190,10 +190,10 @@ fun LiveTvPlayerScreen(
             LiveTvOverlay(
                 uiState = uiState,
                 onFavoriteClick = { uiState.currentChannelId?.let(viewModel::onToggleFavorite) },
+                onPlayPause = viewModel::togglePlayPause,
+                onToggleCaptions = viewModel::onToggleCaptions,
                 onSelectAudioTrack = viewModel::selectTrack,
                 onClearAudioTrack = viewModel::clearAudioOverride,
-                onSelectSubtitleTrack = viewModel::selectTrack,
-                onDisableSubtitles = viewModel::disableSubtitles,
                 onSelectQuality = viewModel::selectQuality,
                 onChannelListToggle = viewModel::onLeftPressed,
                 onChannelUp = viewModel::onChannelUp,

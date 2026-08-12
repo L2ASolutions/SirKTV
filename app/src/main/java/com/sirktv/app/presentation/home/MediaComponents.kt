@@ -114,7 +114,7 @@ fun MediaCard(
             content()
         }
     } else {
-        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = modifier.tvFocusStyle()) {
+        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onClick, modifier = modifier.tvFocusStyle()) {
             content()
         }
     }

@@ -24,6 +24,15 @@ import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SirKTVTheme(content: @Composable () -> Unit) {
+    // inverseSurface/inverseOnSurface must be set explicitly on BOTH color
+    // schemes: neither darkColorScheme() call overrides them by default, so
+    // they fall back to the library's own dark-theme token — a near-white
+    // tone (the same one backing onBackground/text-on-dark). That's exactly
+    // what androidx.tv.material3.Surface's focusedContainerColor reads by
+    // default, so every unfocused-but-not-otherwise-styled Surface() in the
+    // app (category rows, channel rows, episode rows, ...) flashed light on
+    // D-pad focus — confirmed by decompiling ClickableSurfaceDefaults.colors()
+    // and ColorDarkTokens, not just inferred from the symptom.
     val m3Colors = m3DarkColorScheme(
         primary = SirKTVPrimary,
         onPrimary = SirKTVOnPrimary,
@@ -32,6 +41,8 @@ fun SirKTVTheme(content: @Composable () -> Unit) {
         surface = SirKTVSurface,
         onSurface = SirKTVOnBackground,
         surfaceVariant = SirKTVSurfaceVariant,
+        inverseSurface = SirKTVSurfaceElevated,
+        inverseOnSurface = SirKTVOnBackground,
         error = SirKTVError
     )
     val tvColors = tvDarkColorScheme(
@@ -42,6 +53,8 @@ fun SirKTVTheme(content: @Composable () -> Unit) {
         surface = SirKTVSurface,
         onSurface = SirKTVOnBackground,
         surfaceVariant = SirKTVSurfaceVariant,
+        inverseSurface = SirKTVSurfaceElevated,
+        inverseOnSurface = SirKTVOnBackground,
         error = SirKTVError
     )
 

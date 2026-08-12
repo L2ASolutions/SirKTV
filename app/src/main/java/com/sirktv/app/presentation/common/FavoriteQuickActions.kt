@@ -82,7 +82,7 @@ fun FavoriteQuickActionsSheet(
 
 @Composable
 private fun QuickActionRow(label: String, onClick: () -> Unit) {
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onClick, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)) {
         Text(label, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
     }
 }

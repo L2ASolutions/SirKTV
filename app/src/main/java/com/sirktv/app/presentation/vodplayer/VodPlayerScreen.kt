@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -34,13 +37,16 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.ui.PlayerView
@@ -195,6 +201,18 @@ private fun VodOverlay(
 ) {
     var activeSheet by remember { mutableStateOf<VodSheet?>(null) }
 
+    // Row 1 (playback) gets initial D-pad focus the instant the overlay
+    // appears. VodOverlay is only ever composed while the caller's
+    // AnimatedVisibility has it visible (see VodPlayerScreen), so a plain
+    // LaunchedEffect(Unit) here fires exactly once per show — equivalent to
+    // gating on an explicit "isVisible" flag, without needing one.
+    val playPauseFocus = remember { FocusRequester() }
+    val ccFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        delay(150)
+        runCatching { playPauseFocus.requestFocus() }
+    }
+
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f))) {
         // The seek bar, timestamps, and action row sit directly on the video
         // frame — a bright scene underneath can wash out plain white text,
@@ -219,41 +237,78 @@ private fun VodOverlay(
                 .fillMaxSize()
                 .padding(horizontal = Dimens.SafeAreaHorizontal, vertical = Dimens.SafeAreaVertical)
         ) {
-            Row(modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f).glassCard().padding(Dimens.SpaceMd)) {
-                    Text(uiState.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    uiState.subtitle?.let {
-                        Text(it, color = Color.White.copy(alpha = 0.65f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
+            // Title/subtitle only — the close button moved down into Row 2 as
+            // "←", alongside the rest of the overlay's D-pad-reachable controls.
+            Column(
+                modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(0.6f).glassCard().padding(Dimens.SpaceMd)
+            ) {
+                Text(uiState.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                uiState.subtitle?.let {
+                    Text(it, color = Color.White.copy(alpha = 0.65f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                ActionIcon(label = "✕", onClick = onClose, modifier = Modifier.padding(start = Dimens.SpaceSm))
             }
 
             Column(
                 modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
             ) {
-                SeekBar(positionMs = uiState.positionMs, durationMs = uiState.durationMs)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(formatDurationMs(uiState.positionMs), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
-                    if (uiState.captionsEnabled) {
-                        Text("CC · ${uiState.captionLanguageLabel}", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
-                    }
-                    Text(formatDurationMs(uiState.durationMs), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+                // ROW 1 — playback: rewind, play/pause, elapsed, seek bar,
+                // remaining, fast forward. Down hands focus to Row 2's CC button.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onPreviewKeyEvent { event ->
+                            if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                                runCatching { ccFocus.requestFocus() }
+                                true
+                            } else false
+                        }
+                ) {
                     ActionIcon(label = "⏪", onClick = onSeekBack)
                     ActionIcon(
                         label = if (uiState.playbackState is PlaybackState.Playing) "❚❚" else "▶",
-                        onClick = onPlayPause
+                        onClick = onPlayPause,
+                        modifier = Modifier.focusRequester(playPauseFocus)
                     )
+                    Text(formatDurationMs(uiState.positionMs), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, modifier = Modifier.width(48.dp))
+                    SeekBar(positionMs = uiState.positionMs, durationMs = uiState.durationMs, modifier = Modifier.weight(1f))
+                    Text(formatDurationMs(uiState.durationMs), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, modifier = Modifier.width(48.dp))
                     ActionIcon(label = "⏩", onClick = onSeekForward)
+                }
+
+                // ROW 2 — secondary: back, CC (status label, direct on/off
+                // toggle — not a language picker, see onToggleCaptions), Audio
+                // (opens the track-picker sheet — multiple audio tracks need a
+                // picker, unlike captions' binary on/off), Favorite, then a
+                // spacer pushing Quality/Next to the trailing edge. Up hands
+                // focus back to Row 1's play/pause button.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onPreviewKeyEvent { event ->
+                            if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                                runCatching { playPauseFocus.requestFocus() }
+                                true
+                            } else false
+                        }
+                ) {
+                    ActionIcon(label = "←", onClick = onClose)
+                    ActionIcon(
+                        label = if (uiState.captionsEnabled) "CC ${uiState.captionLanguageLabel}" else "CC OFF",
+                        active = uiState.captionsEnabled,
+                        onClick = onToggleCaptions,
+                        modifier = Modifier.focusRequester(ccFocus)
+                    )
+                    ActionIcon(label = "Audio", onClick = { activeSheet = VodSheet.AUDIO })
                     ActionIcon(label = if (uiState.isFavorite) "♥" else "♡", active = uiState.isFavorite, onClick = onFavoriteClick)
-                    ActionIcon(label = "AUD", onClick = { activeSheet = VodSheet.AUDIO })
-                    ActionIcon(label = "CC", active = uiState.captionsEnabled, onClick = onToggleCaptions)
                     ActionIcon(label = "HD", onClick = { activeSheet = VodSheet.QUALITY })
+                    Spacer(Modifier.weight(1f))
                     if (uiState.isEpisode && uiState.hasNextEpisode) {
-                        ActionIcon(label = "⏭", onClick = onNextEpisode)
+                        ActionIcon(label = "Next ⏭", onClick = onNextEpisode)
                     }
                 }
             }
@@ -280,23 +335,24 @@ private fun VodOverlay(
 }
 
 @Composable
-private fun SeekBar(positionMs: Long, durationMs: Long) {
+private fun SeekBar(positionMs: Long, durationMs: Long, modifier: Modifier = Modifier) {
     val fraction = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
-    Box(Modifier.fillMaxWidth().height(4.dp).background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(999.dp))) {
+    Box(modifier.height(4.dp).background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(999.dp))) {
         Box(Modifier.fillMaxWidth(fraction).fillMaxSize().background(SirKTVPrimary, RoundedCornerShape(999.dp)))
     }
 }
 
+/** Icon-only (⏪/▶/⏩/←) labels stay pill-shaped-but-round via widthIn(min = height); status labels (CC OFF/CC EN, Next ⏭) grow to fit instead of clipping. */
 @Composable
 private fun ActionIcon(label: String, active: Boolean = false, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = modifier.size(40.dp).tvFocusStyle(cornerRadius = 20.dp)) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onClick, modifier = modifier.height(40.dp).widthIn(min = 40.dp).tvFocusStyle(cornerRadius = 20.dp)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(if (active) SirKTVPrimary else Color.White.copy(alpha = 0.12f), RoundedCornerShape(50)),
             contentAlignment = Alignment.Center
         ) {
-            Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(2.dp))
+            Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.padding(horizontal = 10.dp))
         }
     }
 }

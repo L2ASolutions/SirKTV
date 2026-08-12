@@ -158,7 +158,7 @@ private fun GuideGridRow(
     val totalMinutes = ((windowEnd - windowStart) / 60).toInt()
 
     Row(Modifier.fillMaxWidth().height(RowHeight), verticalAlignment = Alignment.CenterVertically) {
-        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onSelect, modifier = Modifier.width(ChannelColumnWidth).fillMaxHeight().tvFocusStyle(cornerRadius = 8.dp)) {
+        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onSelect, modifier = Modifier.width(ChannelColumnWidth).fillMaxHeight().tvFocusStyle(cornerRadius = 8.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
@@ -199,7 +199,7 @@ private fun GuideGridRow(
                     val widthMinutes = (clippedEnd - clippedStart) / 60f
                     val isLive = nowSeconds in program.startEpochSeconds until program.endEpochSeconds
 
-                    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
+                    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), 
                         onClick = onSelect,
                         modifier = Modifier
                             .offset(x = (xOffsetMinutes * PxPerMinute.value).dp)

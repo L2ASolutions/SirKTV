@@ -55,7 +55,7 @@ fun <T> SettingsSegmentedRow(label: String, options: List<Pair<String, T>>, sele
         ) {
             options.forEach { (optionLabel, value) ->
                 val isSelected = value == selected
-                Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = { onSelect(value) }, modifier = Modifier.tvFocusStyle(cornerRadius = 8.dp)) {
+                Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = { onSelect(value) }, modifier = Modifier.tvFocusStyle(cornerRadius = 8.dp)) {
                     androidx.compose.foundation.layout.Box(
                         modifier = Modifier
                             .background(if (isSelected) SirKTVPrimary else Color.Transparent, RoundedCornerShape(8.dp))

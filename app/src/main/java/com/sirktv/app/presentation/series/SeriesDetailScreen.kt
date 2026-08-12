@@ -95,7 +95,7 @@ fun SeriesDetailScreen(
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
         ) {
             item {
-                androidx.tv.material3.Surface(border = com.sirktv.app.presentation.common.tvNoBorder(),
+                androidx.tv.material3.Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(),
                     onClick = onBack,
                     modifier = Modifier.padding(bottom = Dimens.SpaceSm).tvFocusStyle(cornerRadius = 6.dp)
                 ) {
@@ -265,7 +265,7 @@ private fun SeasonTab(label: String, selected: Boolean, onClick: () -> Unit) {
         label = "seasonTabText"
     )
 
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), 
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), 
         onClick = onClick,
         modifier = Modifier
             .tvFocusStyle(cornerRadius = 999.dp) { isFocused = it }
@@ -291,7 +291,7 @@ private fun SeasonTab(label: String, selected: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun EpisodeRow(episode: Episode, onSelect: () -> Unit) {
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onSelect, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 12.dp)) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onSelect, modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 12.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

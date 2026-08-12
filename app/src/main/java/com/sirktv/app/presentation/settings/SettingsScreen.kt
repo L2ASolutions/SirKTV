@@ -131,7 +131,7 @@ private fun SettingsTileCard(tile: SettingsTile, selected: Boolean, onClick: () 
         },
         label = "settingsTileBackground"
     )
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).tvFocusStyle(cornerRadius = Dimens.CardCornerRadius) { isFocused = it }) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).tvFocusStyle(cornerRadius = Dimens.CardCornerRadius) { isFocused = it }) {
         Box(
             modifier = Modifier
                 .fillMaxSize()

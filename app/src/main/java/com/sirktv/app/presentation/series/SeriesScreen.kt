@@ -52,6 +52,7 @@ import com.sirktv.app.presentation.common.SectionLoadingState
 import com.sirktv.app.presentation.common.SectionSearchButton
 import com.sirktv.app.presentation.common.tvChannelRowFocusStyle
 import com.sirktv.app.presentation.common.tvNoBorder
+import com.sirktv.app.presentation.common.tvNoGlow
 import com.sirktv.app.presentation.home.MediaCard
 import com.sirktv.app.presentation.home.MediaRow
 import com.sirktv.app.presentation.home.PosterCardWidth
@@ -203,7 +204,7 @@ private fun SeriesCategoryRow(name: String, count: Int, selected: Boolean, onCli
         label = "seriesCategoryRowBg"
     )
     androidx.tv.material3.Surface(
-        border = tvNoBorder(),
+        border = tvNoBorder(), glow = tvNoGlow(),
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().tvChannelRowFocusStyle(cornerRadius = 0.dp)
     ) {

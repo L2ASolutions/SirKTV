@@ -32,10 +32,18 @@ import androidx.tv.material3.Surface
  * (Modifier.blur/RenderEffect) — this targets Fire Stick-class hardware,
  * which is exactly what the playback engineering spec is otherwise careful
  * not to burden with extra GPU work.
+ *
+ * The gradient is black-tinted, not white — a white tint (the original
+ * treatment) reads as a light wash against this app's all-dark-navy palette,
+ * and on rows that use this as their only background (e.g. SeriesDetailScreen's
+ * EpisodeRow) it let androidx.tv.material3.Surface's own default focus
+ * container color (also light — see the inverseSurface override in
+ * presentation/theme/Theme.kt) show through on D-pad focus instead of
+ * masking it.
  */
 fun Modifier.glassCard(cornerRadius: Dp = Dimens.CornerRadius): Modifier = this
     .background(
-        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.10f), Color.White.copy(alpha = 0.03f))),
+        Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.20f), Color.Black.copy(alpha = 0.35f))),
         RoundedCornerShape(cornerRadius)
     )
 
@@ -67,7 +75,7 @@ fun CategoryPill(label: String, selected: Boolean, accent: Color = SirKTVPrimary
         },
         label = "categoryPillTextColor"
     )
-    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClick, modifier = Modifier.tvFocusStyle(cornerRadius = 999.dp) { isFocused = it }) {
+    Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onClick, modifier = Modifier.tvFocusStyle(cornerRadius = 999.dp) { isFocused = it }) {
         Box(
             modifier = Modifier
                 .background(background, RoundedCornerShape(999.dp))

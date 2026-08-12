@@ -53,7 +53,9 @@ data class LiveTvUiState(
     val playbackState: PlaybackState = PlaybackState.Idle,
     val showBufferHealth: Boolean = false,
     val preferredQuality: StreamQuality = StreamQuality.AUTO,
-    val networkTip: String? = null
+    val networkTip: String? = null,
+    val captionsEnabled: Boolean = false,
+    val captionLanguageLabel: String = "English"
 ) {
     val currentChannel: Channel? get() = channels.find { it.id == currentChannelId }
 }
@@ -98,6 +100,7 @@ class LiveTvPlayerViewModel @Inject constructor(
     private var overlayHideJob: Job? = null
     private var epgFetchJob: Job? = null
     private var networkTipShown = false
+    private var lastCaptionOverride: TrackSelectionOverride? = null
 
     // Per-row EPG for the Channel List / Program Guide panels. Rows request
     // their own now/next via LaunchedEffect when they enter composition, so a
@@ -207,7 +210,12 @@ class LiveTvPlayerViewModel @Inject constructor(
             val backup = XtreamStreamUrlBuilder.buildBackupUrl(credentials.serverUrl, credentials.username, credentials.password, channel.id)
             playerEngine.play(channel.id, primary, backup)
         }
-        _uiState.update { it.copy(currentChannelId = channel.id, nowNext = EpgNowNext(now = null, next = null)) }
+        // Captions don't carry over across a channel change — the new
+        // channel's own text tracks (if any) haven't loaded yet, and
+        // whatever override was set for the previous channel no longer
+        // points at a track that exists on this one.
+        lastCaptionOverride = null
+        _uiState.update { it.copy(currentChannelId = channel.id, nowNext = EpgNowNext(now = null, next = null), captionsEnabled = false) }
         mediaSessionManager.updateMetadata(channel.name)
         viewModelScope.launch { setLastWatchedChannelUseCase(channel.id) }
         fetchEpg(channel.id)
@@ -277,6 +285,48 @@ class LiveTvPlayerViewModel @Inject constructor(
 
     fun clearAudioOverride() = playerEngine.clearTrackTypeOverride(C.TRACK_TYPE_AUDIO)
     fun disableSubtitles() = playerEngine.clearTrackTypeOverride(C.TRACK_TYPE_TEXT)
+
+    /**
+     * The overlay's CC button — a direct on/off toggle, not a language
+     * picker, matching VodPlayerViewModel's identical CC button. The
+     * subtitle-track-picker sheet (selectTrack/disableSubtitles above) is
+     * still reachable separately for choosing a specific language; this is
+     * just the quick single-press toggle.
+     */
+    fun onToggleCaptions() {
+        if (_uiState.value.captionsEnabled) {
+            playerEngine.clearTrackTypeOverride(C.TRACK_TYPE_TEXT)
+            _uiState.update { it.copy(captionsEnabled = false) }
+        } else {
+            val override = lastCaptionOverride ?: findCaptionOverride(tracks.value)
+            if (override != null) {
+                playerEngine.setTrackOverride(override)
+                lastCaptionOverride = override
+                _uiState.update { it.copy(captionsEnabled = true, captionLanguageLabel = override.labelFor(tracks.value)) }
+            }
+        }
+    }
+
+    /** Prefers an English text track; falls back to the stream's first text track if it has no English one. */
+    private fun findCaptionOverride(currentTracks: Tracks?): TrackSelectionOverride? {
+        val textGroups = currentTracks?.groups.orEmpty().filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
+        if (textGroups.isEmpty()) return null
+        textGroups.forEach { group ->
+            for (index in 0 until group.length) {
+                if (group.getTrackFormat(index).language?.startsWith("en", ignoreCase = true) == true) {
+                    return TrackSelectionOverride(group.mediaTrackGroup, index)
+                }
+            }
+        }
+        val firstGroup = textGroups.first()
+        return TrackSelectionOverride(firstGroup.mediaTrackGroup, 0)
+    }
+
+    private fun TrackSelectionOverride.labelFor(currentTracks: Tracks?): String {
+        val group = currentTracks?.groups.orEmpty().find { it.mediaTrackGroup == this.mediaTrackGroup } ?: return "English"
+        val format = group.getTrackFormat(this.trackIndices.firstOrNull() ?: 0)
+        return format.label ?: format.language?.uppercase() ?: "English"
+    }
 
     /** Session-only override — does not touch the persisted Settings default. */
     fun selectQuality(quality: StreamQuality) {

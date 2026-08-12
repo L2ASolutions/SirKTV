@@ -115,7 +115,7 @@ private fun RecentSearches(recent: List<String>, onPick: (String) -> Unit, onCle
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         RowHeader(title = "Recent Searches")
-        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), onClick = onClear, modifier = Modifier.tvFocusStyle(cornerRadius = 6.dp)) {
+        Surface(border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(), onClick = onClear, modifier = Modifier.tvFocusStyle(cornerRadius = 6.dp)) {
             Text(
                 "Clear",
                 color = SirKTVPrimary,

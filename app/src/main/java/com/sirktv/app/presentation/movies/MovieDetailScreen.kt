@@ -36,6 +36,7 @@ import com.sirktv.app.presentation.common.TvFocusAccent
 import com.sirktv.app.presentation.common.glassCard
 import com.sirktv.app.presentation.common.tvFocusStyle
 import com.sirktv.app.presentation.common.tvNoBorder
+import com.sirktv.app.presentation.common.tvNoGlow
 import com.sirktv.app.presentation.common.tvNoButtonBorder
 import com.sirktv.app.presentation.theme.AppSidebar
 import com.sirktv.app.presentation.theme.Dimens
@@ -76,7 +77,7 @@ fun MovieDetailScreen(
         ) {
             item {
                 Surface(
-                    border = tvNoBorder(),
+                    border = tvNoBorder(), glow = tvNoGlow(),
                     onClick = onBack,
                     modifier = Modifier.padding(bottom = Dimens.SpaceSm).tvFocusStyle(cornerRadius = 6.dp)
                 ) {

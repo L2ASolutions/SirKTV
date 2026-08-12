@@ -155,7 +155,7 @@ private fun AccordionSection(
 
     Column {
         Surface(
-            border = com.sirktv.app.presentation.common.tvNoBorder(),
+            border = com.sirktv.app.presentation.common.tvNoBorder(), glow = com.sirktv.app.presentation.common.tvNoGlow(),
             onClick = onToggle,
             modifier = Modifier.fillMaxWidth().tvFocusStyle(cornerRadius = 8.dp)
         ) {
