@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -274,6 +275,16 @@ private fun SeriesContent(
     val firstCardId = continueWatching.firstOrNull()?.contentId
         ?: recentlyAdded.firstOrNull()?.id
         ?: series.firstOrNull()?.id
+    // This grid's call site is reused across category switches (only the
+    // underlying lists change), so its LazyGridState keeps whatever scroll
+    // offset the user left it at. Without resetting it, the item carrying
+    // firstItemFocusRequester (the new first card) can end up outside the
+    // composed viewport, so the requester never attaches and D-pad Right
+    // from the category list silently breaks after switching categories.
+    val gridState = rememberLazyGridState()
+    LaunchedEffect(firstCardId) {
+        gridState.scrollToItem(0)
+    }
     LazyVerticalGrid(
         // Fixed(5), not Adaptive — Adaptive stretches every card to fill
         // whatever cell width it computes, which is exactly what made cards
@@ -282,6 +293,7 @@ private fun SeriesContent(
         // A fixed column count keeps every cell (and so every card, since it
         // also pins PosterCardWidth below) the same physical size.
         columns = GridCells.Fixed(5),
+        state = gridState,
         contentPadding = PaddingValues(bottom = Dimens.SpaceLg),
         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),

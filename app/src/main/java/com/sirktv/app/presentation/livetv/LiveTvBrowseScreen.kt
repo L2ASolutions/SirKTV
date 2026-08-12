@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -402,7 +403,20 @@ private fun LiveTvChannelListColumn(
                 modifier = Modifier.align(Alignment.Center).padding(Dimens.SpaceMd)
             )
         } else {
+            // This LazyColumn's call site is reused across category
+            // switches (only `channels` changes), so its LazyListState
+            // keeps whatever scroll offset the user left it at. Without
+            // resetting it, the item carrying firstItemFocusRequester
+            // (the new first channel) can end up outside the composed
+            // viewport, so the requester never attaches and D-pad Right
+            // from the category sidebar silently breaks after switching
+            // categories.
+            val listState = rememberLazyListState()
+            LaunchedEffect(channels.firstOrNull()?.id) {
+                listState.scrollToItem(0)
+            }
             LazyColumn(
+                state = listState,
                 contentPadding = PaddingValues(horizontal = Dimens.SpaceMd, vertical = Dimens.SpaceMd),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier
