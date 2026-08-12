@@ -93,10 +93,23 @@ class ChannelRepositoryImpl @Inject constructor(
         }.getOrDefault(EpgNowNext(now = null, next = null))
     }
 
+    /**
+     * get_simple_data_table (the "full" EPG) is tried first so the schedule
+     * panel shows a whole day of programming instead of get_short_epg's
+     * narrow window — falls back to get_short_epg whenever the full endpoint
+     * fails or a panel returns nothing for it, so the schedule is never empty
+     * just because the richer endpoint isn't supported.
+     */
     override suspend fun getEpgListings(channelId: String, limit: Int): List<EpgProgram> {
         val credentials = currentSession.credentials.value ?: return emptyList()
         val playerApiUrl = runCatching { XtreamUrlBuilder.buildPlayerApiUrl(credentials.serverUrl) }
             .getOrElse { return emptyList() }
+
+        val fullEpg = runCatching {
+            apiService.getFullEpg(playerApiUrl, credentials.username, credentials.password, channelId)
+        }.getOrNull()?.let(EpgMapper::toEpgPrograms).orEmpty()
+        if (fullEpg.isNotEmpty()) return fullEpg
+
         return runCatching {
             val response = apiService.getShortEpg(playerApiUrl, credentials.username, credentials.password, channelId, limit)
             EpgMapper.toEpgPrograms(response)

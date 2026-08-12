@@ -34,4 +34,20 @@ interface XtreamContentApiService {
         @Query("limit") limit: Int = 4,
         @Query("action") action: String = "get_short_epg"
     ): EpgResponseDto
+
+    /**
+     * The "full" counterpart to [getShortEpg] — same response shape
+     * (`epg_listings`, same base64 title/description convention decoded by
+     * [com.sirktv.app.data.mapper.EpgMapper]) but not bounded by a `limit`
+     * param, so a panel that supports it returns the whole day's schedule
+     * instead of a short window of upcoming programs.
+     */
+    @GET
+    suspend fun getFullEpg(
+        @Url playerApiUrl: String,
+        @Query("username") username: String,
+        @Query("password") password: String,
+        @Query("stream_id") streamId: String,
+        @Query("action") action: String = "get_simple_data_table"
+    ): EpgResponseDto
 }

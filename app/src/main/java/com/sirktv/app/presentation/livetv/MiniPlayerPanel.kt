@@ -182,10 +182,16 @@ fun MiniPlayerPanel(
     }
 }
 
-/** Currently-airing program first (if still within [listings]), then up to 7 more upcoming, chronological. */
+/**
+ * Every program still ahead in [listings], chronological — no arbitrary cap.
+ * [listings] itself comes from [ChannelRepository.getEpgListings]/get_simple_data_table
+ * when the panel supports it (a full day's schedule) or get_short_epg's
+ * narrower window as a fallback; either way the LazyColumn below only ever
+ * composes what's actually scrolled into view, so a longer list costs nothing.
+ */
 private fun upcomingSchedule(listings: List<EpgProgram>): List<EpgProgram> {
     val nowSeconds = System.currentTimeMillis() / 1000
-    return listings.filter { it.endEpochSeconds > nowSeconds }.sortedBy { it.startEpochSeconds }.take(8)
+    return listings.filter { it.endEpochSeconds > nowSeconds }.sortedBy { it.startEpochSeconds }
 }
 
 @Composable

@@ -3,9 +3,12 @@ package com.sirktv.app.presentation.series
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sirktv.app.domain.model.Category
+import com.sirktv.app.domain.model.ContentType
 import com.sirktv.app.domain.model.Series
+import com.sirktv.app.domain.model.WatchProgress
 import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.domain.usecase.GetCachedSeriesUseCase
+import com.sirktv.app.domain.usecase.ObserveContinueWatchingUseCase
 import com.sirktv.app.domain.usecase.ObserveSeriesCategoriesUseCase
 import com.sirktv.app.domain.usecase.ObserveSeriesUseCase
 import com.sirktv.app.domain.usecase.SyncSeriesUseCase
@@ -27,7 +30,11 @@ data class SeriesUiState(
     val categories: List<Category> = emptyList(),
     val selectedCategoryId: String? = null,
     val allSeries: List<Series> = emptyList(),
-    val visibleSeries: List<Series> = emptyList()
+    val visibleSeries: List<Series> = emptyList(),
+    // Episode watch progress only — see [ObserveContinueWatchingUseCase]'s
+    // doc comment: this is Series' half of the same "Home/Movies/Series
+    // Continue Watching rows" contract Movies already implements for movies.
+    val continueWatching: List<WatchProgress> = emptyList()
 ) {
     // Ranked by Xtream's real last_modified timestamp, falling back to
     // numeric series ID (higher = newer) when the provider doesn't send
@@ -54,6 +61,7 @@ private const val RECENTLY_ADDED_LIMIT = 20
 class SeriesViewModel @Inject constructor(
     observeSeriesCategoriesUseCase: ObserveSeriesCategoriesUseCase,
     observeSeriesUseCase: ObserveSeriesUseCase,
+    observeContinueWatchingUseCase: ObserveContinueWatchingUseCase,
     private val syncSeriesUseCase: SyncSeriesUseCase,
     private val getCachedSeriesUseCase: GetCachedSeriesUseCase,
     private val toggleSeriesFavoriteUseCase: ToggleSeriesFavoriteUseCase
@@ -84,6 +92,14 @@ class SeriesViewModel @Inject constructor(
                             loadError = if (series.isNotEmpty()) null else it.loadError
                         )
                     }
+                }
+            }
+        }
+        viewModelScope.launch {
+            runCatching {
+                observeContinueWatchingUseCase().collect { items ->
+                    val episodesOnly = items.filter { it.contentType == ContentType.EPISODE }
+                    _uiState.update { it.copy(continueWatching = episodesOnly) }
                 }
             }
         }

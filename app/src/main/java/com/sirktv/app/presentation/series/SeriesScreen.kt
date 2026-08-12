@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sirktv.app.domain.model.Category
 import com.sirktv.app.domain.model.Series
+import com.sirktv.app.domain.model.WatchProgress
 import com.sirktv.app.domain.util.RecentlyAdded
 import com.sirktv.app.presentation.common.SectionErrorState
 import com.sirktv.app.presentation.common.SectionLoadingState
@@ -69,6 +70,7 @@ private val CategoryRowSelectedBg = SirKTVPrimaryContainer
 @Composable
 fun SeriesScreen(
     onSeriesSelected: (seriesId: String) -> Unit,
+    onEpisodeSelected: (contentId: String) -> Unit,
     onSearch: () -> Unit,
     viewModel: SeriesViewModel = hiltViewModel()
 ) {
@@ -119,9 +121,11 @@ fun SeriesScreen(
 
                 Box(Modifier.weight(1f).fillMaxHeight().padding(Dimens.SpaceLg)) {
                     SeriesContent(
+                        continueWatching = uiState.continueWatching,
                         recentlyAdded = uiState.recentlyAdded,
                         series = uiState.visibleSeries,
                         onSeriesSelected = onSeriesSelected,
+                        onEpisodeSelected = onEpisodeSelected,
                         onToggleFavorite = viewModel::onToggleFavorite,
                         focusRequester = contentFocusRequester,
                         firstItemFocusRequester = firstContentItemFocusRequester,
@@ -235,23 +239,28 @@ private fun SeriesCategoryRow(name: String, count: Int, selected: Boolean, onCli
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun SeriesContent(
+    continueWatching: List<WatchProgress>,
     recentlyAdded: List<Series>,
     series: List<Series>,
     onSeriesSelected: (String) -> Unit,
+    onEpisodeSelected: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
     focusRequester: FocusRequester,
     firstItemFocusRequester: FocusRequester,
     emptyMessage: String
 ) {
-    if (series.isEmpty() && recentlyAdded.isEmpty()) {
+    if (series.isEmpty() && recentlyAdded.isEmpty() && continueWatching.isEmpty()) {
         Text(emptyMessage, color = SirKTVOnSurfaceMuted, fontSize = 13.sp)
         return
     }
-    // Whichever card renders first — Recently Added's first item if that row
-    // exists, otherwise the grid's first series — is the one Right from the
-    // category list should land on; see SeriesCategorySidebar's doc comment
-    // for why this must be a specific item, not the LazyVerticalGrid itself.
-    val firstCardId = recentlyAdded.firstOrNull()?.id ?: series.firstOrNull()?.id
+    // Whichever card renders first — Continue Watching's first item, then
+    // Recently Added's, then the grid's first series — is the one Right from
+    // the category list should land on; see SeriesCategorySidebar's doc
+    // comment for why this must be a specific item, not the LazyVerticalGrid
+    // itself. Mirrors MoviesRows' identical priority order for Movies.
+    val firstCardId = continueWatching.firstOrNull()?.contentId
+        ?: recentlyAdded.firstOrNull()?.id
+        ?: series.firstOrNull()?.id
     LazyVerticalGrid(
         // Fixed(5), not Adaptive — Adaptive stretches every card to fill
         // whatever cell width it computes, which is exactly what made cards
@@ -268,6 +277,23 @@ private fun SeriesContent(
             .focusRequester(focusRequester)
             .focusRestorer()
     ) {
+        if (continueWatching.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                MediaRow(title = "Continue Watching", rowItems = continueWatching) { progress ->
+                    MediaCard(
+                        title = progress.title,
+                        imageUrl = progress.imageUrl,
+                        subtitle = progress.subtitle,
+                        aspectRatio = 2f / 3f,
+                        progressFraction = progress.progressFraction,
+                        onClick = { onEpisodeSelected(progress.contentId) },
+                        modifier = Modifier.width(PosterCardWidth).then(
+                            if (progress.contentId == firstCardId) Modifier.focusRequester(firstItemFocusRequester) else Modifier
+                        )
+                    )
+                }
+            }
+        }
         if (recentlyAdded.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 MediaRow(title = "Recently Added", rowItems = recentlyAdded) { item ->

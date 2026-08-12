@@ -15,12 +15,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.sirktv.app.domain.model.ContentIds
 import com.sirktv.app.presentation.common.SirKTVNavItem
 import com.sirktv.app.presentation.favorites.FavoritesScreen
 import com.sirktv.app.presentation.home.HomeScreen
 import com.sirktv.app.presentation.livetv.LiveTvBrowseScreen
 import com.sirktv.app.presentation.livetv.LiveTvPlayerScreen
 import com.sirktv.app.presentation.login.LoginScreen
+import com.sirktv.app.presentation.movies.MovieDetailScreen
 import com.sirktv.app.presentation.movies.MoviesScreen
 import com.sirktv.app.presentation.search.SearchScreen
 import com.sirktv.app.presentation.series.SeriesDetailScreen
@@ -188,16 +190,31 @@ fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
 
             composable(SirKTVDestinations.MOVIES) {
                 MoviesScreen(
-                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
+                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.movieDetail(movieId)) },
                     onSearch = {
                         navController.navigate(SirKTVDestinations.search(section = SirKTVDestinations.SearchSection.MOVIES)) { launchSingleTop = true }
                     }
                 )
             }
 
+            composable(
+                route = SirKTVDestinations.MOVIE_DETAIL,
+                arguments = listOf(navArgument("movieId") { type = NavType.StringType })
+            ) {
+                MovieDetailScreen(
+                    onPlay = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
             composable(SirKTVDestinations.SERIES) {
                 SeriesScreen(
                     onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) },
+                    onEpisodeSelected = { contentId ->
+                        ContentIds.parseEpisode(contentId)?.let { (seriesId, season, episode) ->
+                            navController.navigate(SirKTVDestinations.episodePlayer(seriesId, season, episode))
+                        }
+                    },
                     onSearch = {
                         navController.navigate(SirKTVDestinations.search(section = SirKTVDestinations.SearchSection.SERIES)) { launchSingleTop = true }
                     }
@@ -219,7 +236,7 @@ fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
             composable(SirKTVDestinations.FAVORITES) {
                 FavoritesScreen(
                     onLiveSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
-                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
+                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.movieDetail(movieId)) },
                     onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) }
                 )
             }
@@ -233,7 +250,7 @@ fun SirKTVNavHost(navigationCommandBus: NavigationCommandBus) {
             ) {
                 SearchScreen(
                     onChannelSelected = { channelId -> navController.navigate(SirKTVDestinations.liveTv(channelId)) },
-                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.moviePlayer(movieId)) },
+                    onMovieSelected = { movieId -> navController.navigate(SirKTVDestinations.movieDetail(movieId)) },
                     onSeriesSelected = { seriesId -> navController.navigate(SirKTVDestinations.seriesDetail(seriesId)) }
                 )
             }

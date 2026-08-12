@@ -10,6 +10,7 @@ import com.sirktv.app.network.dto.SeriesDto
 import com.sirktv.app.network.dto.SeriesInfoResponseDto
 import com.sirktv.app.network.dto.XtreamCategoryDto
 import com.sirktv.app.storage.db.CategoryEntity
+import com.sirktv.app.storage.db.EpisodeEntity
 import com.sirktv.app.storage.db.SeriesEntity
 import com.sirktv.app.storage.db.SeriesWithFavorite
 
@@ -51,13 +52,14 @@ internal object SeriesMapper {
         isFavorite = row.isFavorite
     )
 
-    fun toSeriesInfo(seriesId: String, dto: SeriesInfoResponseDto): SeriesInfo {
-        val seasons = dto.episodes.orEmpty().mapNotNull { (seasonKey, episodeDtos) ->
-            val seasonNumber = seasonKey.toIntOrNull() ?: return@mapNotNull null
-            val episodes = episodeDtos.mapNotNull { episodeDto ->
+    /** Flattened for [com.sirktv.app.storage.db.EpisodeDao.insertAll] — the network shape (grouped by season key) isn't what Room stores. */
+    fun toEpisodeEntities(seriesId: String, dto: SeriesInfoResponseDto): List<EpisodeEntity> =
+        dto.episodes.orEmpty().flatMap { (seasonKey, episodeDtos) ->
+            val seasonNumber = seasonKey.toIntOrNull() ?: return@flatMap emptyList()
+            episodeDtos.mapNotNull { episodeDto ->
                 val episodeId = episodeDto.id ?: return@mapNotNull null
                 val episodeNumber = episodeDto.episodeNum ?: return@mapNotNull null
-                Episode(
+                EpisodeEntity(
                     id = episodeId,
                     seriesId = seriesId,
                     seasonNumber = seasonNumber,
@@ -67,10 +69,28 @@ internal object SeriesMapper {
                     containerExtension = episodeDto.containerExtension?.takeIf { it.isNotBlank() } ?: "mp4",
                     synopsis = episodeDto.info?.plot?.takeIf { it.isNotBlank() }
                 )
-            }.sortedBy { it.episodeNumber }
-            SeasonInfo(seasonNumber, episodes)
-        }.sortedBy { it.seasonNumber }
+            }
+        }
 
+    /** Regroups the flat Room rows back into the season/episode shape [SeriesDetailScreen] renders — same grouping [toEpisodeEntities] flattens away. */
+    fun toSeriesInfo(entities: List<EpisodeEntity>): SeriesInfo {
+        val seasons = entities
+            .groupBy { it.seasonNumber }
+            .map { (seasonNumber, episodeEntities) ->
+                SeasonInfo(seasonNumber, episodeEntities.sortedBy { it.episodeNumber }.map(::toEpisode))
+            }
+            .sortedBy { it.seasonNumber }
         return SeriesInfo(seasons)
     }
+
+    private fun toEpisode(entity: EpisodeEntity): Episode = Episode(
+        id = entity.id,
+        seriesId = entity.seriesId,
+        seasonNumber = entity.seasonNumber,
+        episodeNumber = entity.episodeNumber,
+        title = entity.title,
+        durationMinutes = entity.durationMinutes,
+        containerExtension = entity.containerExtension,
+        synopsis = entity.synopsis
+    )
 }

@@ -11,9 +11,10 @@ import androidx.room.RoomDatabase
         MovieEntity::class,
         SeriesEntity::class,
         WatchProgressEntity::class,
-        SearchHistoryEntity::class
+        SearchHistoryEntity::class,
+        EpisodeEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,4 +24,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun favoriteDao(): FavoriteDao
     abstract fun watchProgressDao(): WatchProgressDao
     abstract fun searchHistoryDao(): SearchHistoryDao
+    abstract fun episodeDao(): EpisodeDao
 }

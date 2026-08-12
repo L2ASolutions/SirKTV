@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.sirktv.app.storage.db.AppDatabase
 import com.sirktv.app.storage.db.ChannelDao
+import com.sirktv.app.storage.db.EpisodeDao
 import com.sirktv.app.storage.db.FavoriteDao
 import com.sirktv.app.storage.db.MovieDao
 import com.sirktv.app.storage.db.SearchHistoryDao
@@ -55,4 +56,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideSearchHistoryDao(database: AppDatabase): SearchHistoryDao = database.searchHistoryDao()
+
+    @Provides
+    @Singleton
+    fun provideEpisodeDao(database: AppDatabase): EpisodeDao = database.episodeDao()
 }

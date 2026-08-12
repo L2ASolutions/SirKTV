@@ -8,6 +8,7 @@ object SirKTVDestinations {
     const val SPORTS = "sports"
     const val SETTINGS = "settings"
     const val MOVIES = "movies"
+    const val MOVIE_DETAIL = "movie_detail/{movieId}"
     const val SERIES = "series"
     const val SERIES_DETAIL = "series_detail/{seriesId}"
     const val FAVORITES = "favorites"
@@ -23,6 +24,7 @@ object SirKTVDestinations {
     }
 
     fun liveTv(channelId: String) = "live_tv/$channelId"
+    fun movieDetail(movieId: String) = "movie_detail/$movieId"
     fun seriesDetail(seriesId: String) = "series_detail/$seriesId"
     fun moviePlayer(movieId: String) = "movie_player/$movieId"
     fun episodePlayer(seriesId: String, season: Int, episode: Int) = "episode_player/$seriesId/$season/$episode"

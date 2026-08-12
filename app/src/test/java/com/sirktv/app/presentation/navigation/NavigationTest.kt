@@ -39,6 +39,7 @@ class NavigationTest {
         assertTrue(centralBackHandlerEnabled(SirKTVDestinations.SERIES))
         assertTrue(centralBackHandlerEnabled(SirKTVDestinations.SPORTS))
         assertTrue(centralBackHandlerEnabled(SirKTVDestinations.SERIES_DETAIL))
+        assertTrue(centralBackHandlerEnabled(SirKTVDestinations.MOVIE_DETAIL))
         assertTrue(centralBackHandlerEnabled(SirKTVDestinations.FAVORITES))
         assertTrue(centralBackHandlerEnabled(SirKTVDestinations.SETTINGS))
         assertTrue(centralBackHandlerEnabled(SirKTVDestinations.search("batman")))
