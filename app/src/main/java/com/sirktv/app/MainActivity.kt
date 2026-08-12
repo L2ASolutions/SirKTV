@@ -138,6 +138,9 @@ class MainActivity : ComponentActivity() {
     private fun installCrashRecoveryHandler() {
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
             try {
+                Log.e("SIRKTV_FATAL", "=== CRASH ===")
+                Log.e("SIRKTV_FATAL", throwable.stackTraceToString())
+                Log.e("SIRKTV_FATAL", "=== END CRASH ===")
                 Log.e("SirKTV_Crash", "Uncaught exception, recovering to Home", throwable)
                 val restartIntent = Intent(applicationContext, MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
